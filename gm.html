@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ahaji - Game Master</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="gm-page">
+
+  <header class="gm-header">
+    <div class="gm-header-left">
+      <img src="images/ahajilogo.svg" alt="Ahaji" class="gm-logo" />
+      <span class="gm-room-name" id="gm-room-name"></span>
+    </div>
+    <button class="gm-open-cast" id="btn-open-cast">Open Cast Screen</button>
+  </header>
+
+  <main class="gm-body">
+
+    <div class="gm-top-row">
+
+      <div class="gm-panel gm-timer-panel">
+        <div class="gm-timer-top-actions">
+          <button class="btn btn-accent gm-top-action-btn" id="btn-win">
+            <img class="btn-icon-svg" src="images/celebration-party-winter-svgrepo-com.svg" alt="" aria-hidden="true" />
+            WIN
+          </button>
+          <button class="btn gm-alert-btn gm-top-action-btn" id="btn-alert">
+            <svg class="btn-icon-svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1.5a3.5 3.5 0 0 1 3.5 3.5v2.5l1 1.5h-9l1-1.5V5a3.5 3.5 0 0 1 3.5-3.5z"/><path d="M5.5 11.5a1.5 1.5 0 0 0 3 0"/></svg>
+            Alert
+          </button>
+          <div class="gm-volume-ctrl" id="gm-volume-ctrl">
+            <button class="btn gm-volume-btn gm-top-action-btn" id="btn-volume">
+              <svg class="btn-icon-svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="1.5,5 4.5,5 7,2.5 7,11.5 4.5,9 1.5,9"/><path d="M9.5 4.5a3.5 3.5 0 0 1 0 5"/></svg>
+              Volume
+            </button>
+            <div class="gm-volume-popover" id="gm-volume-popover" hidden>
+              <input class="gm-volume-slider" id="alert-volume" type="range" min="0" max="1" step="0.05" value="0.5" />
+            </div>
+          </div>
+          <button class="btn gm-top-action-btn gm-reset-btn" id="btn-reset">
+            <svg class="btn-icon-svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 4.5-4.5 4.5 4.5 0 0 0-3 1.1"/><polyline points="2.5,2.5 2.5,5.5 5.5,5.5"/></svg>
+            RESET
+          </button>
+        </div>
+
+        <div class="gm-timer-container" id="gm-timer-container">
+          <div class="gm-timer-display idle" id="gm-timer-display">60:00</div>
+        </div>
+
+        <div class="gm-controls">
+          <div class="ctrl-group">
+            <button class="btn btn-primary ctrl-btn ctrl-btn-start" id="btn-start">Start</button>
+            <button class="btn ctrl-btn" id="btn-pause">Pause</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="gm-panel gm-adjust-panel">
+        <div class="time-adj">
+          <div class="time-adj-stepper">
+            <button class="btn btn-accent time-adj-btn" id="btn-sub-time" aria-label="Decrease time adjustment">-</button>
+            <input class="time-adj-input" id="time-adj-value" type="text" value="1" inputmode="numeric" lang="en" dir="ltr" spellcheck="false" />
+            <button class="btn btn-accent time-adj-btn" id="btn-add-time" aria-label="Increase time adjustment">+</button>
+          </div>
+          <span class="time-adj-unit">Minutes</span>
+        </div>
+        <button class="btn btn-primary time-adj-update" id="btn-update-time">Apply</button>
+      </div>
+
+      <div class="gm-panel gm-preview-panel">
+        <div class="gm-cast-preview cast-preview" id="gm-cast-preview">
+          <img class="cast-bg" data-cast-bg src="" alt="Room preview" />
+          <div class="cast-overlay" data-cast-overlay></div>
+          <img class="cast-logo gm-preview-logo" src="images/ahajilogo.svg" alt="Ahaji" />
+          <div class="cast-idle-room-name gm-preview-idle" data-cast-idle-name>
+            <span></span>
+          </div>
+          <div class="cast-result-screen gm-preview-result-screen" data-cast-result-screen aria-live="polite">
+            <div class="cast-result-backdrop"></div>
+            <div class="cast-result-particles cast-result-particles-win" aria-hidden="true"></div>
+            <div class="cast-result-inner">
+              <div class="cast-result-kicker" data-cast-result-kicker></div>
+              <div class="cast-result-message" data-cast-result-message>
+                <div class="cast-result-message-ar" data-cast-result-message-ar dir="rtl"></div>
+                <div class="cast-result-message-en" data-cast-result-message-en dir="ltr"></div>
+              </div>
+              <div class="cast-result-time" data-cast-result-time style="display:none;"></div>
+            </div>
+          </div>
+          <div class="cast-content gm-preview-content" data-cast-content>
+            <div class="cast-timer-wrap cast-preview-timer-wrap">
+              <div class="cast-preview-timer-frame">
+                <div class="cast-preview-timer" data-cast-timer>60:00</div>
+              </div>
+            </div>
+
+            <div class="cast-hint-area gm-preview-hint-area">
+              <div class="cast-hint-box" data-cast-hint-box style="display:none; flex-direction:column;">
+                <div class="cast-hint-text" data-cast-hint-text></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="gm-panel gm-hint-panel" id="gm-hint-panel">
+      <div class="gm-media-drop" id="gm-media-drop">
+        <div class="gm-media-drop-header" id="gm-media-header"></div>
+        <ul class="gm-media-list" id="gm-media-list"></ul>
+        <p class="gm-media-empty" id="gm-media-empty" style="display:none">No items available.</p>
+      </div>
+
+      <div class="saved-hints-drop" id="saved-hints-drop">
+        <ul class="saved-hints-list" id="saved-hints-list"></ul>
+        <p class="saved-hints-empty" id="saved-hints-empty" style="display:none">No saved hints yet.</p>
+      </div>
+
+      <div class="gm-hint-actions-row">
+        <div class="gm-media-options" id="gm-media-options">
+          <button class="btn gm-chip-btn" id="btn-show-hints">Hints<span class="chip-chevron" aria-hidden="true"></span></button>
+          <button class="btn gm-chip-btn" id="btn-show-videos">Videos<span class="chip-chevron" aria-hidden="true"></span></button>
+          <button class="btn gm-chip-btn" id="btn-show-images">Images<span class="chip-chevron" aria-hidden="true"></span></button>
+          <button class="btn gm-chip-btn" id="btn-show-sounds">Sounds<span class="chip-chevron" aria-hidden="true"></span></button>
+        </div>
+        <textarea class="hint-textarea" id="hint-input" placeholder="Type a hint for the players..."></textarea>
+        <button class="btn btn-primary hint-btn" id="btn-send-hint">Send</button>
+      </div>
+
+      <div class="gm-current-hint-block" id="gm-current-hint-block" style="display:none;">
+        <div class="gm-current-hint-row">
+          <div class="gm-current-hint-display" id="gm-current-hint-display"></div>
+          <button class="btn gm-clear-hint-btn" id="btn-clear-hint" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div class="gm-current-image-block" id="gm-current-image-block" style="display:none;">
+        <div class="gm-current-image-display" id="gm-current-image-status"></div>
+        <button class="btn gm-clear-hint-btn" id="btn-clear-image" type="button">Clear</button>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="js/app.js"></script>
+  <script src="js/gm.js"></script>
+</body>
+</html>

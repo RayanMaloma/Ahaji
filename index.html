@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ahaji — Select Room</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="index-page">
+
+  <img src="images/ahajilogo.svg" alt="Ahaji" class="index-logo" />
+  <p class="index-title">Select a Room</p>
+
+  <div class="room-grid">
+
+    <div class="room-card" data-room="anbar">
+      <img src="images/prison.jpg" alt="Prison" />
+      <div class="room-card-overlay">
+        <span class="room-card-name">Prison</span>
+      </div>
+    </div>
+
+    <div class="room-card" data-room="haram">
+      <img src="images/pyramid.png" alt="Pyramid" />
+      <div class="room-card-overlay">
+        <span class="room-card-name">Pyramid</span>
+      </div>
+    </div>
+
+    <div class="room-card" data-room="saleh">
+      <img src="images/unclesaleh.png" alt="Uncle Saleh" />
+      <div class="room-card-overlay">
+        <span class="room-card-name">Uncle Saleh</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+  document.querySelectorAll('.room-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const roomId = card.dataset.room;
+      const state = createInitialState(roomId);
+      saveState(state);
+      window.location.href = `gm.html?room=${roomId}`;
+    });
+  });
+</script>
+</body>
+</html>
