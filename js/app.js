@@ -215,6 +215,7 @@ function renderCastView(state, els, options = {}) {
 
   const hint = state.hintText ? state.hintText.trim() : '';
   if (els.hintBox && els.hintText) {
+    els.hintText.dir = 'auto';
     if (resultMode !== 'normal') {
       els.hintText.textContent = '';
       els.hintText.className = 'cast-hint-text';

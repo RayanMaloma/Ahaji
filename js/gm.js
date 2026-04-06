@@ -189,6 +189,8 @@
   }
 
   function handleWin() {
+    clearInterval(timerInterval);
+    state.status = 'paused';
     state.viewMode = 'win';
     state.resultState = 'win';
     state.isWin = true;

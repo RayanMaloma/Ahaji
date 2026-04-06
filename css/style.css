@@ -253,6 +253,7 @@ html, body {
   margin-bottom: 0.4rem;
 }
 
+
 .gm-top-action-btn {
   display: flex;
   align-items: center;
@@ -756,8 +757,7 @@ html, body {
   line-height: 1.25;
   text-align: center;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: pre-wrap;
 }
 
 .cast-preview .cast-hint-text.empty {
@@ -1522,7 +1522,9 @@ html, body {
   font-size: clamp(1.1rem, 2.6vw, 2.1rem);
   color: #ffffff;
   line-height: 1.45;
-  font-weight: 500;
+  font-weight: 400;
+  unicode-bidi: plaintext;
+  white-space: pre-wrap;
   text-shadow: 0 2px 16px rgba(0,0,0,0.85);
 }
 
