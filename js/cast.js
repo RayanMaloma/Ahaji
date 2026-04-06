@@ -1,19 +1,21 @@
 // Cast page logic
 
 (function () {
-  const bootstrap = window.__CAST_BOOTSTRAP__ || null;
-  const roomId =
-    (bootstrap && bootstrap.roomId) ||
-    new URLSearchParams(window.location.search).get('room') ||
-    'default';
+  const roomId = new URLSearchParams(window.location.search).get('room') || 'default';
   const channel = new BroadcastChannel(getChannelName(roomId));
   const els = getCastViewElements(document);
 
   // Browsers block Audio().play() and AudioContext until the page has received
-  // at least one user gesture. The popup bootstrap uses the GM click first.
+  // at least one user gesture, so the cast page starts with a blocking unlock screen.
   let audioUnlocked = false;
-  let pendingSound = null;   // stores the first sound that arrived before unlock
+  let pendingSound = null;
   let sharedAudioContext = window.__CAST_SHARED_AUDIO_CONTEXT__ || null;
+  const audioUnlockOverlay = document.getElementById('cast-audio-unlock');
+
+  function syncAudioUnlockUi() {
+    if (!audioUnlockOverlay) return;
+    audioUnlockOverlay.hidden = audioUnlocked;
+  }
 
   function getAudioContext() {
     if (!sharedAudioContext) {
@@ -26,6 +28,7 @@
   function finalizeAudioUnlock(source) {
     if (audioUnlocked) return;
     audioUnlocked = true;
+    syncAudioUnlockUi();
 
     if (pendingSound) {
       const fn = pendingSound;
@@ -36,26 +39,47 @@
     console.info(`[cast] Audio unlocked via ${source}.`);
   }
 
-  function applyBootstrapPrimeState() {
-    const primeState = window.__CAST_BOOTSTRAP__;
+  function unlockAudio() {
+    if (audioUnlocked) return Promise.resolve();
 
-    if (!primeState) return;
+    let resumePromise = Promise.resolve();
 
-    if (primeState.audioPrimed) {
-      finalizeAudioUnlock('GM popup open gesture');
-      return;
+    try {
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        resumePromise = ctx.resume();
+      }
+    } catch (err) {
+      console.warn('[cast] AudioContext unlock setup failed:', err);
     }
 
-    if (primeState.audioPrimeAttempted && primeState.audioPrimeFailed) {
-      console.warn(
-        '[cast] Popup audio priming did not complete.',
-        primeState.audioPrimeError || ''
-      );
-    }
+    return Promise.resolve(resumePromise)
+      .catch(err => {
+        console.warn('[cast] AudioContext resume failed during unlock:', err);
+      })
+      .finally(() => {
+        finalizeAudioUnlock('cast unlock overlay');
+      });
   }
 
-  window.addEventListener('cast-audio-prime-result', applyBootstrapPrimeState);
-  applyBootstrapPrimeState();
+  syncAudioUnlockUi();
+
+  if (audioUnlockOverlay) {
+    const handleUnlockInteraction = event => {
+      if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+
+      if (event.type === 'keydown') {
+        event.preventDefault();
+      }
+
+      unlockAudio();
+    };
+
+    audioUnlockOverlay.addEventListener('click', handleUnlockInteraction);
+    audioUnlockOverlay.addEventListener('keydown', handleUnlockInteraction);
+  }
 
   function applyState(nextState) {
     if (!nextState) return;
@@ -79,6 +103,7 @@
       if (!pendingSound) pendingSound = () => playRoomNotificationSound(volume);
       return;
     }
+
     const vol = typeof volume === 'number' ? Math.max(0, Math.min(1, volume)) : 1;
     const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
 
@@ -125,6 +150,7 @@
       if (!pendingSound) pendingSound = triggerLoseMedia;
       return;
     }
+
     const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
     if (roomMedia.loseVideo) {
       const videoEl = document.getElementById('cast-lose-video');

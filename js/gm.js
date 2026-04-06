@@ -275,152 +275,8 @@
     channel.postMessage({ type: 'alert', volume });
   }
 
-  function getCastPopupBaseHref() {
-    return new URL('./', window.location.href).href;
-  }
-
-  function buildCastPopupHtml(targetRoomId) {
-    const baseHref = getCastPopupBaseHref();
-    const roomLiteral = JSON.stringify(targetRoomId);
-    const baseLiteral = JSON.stringify(baseHref);
-
-    return `<!DOCTYPE html>
-<html lang="en" dir="ltr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ahaji - Cast</title>
-  <base href=${baseLiteral} />
-  <link rel="stylesheet" href="css/style.css" />
-</head>
-<body class="cast-page">
-
-  <img class="cast-bg" id="cast-bg" src="" alt="Room" />
-  <div class="cast-overlay" id="cast-overlay"></div>
-  <img class="cast-logo" src="images/ahajilogo.svg" alt="Ahaji" />
-
-  <div class="cast-idle-room-name" id="cast-idle-name">
-    <span></span>
-  </div>
-
-  <div class="cast-result-screen" id="cast-result-screen" aria-live="polite">
-    <div class="cast-result-backdrop"></div>
-    <div class="cast-result-particles cast-result-particles-win" aria-hidden="true"></div>
-    <div class="cast-result-inner">
-      <div class="cast-result-kicker" id="cast-result-kicker"></div>
-      <div class="cast-result-message" id="cast-result-message">
-        <div class="cast-result-message-ar" id="cast-result-message-ar" dir="rtl"></div>
-        <div class="cast-result-message-en" id="cast-result-message-en" dir="ltr"></div>
-      </div>
-      <div class="cast-result-time" id="cast-result-time" style="display:none;"></div>
-    </div>
-  </div>
-
-  <div class="cast-content" id="cast-content">
-    <div class="cast-timer-wrap">
-      <div class="cast-timer" id="cast-timer">60:00</div>
-    </div>
-
-    <div class="cast-hint-area">
-      <div class="cast-hint-box" id="cast-hint-box" style="display:none; flex-direction:column;">
-        <div class="cast-hint-text" id="cast-hint-text"></div>
-      </div>
-    </div>
-  </div>
-
-  <video id="cast-lose-video"
-         style="display:none; position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:500; background:#000;"
-         playsinline></video>
-
-  <div id="cast-image-overlay" style="display:none;">
-    <img id="cast-image-overlay-img" alt="" />
-  </div>
-
-  <button class="cast-audio-unlock-btn" id="cast-audio-unlock" type="button" hidden>
-    ط§ط¶ط؛ط· ظ‡ظ†ط§
-  </button>
-
-  <script>
-    (function () {
-      const bootstrap = {
-        roomId: ${roomLiteral},
-        audioPrimed: false,
-        audioPrimeAttempted: false,
-        audioPrimeFailed: false,
-        audioPrimeError: null
-      };
-
-      window.__CAST_BOOTSTRAP__ = bootstrap;
-
-      function publishPrimeResult() {
-        window.dispatchEvent(new CustomEvent('cast-audio-prime-result', {
-          detail: { ...bootstrap }
-        }));
-      }
-
-      try {
-        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextCtor) {
-          throw new Error('AudioContext is not available in this browser.');
-        }
-
-        const ctx = window.__CAST_SHARED_AUDIO_CONTEXT__ || new AudioContextCtor();
-        window.__CAST_SHARED_AUDIO_CONTEXT__ = ctx;
-
-        const resumePromise = ctx.state === 'suspended'
-          ? ctx.resume()
-          : Promise.resolve();
-
-        const silentAudio = new Audio();
-        silentAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAEAAQARTQAAEAgAAAIAIgAZGF0YQAAAAA=';
-        silentAudio.volume = 0;
-
-        Promise.all([resumePromise, silentAudio.play()]).then(() => {
-          bootstrap.audioPrimed = true;
-          bootstrap.audioPrimeAttempted = true;
-          publishPrimeResult();
-          console.info('[cast] Audio primed during GM popup open gesture.');
-        }).catch(err => {
-          bootstrap.audioPrimeAttempted = true;
-          bootstrap.audioPrimeFailed = true;
-          bootstrap.audioPrimeError = err && err.message ? err.message : String(err);
-          publishPrimeResult();
-          console.warn('[cast] Popup audio priming failed:', err);
-        });
-      } catch (err) {
-        bootstrap.audioPrimeAttempted = true;
-        bootstrap.audioPrimeFailed = true;
-        bootstrap.audioPrimeError = err && err.message ? err.message : String(err);
-        publishPrimeResult();
-        console.warn('[cast] Popup audio priming setup failed:', err);
-      }
-    })();
-  </script>
-  <script src="js/app.js"></script>
-  <script src="js/cast.js"></script>
-</body>
-</html>`;
-  }
-
-  function openCastWindow() {
-    const popup = window.open('', 'ahaji-cast', 'popup=yes,width=1280,height=800');
-
-    if (!popup) {
-      console.error('[gm] Cast popup was blocked or could not be opened.');
-      return;
-    }
-
-    try {
-      popup.document.open();
-      popup.document.write(buildCastPopupHtml(roomId));
-      popup.document.close();
-      popup.focus();
-    } catch (err) {
-      console.error('[gm] Failed to bootstrap cast popup:', err);
-      try {
-        popup.close();
-      } catch (_) {}
-    }
+  function openCastPage() {
+    window.open(`cast.html?room=${roomId}`, '_blank');
   }
 
   function loadSavedHints() {
@@ -525,7 +381,7 @@
   btnClearImage.addEventListener('click', doClearImage);
   btnAlert.addEventListener('click', playAlert);
   btnVolume.addEventListener('click', toggleVolumePopover);
-  btnOpenCast.addEventListener('click', openCastWindow);
+  btnOpenCast.addEventListener('click', openCastPage);
 
   elHintInput.addEventListener('keydown', event => {
     if (event.key === 'Enter' && !event.shiftKey) {
