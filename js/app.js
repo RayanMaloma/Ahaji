@@ -15,7 +15,7 @@ const ROOMS = {
       hintSound: 'source/prison/hint-sound.mp3',
       loseSound: 'source/prison/loose-sound.mp3',
       gmImages: [
-        { label: 'مكان فك الزنزانة', src: 'source/prison/images/مكان فك الزنزانة.jpg' }
+        { label: 'مكان فك الزنزانة', src: 'source/prison/images/مكان فك الزنزانة.png' }
       ],
       gmSounds: [
         { label: 'صوت باب العنبر', src: 'source/prison/sounds/صوت باب العنبر.mp3' }
