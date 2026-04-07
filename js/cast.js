@@ -62,6 +62,34 @@
       });
   }
 
+  // --- Fullscreen helpers ---
+  const fullscreenBtn = document.getElementById('cast-fullscreen-btn');
+
+  function enterFullscreen() {
+    const el = document.documentElement;
+    const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (rfs) {
+      rfs.call(el).catch(err => console.warn('[cast] Fullscreen request failed:', err));
+    }
+  }
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  }
+
+  function syncFullscreenBtn() {
+    if (!fullscreenBtn) return;
+    fullscreenBtn.style.display = isFullscreen() ? 'none' : 'flex';
+  }
+
+  document.addEventListener('fullscreenchange', syncFullscreenBtn);
+  document.addEventListener('webkitfullscreenchange', syncFullscreenBtn);
+
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', enterFullscreen);
+  }
+
+  syncFullscreenBtn();
   syncAudioUnlockUi();
 
   if (audioUnlockOverlay) {
@@ -91,7 +119,7 @@
 
     if (nextState.activeImageSrc) {
       imgEl.src = nextState.activeImageSrc;
-      overlayEl.style.display = 'flex';
+      overlayEl.style.display = 'block';
     } else {
       overlayEl.style.display = 'none';
       imgEl.src = '';
