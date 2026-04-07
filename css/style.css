@@ -208,17 +208,18 @@ html, body {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr;
   gap: 0.875rem;
-  max-width: 1200px;  
-  margin: 0 auto;    
-  padding: 1rem 1.75rem 1.25rem;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0.75rem 0.75rem 0.75rem;
 }
 
 /* ── Top row ── */
 .gm-top-row {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(180px, 220px) minmax(280px, 1fr);
+  grid-template-columns: minmax(280px, 1fr) minmax(180px, 260px) minmax(280px, 1fr);
   gap: 0.875rem;
   min-height: 0;
   align-items: stretch;
@@ -603,18 +604,16 @@ html, body {
    (height:100% is unreliable when parent height comes from grid layout)  */
 .gm-preview-panel {
   display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
-  padding: 0.75rem;
+  padding: 0;
   min-width: 0;
+  aspect-ratio: 16 / 9;
 }
 
 .gm-cast-preview {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: 100%;
+  height: 100%;
   overflow: hidden;
   background: #000;
   isolation: isolate;
