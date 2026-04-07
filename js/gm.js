@@ -22,7 +22,30 @@
   document.title = `${state.roomName} - Game Master`;
 
   let timerInterval = null;
-  const HINTS_KEY = 'ahaji-saved-hints';
+  const HINTS_KEY = 'ahaji-saved-hints-' + roomId;
+
+  const HINTS_FILE = {
+    anbar: 'hints/prison.txt',
+    haram:  'hints/pyramid.txt',
+    saleh:  'hints/uncle-saleh.txt',
+  };
+
+  let roomHints = []; // hints loaded from the room's .txt file
+
+  async function loadRoomHints() {
+    const file = HINTS_FILE[roomId];
+    if (!file) return;
+    try {
+      const res = await fetch(file);
+      if (!res.ok) return;
+      const text = await res.text();
+      roomHints = text.split('\n').map(l => l.trim()).filter(Boolean);
+    } catch {
+      roomHints = [];
+    }
+  }
+
+  loadRoomHints();
 
   const elRoomName = document.getElementById('gm-room-name');
   const elTimerDisp = document.getElementById('gm-timer-display');
@@ -304,16 +327,32 @@
   }
 
   function renderSavedDrop() {
-    const hints = loadSavedHints();
+    const saved = loadSavedHints();
     elSavedList.innerHTML = '';
 
-    if (hints.length === 0) {
-      elSavedEmpty.style.display = 'block';
-      return;
-    }
+    const allEmpty = roomHints.length === 0 && saved.length === 0;
+    elSavedEmpty.style.display = allEmpty ? 'block' : 'none';
+    if (allEmpty) return;
 
-    elSavedEmpty.style.display = 'none';
-    hints.forEach((hint, index) => {
+    // Room hints from .txt file — click to use, no delete
+    roomHints.forEach(hint => {
+      const li = document.createElement('li');
+      li.className = 'saved-hint-item saved-hint-room';
+
+      const textSpan = document.createElement('span');
+      textSpan.className = 'saved-hint-text';
+      textSpan.textContent = hint;
+      textSpan.addEventListener('click', () => {
+        elHintInput.value = hint;
+        elSavedDrop.classList.remove('visible');
+      });
+
+      li.appendChild(textSpan);
+      elSavedList.appendChild(li);
+    });
+
+    // Manually saved hints — click to use, × to delete
+    saved.forEach((hint, index) => {
       const li = document.createElement('li');
       li.className = 'saved-hint-item';
 

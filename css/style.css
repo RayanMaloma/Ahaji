@@ -848,7 +848,7 @@ html, body {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 0.4rem;
-  flex: 0 0 192px;
+  flex: 0 0 320px;
   align-self: stretch;
   min-width: 0;
 }
@@ -859,7 +859,7 @@ html, body {
   justify-content: space-between;
   padding: 0 0.65rem;
   border-radius: 6px;
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   background: var(--surface2);
@@ -1079,6 +1079,9 @@ html, body {
 }
 
 .saved-hint-del:hover { color: var(--danger); }
+
+.saved-hint-room { opacity: 0.75; }
+.saved-hint-room:hover { opacity: 1; background: rgba(255,255,255,0.04); }
 
 .saved-hints-empty {
   font-size: 0.8rem;
