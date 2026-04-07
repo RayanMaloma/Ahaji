@@ -10,7 +10,7 @@ function getStateKey(roomId) {
 
 const ROOMS = {
   anbar: {
-    id: 'anbar', name: 'Prison', image: 'images/prison.jpg',
+    id: 'anbar', name: 'Prison', image: 'source/prison/background.jpg',
     media: {
       hintSound: 'source/prison/hint-sound.mp3',
       loseSound: 'source/prison/loose-sound.mp3',
@@ -23,13 +23,13 @@ const ROOMS = {
     }
   },
   haram: {
-    id: 'haram', name: 'Pyramid', image: 'images/pyramid.png',
+    id: 'haram', name: 'Pyramid', image: 'source/pyramid/background.jpg',
     media: {
       hintSound: 'source/pyramid/hint-sound.mp3'
     }
   },
   saleh: {
-    id: 'saleh', name: 'Uncle Saleh', image: 'images/unclesaleh.png',
+    id: 'saleh', name: 'Uncle Saleh', image: 'source/unclesaleh/background.jpg',
     media: {
       hintSound: 'source/unclesaleh/hint-sound.mp3',
       loseVideo: 'source/unclesaleh/loose-video.mp4'
@@ -75,7 +75,7 @@ function createInitialState(roomId) {
 
 function resetGameState(currentState) {
   const initialState = createInitialState(currentState.roomId);
-  const reset = {
+  return {
     ...currentState,
     ...initialState,
     viewMode: 'normal',
@@ -85,8 +85,6 @@ function resetGameState(currentState) {
     hintText: '',
     activeImageSrc: null
   };
-  delete reset.loseMode;
-  return reset;
 }
 
 function setLoseState(currentState) {
