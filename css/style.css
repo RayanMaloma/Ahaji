@@ -219,7 +219,6 @@ html, body {
 .gm-top-row {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(180px, 220px) minmax(280px, 1fr);
-  grid-template-rows: 1fr;   /* explicit row so children can fill height */
   gap: 0.875rem;
   min-height: 0;
   align-items: stretch;
@@ -604,21 +603,22 @@ html, body {
    (height:100% is unreliable when parent height comes from grid layout)  */
 .gm-preview-panel {
   display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
-  padding: 0;
+  padding: 0.75rem;
   min-width: 0;
-  min-height: 0;
-  container-type: inline-size;
 }
 
 .gm-cast-preview {
   position: relative;
-  flex: 1;
   width: 100%;
-  height: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 100%;
   overflow: hidden;
   background: #000;
   isolation: isolate;
+  container-type: inline-size;
 }
 
 .gm-preview-logo {
@@ -979,7 +979,7 @@ html, body {
   }
 
   .gm-preview-panel {
-    min-height: 320px;
+    align-self: auto;
   }
 
   .gm-hint-actions-row {
