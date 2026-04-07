@@ -115,14 +115,23 @@
 
     const overlayEl = document.getElementById('cast-image-overlay');
     const imgEl = document.getElementById('cast-image-overlay-img');
-    if (!overlayEl || !imgEl) return;
+    if (overlayEl && imgEl) {
+      if (nextState.activeImageSrc) {
+        imgEl.src = nextState.activeImageSrc;
+        overlayEl.style.display = 'block';
+      } else {
+        overlayEl.style.display = 'none';
+        imgEl.src = '';
+      }
+    }
 
-    if (nextState.activeImageSrc) {
-      imgEl.src = nextState.activeImageSrc;
-      overlayEl.style.display = 'block';
-    } else {
-      overlayEl.style.display = 'none';
-      imgEl.src = '';
+    // Hide and stop the lose video whenever we're not in an active lose+video state
+    const videoEl = document.getElementById('cast-lose-video');
+    if (videoEl && (nextState.viewMode !== 'lose' || nextState.loseMode !== 'video')) {
+      videoEl.style.display = 'none';
+      if (!videoEl.paused) videoEl.pause();
+      videoEl.removeAttribute('src');
+      videoEl.load();
     }
   }
 

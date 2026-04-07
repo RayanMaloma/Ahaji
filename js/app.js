@@ -75,7 +75,7 @@ function createInitialState(roomId) {
 
 function resetGameState(currentState) {
   const initialState = createInitialState(currentState.roomId);
-  return {
+  const reset = {
     ...currentState,
     ...initialState,
     viewMode: 'normal',
@@ -85,6 +85,8 @@ function resetGameState(currentState) {
     hintText: '',
     activeImageSrc: null
   };
+  delete reset.loseMode;
+  return reset;
 }
 
 function setLoseState(currentState) {
