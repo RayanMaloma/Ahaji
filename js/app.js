@@ -78,10 +78,35 @@ function createInitialState(roomId, sessionId) {
     viewMode: 'normal',
     status: 'idle',
     remainingSeconds: 3600,
+    endsAt: null,
     hintText: '',
     activeImageSrc: null,
     lastUpdatedAt: Date.now()
   };
+}
+
+// Source-of-truth timer helpers. Running timers are expressed as a wall-clock
+// endsAt (ms since epoch). Idle/paused/ended timers store remainingSeconds.
+// This keeps the timer accurate even when a tab is throttled in the background.
+function getRemainingMs(state) {
+  if (!state) return 0;
+  if (state.status === 'running' && typeof state.endsAt === 'number') {
+    return Math.max(0, state.endsAt - Date.now());
+  }
+  const secs = typeof state.remainingSeconds === 'number' ? state.remainingSeconds : 0;
+  return Math.max(0, secs * 1000);
+}
+
+function getDisplaySeconds(state) {
+  return Math.ceil(getRemainingMs(state) / 1000);
+}
+
+function freezeRunningTimer(state) {
+  if (state && state.status === 'running' && typeof state.endsAt === 'number') {
+    state.remainingSeconds = Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000));
+    state.endsAt = null;
+  }
+  return state;
 }
 
 function resetGameState(currentState) {
@@ -89,6 +114,7 @@ function resetGameState(currentState) {
   return {
     ...currentState,
     ...initialState,
+    endsAt: null,
     viewMode: 'normal',
     resultState: 'normal',
     isWin: false,
@@ -199,7 +225,7 @@ function renderCastView(state, els, options = {}) {
 
   if (els.resultTime) {
     if (resultMode === 'win') {
-      els.resultTime.textContent = formatTime(state.remainingSeconds);
+      els.resultTime.textContent = formatTime(getDisplaySeconds(state));
       els.resultTime.style.display = 'block';
     } else {
       els.resultTime.textContent = '';
@@ -208,7 +234,7 @@ function renderCastView(state, els, options = {}) {
   }
 
   if (els.timer) {
-    els.timer.textContent = formatTime(state.remainingSeconds);
+    els.timer.textContent = formatTime(getDisplaySeconds(state));
     const baseClassName =
       els.timer.dataset.baseClassName ||
       els.timer.className

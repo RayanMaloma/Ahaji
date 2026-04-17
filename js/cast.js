@@ -143,9 +143,41 @@
     audioUnlockOverlay.addEventListener('keydown', handleUnlockInteraction);
   }
 
+  // Cast keeps its own local copy of the latest state so the tick loop can
+  // re-derive the displayed remaining time from endsAt on every frame, even
+  // between GM broadcasts (so the clock stays smooth and accurate regardless
+  // of GM tab throttling).
+  let currentState = null;
+  let renderIntervalId = null;
+
+  function stopRenderLoop() {
+    if (renderIntervalId !== null) {
+      clearInterval(renderIntervalId);
+      renderIntervalId = null;
+    }
+  }
+
+  function startRenderLoop() {
+    if (renderIntervalId !== null) return;
+    renderIntervalId = setInterval(() => {
+      if (!currentState || currentState.status !== 'running') {
+        stopRenderLoop();
+        return;
+      }
+      renderCastView(currentState, els, { updateDocumentTitle: false });
+    }, 250);
+  }
+
   function applyState(nextState) {
     if (!nextState) return;
+    currentState = nextState;
     renderCastView(nextState, els, { updateDocumentTitle: true });
+
+    if (nextState.status === 'running' && typeof nextState.endsAt === 'number') {
+      startRenderLoop();
+    } else {
+      stopRenderLoop();
+    }
 
     const overlayEl = document.getElementById('cast-image-overlay');
     const imgEl = document.getElementById('cast-image-overlay-img');

@@ -30,10 +30,33 @@
   state.sessionId = sessionId;
   state.image = ROOMS[roomId].image;
   state.activeImageSrc = state.activeImageSrc || null;
+
+  // Recover any timer that was running when the page was last open. endsAt is
+  // a wall-clock timestamp so we can compute the real remaining time even after
+  // a reload or long period of tab throttling.
+  if (state.status === 'running') {
+    if (typeof state.endsAt !== 'number') {
+      // Legacy persisted state without endsAt — fall back to paused to avoid
+      // silently losing time.
+      state.status = 'paused';
+    } else if (state.endsAt <= Date.now()) {
+      state.remainingSeconds = 0;
+      state.endsAt = null;
+      state.status = 'ended';
+      if (state.viewMode !== 'win') {
+        state = setLoseState(state);
+        const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
+        if (roomMedia.loseVideo) { state.loseMode = 'video'; } else { delete state.loseMode; }
+      }
+    }
+  }
+
   saveState(state);
   document.title = `${state.roomName} - Game Master`;
 
-  let timerInterval = null;
+  let renderIntervalId = null;
+  // One-shot latch so the timeout/lose handler only fires once per run.
+  let timeoutHandled = state.status === 'ended';
   const HINTS_KEY = 'ahaji-saved-hints-' + roomId;
 
   const HINTS_FILE = {
@@ -100,9 +123,10 @@
   elRoomName.textContent = state.roomName;
   elHintInput.value = state.hintText || '';
   render();
+  broadcast();
 
   if (state.status === 'running') {
-    startInterval();
+    startRenderLoop();
   }
 
   function broadcast() {
@@ -117,32 +141,54 @@
     }
   }
 
-  function startInterval() {
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      if (state.status !== 'running') {
-        clearInterval(timerInterval);
-        return;
-      }
+  function stopRenderLoop() {
+    if (renderIntervalId !== null) {
+      clearInterval(renderIntervalId);
+      renderIntervalId = null;
+    }
+  }
 
-      state.remainingSeconds -= 1;
-      let shouldEmitLose = false;
-      if (state.remainingSeconds <= 0) {
-        state.remainingSeconds = 0;
-        state.status = 'ended';
-        if (state.viewMode !== 'win') {
-          state = setLoseState(state);
-          const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
-          if (roomMedia.loseVideo) { state.loseMode = 'video'; } else { delete state.loseMode; }
-          shouldEmitLose = true;
-        }
-        clearInterval(timerInterval);
-      }
+  // UI-only render loop. The source of truth for elapsed time is state.endsAt
+  // (wall-clock), so even if this interval is throttled while the tab is in the
+  // background, the timer stays accurate — the next render just reads the real
+  // remaining time from Date.now() and endsAt.
+  function startRenderLoop() {
+    stopRenderLoop();
+    renderIntervalId = setInterval(tick, 250);
+  }
 
-      render();
-      broadcast();
-      if (shouldEmitLose) emitLoseMediaIfNeeded();
-    }, 1000);
+  function tick() {
+    if (state.status !== 'running') {
+      stopRenderLoop();
+      return;
+    }
+    if (getRemainingMs(state) <= 0) {
+      handleTimeout();
+      return;
+    }
+    render();
+  }
+
+  function handleTimeout() {
+    if (timeoutHandled) {
+      stopRenderLoop();
+      return;
+    }
+    timeoutHandled = true;
+    stopRenderLoop();
+    state.remainingSeconds = 0;
+    state.endsAt = null;
+    state.status = 'ended';
+    let shouldEmitLose = false;
+    if (state.viewMode !== 'win') {
+      state = setLoseState(state);
+      const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
+      if (roomMedia.loseVideo) { state.loseMode = 'video'; } else { delete state.loseMode; }
+      shouldEmitLose = true;
+    }
+    render();
+    broadcast();
+    if (shouldEmitLose) emitLoseMediaIfNeeded();
   }
 
   function doAddCounter() {
@@ -155,46 +201,66 @@
     elTimeAdjValue.value = value - 1;
   }
 
+  const MAX_SECONDS = 5999;
+
   function doUpdateTimer() {
     const minutes = parseInt(elTimeAdjValue.value, 10);
     if (isNaN(minutes)) return;
 
-    state.remainingSeconds = Math.max(0, Math.min(state.remainingSeconds + minutes * 60, 5999));
-    let shouldEmitLose = false;
-    if (state.remainingSeconds === 0 && state.status === 'running') {
-      state.status = 'ended';
-      if (state.viewMode !== 'win') {
-        state = setLoseState(state);
-        const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
-        if (roomMedia.loseVideo) { state.loseMode = 'video'; } else { delete state.loseMode; }
-        shouldEmitLose = true;
+    const deltaMs = minutes * 60 * 1000;
+
+    if (state.status === 'running') {
+      const currentMs = Math.max(0, state.endsAt - Date.now());
+      const newMs = Math.max(0, Math.min(currentMs + deltaMs, MAX_SECONDS * 1000));
+      if (newMs === 0) {
+        state.endsAt = Date.now();
+        handleTimeout();
+        return;
       }
-      clearInterval(timerInterval);
-    } else if (state.remainingSeconds > 0 && state.status === 'ended') {
-      state.status = 'paused';
+      state.endsAt = Date.now() + newMs;
+    } else {
+      const currentSecs = typeof state.remainingSeconds === 'number' ? state.remainingSeconds : 0;
+      const newSecs = Math.max(0, Math.min(currentSecs + minutes * 60, MAX_SECONDS));
+      state.remainingSeconds = newSecs;
+      if (state.status === 'ended' && newSecs > 0) {
+        state.status = 'paused';
+        timeoutHandled = false;
+        state.viewMode = 'normal';
+        state.resultState = 'normal';
+        state.isWin = false;
+        state.isLose = false;
+        delete state.loseMode;
+      }
     }
     render();
     broadcast();
-    if (shouldEmitLose) emitLoseMediaIfNeeded();
   }
 
   function doStart() {
     if (state.status !== 'idle' && state.status !== 'ended') return;
-    if (state.remainingSeconds <= 0) return;
+    const remainingSecs = typeof state.remainingSeconds === 'number' ? state.remainingSeconds : 0;
+    if (remainingSecs <= 0) return;
 
     state.status = 'running';
-    startInterval();
+    state.endsAt = Date.now() + remainingSecs * 1000;
+    timeoutHandled = false;
+    startRenderLoop();
     render();
     broadcast();
   }
 
   function doTogglePause() {
     if (state.status === 'running') {
+      state = freezeRunningTimer(state);
       state.status = 'paused';
-      clearInterval(timerInterval);
+      stopRenderLoop();
     } else if (state.status === 'paused') {
+      const remainingSecs = typeof state.remainingSeconds === 'number' ? state.remainingSeconds : 0;
+      if (remainingSecs <= 0) return;
+      state.endsAt = Date.now() + remainingSecs * 1000;
       state.status = 'running';
-      startInterval();
+      timeoutHandled = false;
+      startRenderLoop();
     }
 
     render();
@@ -224,7 +290,8 @@
   }
 
   function handleWin() {
-    clearInterval(timerInterval);
+    stopRenderLoop();
+    state = freezeRunningTimer(state);
     state.status = 'paused';
     state.viewMode = 'win';
     state.resultState = 'win';
@@ -235,8 +302,9 @@
   }
 
   function handleReset() {
-    clearInterval(timerInterval);
+    stopRenderLoop();
     state = resetGameState(state);
+    timeoutHandled = false;
     render();
     broadcast();
   }
@@ -445,7 +513,7 @@
   });
 
   function render() {
-    elTimerDisp.textContent = formatTime(state.remainingSeconds);
+    elTimerDisp.textContent = formatTime(getDisplaySeconds(state));
     elTimerDisp.className = 'gm-timer-display ' + state.status;
 
     const hasHint = Boolean(state.hintText && state.hintText.trim());
