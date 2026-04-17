@@ -1,11 +1,18 @@
 // Shared constants and utilities for Ahaji GM System
 
-function getChannelName(roomId) {
-  return 'ahaji-room-' + (roomId || 'default');
+function getChannelName(sessionId) {
+  return 'ahaji-session-' + sessionId;
 }
 
-function getStateKey(roomId) {
-  return 'ahaji-state-' + (roomId || 'default');
+function getStateKey(sessionId) {
+  return 'ahaji-state-' + sessionId;
+}
+
+function generateSessionId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
 }
 
 const ROOMS = {
@@ -44,23 +51,27 @@ function formatTime(seconds) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function saveState(state, roomId) {
+function saveState(state, sessionId) {
+  const id = sessionId || (state && state.sessionId);
+  if (!id) return;
   state.lastUpdatedAt = Date.now();
-  localStorage.setItem(getStateKey(roomId || state.roomId), JSON.stringify(state));
+  localStorage.setItem(getStateKey(id), JSON.stringify(state));
 }
 
-function loadState(roomId) {
+function loadState(sessionId) {
+  if (!sessionId) return null;
   try {
-    const raw = localStorage.getItem(getStateKey(roomId));
+    const raw = localStorage.getItem(getStateKey(sessionId));
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
-function createInitialState(roomId) {
+function createInitialState(roomId, sessionId) {
   const room = ROOMS[roomId];
   return {
+    sessionId: sessionId,
     roomId: room.id,
     roomName: room.name,
     image: room.image,
@@ -74,7 +85,7 @@ function createInitialState(roomId) {
 }
 
 function resetGameState(currentState) {
-  const initialState = createInitialState(currentState.roomId);
+  const initialState = createInitialState(currentState.roomId, currentState.sessionId);
   return {
     ...currentState,
     ...initialState,

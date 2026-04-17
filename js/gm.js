@@ -9,13 +9,25 @@
     return;
   }
 
-  const channel = new BroadcastChannel(getChannelName(roomId));
-  let state = loadState(roomId);
-
-  if (!state || state.roomId !== roomId) {
-    state = createInitialState(roomId);
+  // Each GM page owns its own session. Generate a fresh sessionId if one is
+  // not already present in the URL, then stamp it back into the URL so reloads
+  // keep the same session (and so the Open Cast link can pass it along).
+  let sessionId = params.get('session');
+  if (!sessionId) {
+    sessionId = generateSessionId();
+    params.set('session', sessionId);
+    const newUrl = window.location.pathname + '?' + params.toString() + window.location.hash;
+    window.history.replaceState({}, '', newUrl);
   }
 
+  const channel = new BroadcastChannel(getChannelName(sessionId));
+  let state = loadState(sessionId);
+
+  if (!state || state.roomId !== roomId || state.sessionId !== sessionId) {
+    state = createInitialState(roomId, sessionId);
+  }
+
+  state.sessionId = sessionId;
   state.image = ROOMS[roomId].image;
   state.activeImageSrc = state.activeImageSrc || null;
   saveState(state);
@@ -301,7 +313,8 @@
   }
 
   function openCastPage() {
-    window.open(`cast.html?room=${roomId}`, '_blank');
+    const url = `cast.html?room=${encodeURIComponent(roomId)}&session=${encodeURIComponent(sessionId)}`;
+    window.open(url, '_blank');
   }
 
   function loadSavedHints() {

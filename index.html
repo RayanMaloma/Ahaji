@@ -38,12 +38,14 @@
 
   <script src="js/app.js"></script>
   <script>
+  // Index just routes the user into a Game Master page for the chosen room.
+  // The GM page is responsible for generating its own sessionId and seeding
+  // its own isolated state — multiple GM pages for the same room must each
+  // get their own session, so index must not pre-seed any shared state here.
   document.querySelectorAll('.room-card').forEach(card => {
     card.addEventListener('click', () => {
       const roomId = card.dataset.room;
-      const state = createInitialState(roomId);
-      saveState(state);
-      window.location.href = `gm.html?room=${roomId}`;
+      window.location.href = `gm.html?room=${encodeURIComponent(roomId)}`;
     });
   });
 </script>
