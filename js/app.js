@@ -25,14 +25,21 @@ const ROOMS = {
   haram: {
     id: 'haram', name: 'Pyramid', image: 'source/pyramid/background.jpg',
     media: {
-      hintSound: 'source/pyramid/hint-sound.mp3'
+      hintSound: 'source/pyramid/hint-sound.mp3',
+      gmImages: [
+        { label: 'تلميح لغز العصا', src: 'source/pyramid/imghint1.png' },
+        { label: 'تلميح لغز الدرج', src: 'source/pyramid/imghint2.png' }
+      ]
     }
   },
   saleh: {
     id: 'saleh', name: 'Uncle Saleh', image: 'source/unclesaleh/background.jpg',
     media: {
       hintSound: 'source/unclesaleh/hint-sound.mp3',
-      loseVideo: 'source/unclesaleh/loose-video.mp4'
+      loseVideo: 'source/unclesaleh/loose-video.mp4',
+      gmImages: [
+        { label: 'تلميح لغز التركيبة', src: 'source/unclesaleh/imghint1.png' }
+      ]
     }
   }
 };
