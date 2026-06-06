@@ -1,9 +1,43 @@
 // Cast page logic
 
 (function () {
-  const roomId = new URLSearchParams(window.location.search).get('room') || 'default';
-  const channel = new BroadcastChannel(getChannelName(roomId));
+  const params = new URLSearchParams(window.location.search);
+  const roomId = params.get('room') || 'default';
+  const sessionId = params.get('session');
+
+  // Cast must be opened from a specific GM session. Refuse to attach to any
+  // channel/state when no sessionId is supplied — otherwise two rooms with
+  // the same roomId would silently share the same Cast screen.
+  if (!sessionId) {
+    showInvalidSession(
+      'Missing session',
+      'Open this Cast screen from its Game Master page.'
+    );
+    return;
+  }
+
+  const channel = new BroadcastChannel(getChannelName(sessionId));
   const els = getCastViewElements(document);
+
+  function showInvalidSession(title, message) {
+    const existing = document.getElementById('cast-invalid-session');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'cast-invalid-session';
+    overlay.style.cssText =
+      'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;' +
+      'justify-content:center;background:#000;color:#fff;z-index:9999;padding:32px;' +
+      'text-align:center;font-family:system-ui,sans-serif;gap:12px;';
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:32px;font-weight:700;letter-spacing:0.02em;';
+    h.textContent = title;
+    const p = document.createElement('div');
+    p.style.cssText = 'font-size:18px;opacity:0.75;max-width:520px;line-height:1.5;';
+    p.textContent = message;
+    overlay.appendChild(h);
+    overlay.appendChild(p);
+    document.body.appendChild(overlay);
+  }
 
   // Browsers block Audio().play() and AudioContext until the page has received
   // at least one user gesture, so the cast page starts with a blocking unlock screen.
@@ -109,9 +143,41 @@
     audioUnlockOverlay.addEventListener('keydown', handleUnlockInteraction);
   }
 
+  // Cast keeps its own local copy of the latest state so the tick loop can
+  // re-derive the displayed remaining time from endsAt on every frame, even
+  // between GM broadcasts (so the clock stays smooth and accurate regardless
+  // of GM tab throttling).
+  let currentState = null;
+  let renderIntervalId = null;
+
+  function stopRenderLoop() {
+    if (renderIntervalId !== null) {
+      clearInterval(renderIntervalId);
+      renderIntervalId = null;
+    }
+  }
+
+  function startRenderLoop() {
+    if (renderIntervalId !== null) return;
+    renderIntervalId = setInterval(() => {
+      if (!currentState || currentState.status !== 'running') {
+        stopRenderLoop();
+        return;
+      }
+      renderCastView(currentState, els, { updateDocumentTitle: false });
+    }, 250);
+  }
+
   function applyState(nextState) {
     if (!nextState) return;
+    currentState = nextState;
     renderCastView(nextState, els, { updateDocumentTitle: true });
+
+    if (nextState.status === 'running' && typeof nextState.endsAt === 'number') {
+      startRenderLoop();
+    } else {
+      stopRenderLoop();
+    }
 
     const overlayEl = document.getElementById('cast-image-overlay');
     const imgEl = document.getElementById('cast-image-overlay-img');
@@ -206,7 +272,7 @@
     }
   }
 
-  const state = loadState(roomId);
+  const state = loadState(sessionId);
   if (state) {
     applyState(state);
   }
@@ -227,7 +293,7 @@
     }
   });
 
-  const stateKey = getStateKey(roomId);
+  const stateKey = getStateKey(sessionId);
   window.addEventListener('storage', event => {
     if (event.key === stateKey && event.newValue) {
       try {
