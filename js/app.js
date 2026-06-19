@@ -88,6 +88,7 @@ function createInitialState(roomId, sessionId) {
     endsAt: null,
     hintText: '',
     activeImageSrc: null,
+    activeImageScale: 100,
     lastUpdatedAt: Date.now()
   };
 }
@@ -127,7 +128,8 @@ function resetGameState(currentState) {
     isWin: false,
     isLose: false,
     hintText: '',
-    activeImageSrc: null
+    activeImageSrc: null,
+    activeImageScale: 100
   };
 }
 

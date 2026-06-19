@@ -185,7 +185,11 @@
 
     if (nextState.activeImageSrc) {
       imgEl.src = nextState.activeImageSrc;
-      overlayEl.style.display = 'block';
+      const scale =
+        typeof nextState.activeImageScale === 'number' ? nextState.activeImageScale : 100;
+      imgEl.style.maxWidth = scale + '%';
+      imgEl.style.maxHeight = scale + '%';
+      overlayEl.style.display = 'flex';
     } else {
       overlayEl.style.display = 'none';
       imgEl.src = '';

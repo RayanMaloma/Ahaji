@@ -102,6 +102,9 @@
               </div>
             </div>
           </div>
+          <div class="cast-image-overlay gm-preview-image-overlay" id="gm-preview-image-overlay" style="display:none;">
+            <img id="gm-preview-image-overlay-img" alt="" />
+          </div>
         </div>
       </div>
 
@@ -139,6 +142,11 @@
 
       <div class="gm-current-image-block" id="gm-current-image-block" style="display:none;">
         <div class="gm-current-image-display" id="gm-current-image-status"></div>
+        <div class="gm-image-size-ctrl">
+          <span class="gm-image-size-label">Size</span>
+          <input class="gm-image-size-slider" id="image-size-slider" type="range" min="25" max="150" step="5" value="100" />
+          <span class="gm-image-size-value" id="image-size-value">100%</span>
+        </div>
         <button class="btn gm-clear-hint-btn" id="btn-clear-image" type="button">Clear</button>
       </div>
     </div>

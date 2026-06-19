@@ -30,6 +30,8 @@
   state.sessionId = sessionId;
   state.image = ROOMS[roomId].image;
   state.activeImageSrc = state.activeImageSrc || null;
+  state.activeImageScale =
+    typeof state.activeImageScale === 'number' ? state.activeImageScale : 100;
 
   // Recover any timer that was running when the page was last open. endsAt is
   // a wall-clock timestamp so we can compute the real remaining time even after
@@ -89,6 +91,8 @@
   const elCurrentHintDisplay = document.getElementById('gm-current-hint-display');
   const elCurrentImageBlock = document.getElementById('gm-current-image-block');
   const elCurrentImageStatus = document.getElementById('gm-current-image-status');
+  const elImageSizeSlider = document.getElementById('image-size-slider');
+  const elImageSizeValue = document.getElementById('image-size-value');
   const btnClearHint = document.getElementById('btn-clear-hint');
   const btnClearImage = document.getElementById('btn-clear-image');
   const elTimeAdjValue = document.getElementById('time-adj-value');
@@ -114,6 +118,8 @@
   const elSavedList = document.getElementById('saved-hints-list');
   const elSavedEmpty = document.getElementById('saved-hints-empty');
   const previewEls = getCastViewElements(document.getElementById('gm-cast-preview'));
+  const elPreviewImageOverlay = document.getElementById('gm-preview-image-overlay');
+  const elPreviewImageOverlayImg = document.getElementById('gm-preview-image-overlay-img');
   const elMediaDrop = document.getElementById('gm-media-drop');
   const elMediaList = document.getElementById('gm-media-list');
   const elMediaEmpty = document.getElementById('gm-media-empty');
@@ -285,6 +291,14 @@
 
   function doClearImage() {
     state.activeImageSrc = null;
+    state.activeImageScale = 100;
+    render();
+    broadcast();
+  }
+
+  function doImageSize() {
+    const scale = parseInt(elImageSizeSlider.value, 10);
+    state.activeImageScale = isNaN(scale) ? 100 : scale;
     render();
     broadcast();
   }
@@ -501,6 +515,7 @@
   btnSendHint.addEventListener('click', doSendHint);
   btnClearHint.addEventListener('click', doClearHint);
   btnClearImage.addEventListener('click', doClearImage);
+  elImageSizeSlider.addEventListener('input', doImageSize);
   btnAlert.addEventListener('click', playAlert);
   btnVolume.addEventListener('click', toggleVolumePopover);
   btnOpenCast.addEventListener('click', openCastPage);
@@ -523,6 +538,24 @@
     const hasImage = Boolean(state.activeImageSrc);
     elCurrentImageBlock.style.display = hasImage ? 'flex' : 'none';
     elCurrentImageStatus.textContent = hasImage ? 'Image displayed' : '';
+
+    const scale = typeof state.activeImageScale === 'number' ? state.activeImageScale : 100;
+    if (document.activeElement !== elImageSizeSlider) {
+      elImageSizeSlider.value = String(scale);
+    }
+    elImageSizeValue.textContent = scale + '%';
+
+    if (elPreviewImageOverlay && elPreviewImageOverlayImg) {
+      if (hasImage) {
+        elPreviewImageOverlayImg.src = state.activeImageSrc;
+        elPreviewImageOverlayImg.style.maxWidth = scale + '%';
+        elPreviewImageOverlayImg.style.maxHeight = scale + '%';
+        elPreviewImageOverlay.style.display = 'flex';
+      } else {
+        elPreviewImageOverlay.style.display = 'none';
+        elPreviewImageOverlayImg.src = '';
+      }
+    }
 
     if (activeMediaType) {
       renderMediaDrop(activeMediaType);
