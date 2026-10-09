@@ -1,30 +1,19 @@
-# Ahaji Claude Code Setup
+# Ahaji
 
-This folder contains ready-to-use markdown files for running Claude Code on the Ahaji local Escape Room Game Master project.
+Ahaji is an escape room Game Master and Cast display application. Current gameplay runs on localhost with vanilla HTML/CSS/JavaScript. Room configuration is shared in `js/app.js`; the Phase 2 session adapter keeps game state in localStorage and synchronizes tabs with BroadcastChannel. GM and Cast must share a browser storage context.
 
-## Files
-- `CLAUDE.md` → project rules, constraints, and working style
-- `PROJECT_SPEC.md` → product requirements and behavior spec
-- `START_PROMPT.md` → the main prompt to start implementation
-- `ITERATION_PROMPTS.md` → follow-up prompts for polish, bug fixing, and cleanup
+## Local preview
 
-## Recommended Use
-1. Put `CLAUDE.md` in the project root.
-2. Keep `PROJECT_SPEC.md` in the root as the detailed product reference.
-3. Start Claude Code using the content inside `START_PROMPT.md`.
-4. After the initial build, use prompts from `ITERATION_PROMPTS.md` for refinement.
+From the repository root, run `python -m http.server 8765 --bind 127.0.0.1` and open `http://127.0.0.1:8765/index.html`. Select a room, then use **Open Cast Screen** on the GM page. Cast audio needs a user interaction to unlock playback.
 
-## Suggested Order
-- first run: `START_PROMPT.md`
-- second run: bug fixing prompt
-- third run: UI polish prompt
-- fourth run: code cleanup prompt
+## Database foundation
 
-## Notes
-This setup is intentionally strict so Claude Code stays focused on:
-- local-only MVP
-- same-device usage
-- no backend
-- no database
-- no framework
-- no feature creep
+Phase 3 added a protected Supabase PostgreSQL schema for rooms, hints, media references, and future session snapshots. The browser does not query it yet; game controls and local synchronization are unchanged. The migration, seed, security model, backup procedure, and recovery steps are in [the Phase 3 architecture note](docs/AHAJI_PHASE_3_BACKEND_DATABASE.md). No credentials belong in this repository; `.env.example` lists configuration names only.
+
+## Checks
+
+- `python -m unittest discover -s tests -p 'test_phase2_browser.py' -v` — Playwright GM/Cast browser flows.
+- `node --test tests/test_room_repository.mjs` — future catalog data-access boundary.
+- `supabase/tests/phase3_assertions.sql` — database integrity and privilege checks after migration and seed.
+
+The Product Owner approves each roadmap milestone before the next phase begins.

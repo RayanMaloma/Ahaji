@@ -6,3 +6,5 @@
 - Scope every session read, write, and message by both room ID and session ID. Never overwrite a saved session belonging to another room.
 - Keep credentials out of Git. Use only free tools and infrastructure; database and auth work belong to their approved phases.
 - Run browser checks for GM and Cast together before presenting a milestone. Keep existing uncommitted work intact and use a feature branch for changes.
+- Restrict Supabase operations to project `gbhleqizxcmxmutgcjon`. Keep schema changes in versioned `supabase/migrations/` files and seed data in `supabase/seed.sql`.
+- Enable RLS and explicit grants for public tables. Keep service-role credentials out of browser code and Git; client access stays closed until approved auth policies exist.
