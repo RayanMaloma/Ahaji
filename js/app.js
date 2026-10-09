@@ -1,13 +1,5 @@
 // Shared constants and utilities for Ahaji GM System
 
-function getChannelName(sessionId) {
-  return 'ahaji-session-' + sessionId;
-}
-
-function getStateKey(sessionId) {
-  return 'ahaji-state-' + sessionId;
-}
-
 function generateSessionId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -15,9 +7,21 @@ function generateSessionId() {
   return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
 }
 
-const ROOMS = {
-  anbar: {
-    id: 'anbar', name: 'Prison', image: 'source/prison/background.jpg',
+const EMPTY_ROOM_MEDIA = Object.freeze({
+  hintSound: null,
+  loseSound: null,
+  loseVideo: null,
+  gmImages: Object.freeze([]),
+  gmSounds: Object.freeze([])
+});
+
+const ROOM_CONFIGS = [
+  {
+    id: 'anbar',
+    name: 'Prison',
+    thumbnail: 'images/prison.jpg',
+    backgroundImage: 'source/prison/background.jpg',
+    defaultDuration: 3600,
     media: {
       hintSound: 'source/prison/hint-sound.mp3',
       loseSound: 'source/prison/loose-sound.mp3',
@@ -27,29 +31,88 @@ const ROOMS = {
       gmSounds: [
         { label: 'صوت باب العنبر', src: 'source/prison/sounds/صوت باب العنبر.mp3' }
       ]
+    },
+    hints: {
+      source: 'hints/prison.txt'
     }
   },
-  haram: {
-    id: 'haram', name: 'Pyramid', image: 'source/pyramid/background.jpg',
+  {
+    id: 'haram',
+    name: 'Pyramid',
+    thumbnail: 'images/pyramid.png',
+    backgroundImage: 'source/pyramid/background.jpg',
+    defaultDuration: 3600,
     media: {
       hintSound: 'source/pyramid/hint-sound.mp3',
       gmImages: [
         { label: 'تلميح لغز العصا', src: 'source/pyramid/imghint1.png' },
         { label: 'تلميح لغز الدرج', src: 'source/pyramid/imghint2.png' }
       ]
+    },
+    hints: {
+      source: 'hints/pyramid.txt'
     }
   },
-  saleh: {
-    id: 'saleh', name: 'Uncle Saleh', image: 'source/unclesaleh/background.jpg',
+  {
+    id: 'saleh',
+    name: 'Uncle Saleh',
+    thumbnail: 'images/unclesaleh.png',
+    backgroundImage: 'source/unclesaleh/background.jpg',
+    defaultDuration: 3600,
     media: {
       hintSound: 'source/unclesaleh/hint-sound.mp3',
       loseVideo: 'source/unclesaleh/loose-video.mp4',
       gmImages: [
         { label: 'تلميح لغز التركيبة', src: 'source/unclesaleh/imghint1.png' }
       ]
+    },
+    hints: {
+      source: 'hints/uncle-saleh.txt'
     }
   }
-};
+];
+
+function normalizeRoom(room) {
+  const media = room.media || {};
+  return Object.freeze({
+    id: room.id,
+    name: room.name,
+    thumbnail: room.thumbnail,
+    backgroundImage: room.backgroundImage,
+    image: room.backgroundImage,
+    defaultDuration: typeof room.defaultDuration === 'number' ? room.defaultDuration : 3600,
+    media: Object.freeze({
+      hintSound: media.hintSound || null,
+      loseSound: media.loseSound || null,
+      loseVideo: media.loseVideo || null,
+      gmImages: Object.freeze((media.gmImages || []).map(item => Object.freeze({ ...item }))),
+      gmSounds: Object.freeze((media.gmSounds || []).map(item => Object.freeze({ ...item })))
+    }),
+    hints: Object.freeze({
+      source: room.hints && room.hints.source ? room.hints.source : null
+    })
+  });
+}
+
+const ROOM_LIST = Object.freeze(ROOM_CONFIGS.map(normalizeRoom));
+
+const ROOMS = Object.freeze(ROOM_LIST.reduce((rooms, room) => {
+  rooms[room.id] = room;
+  return rooms;
+}, {}));
+
+function getRooms() {
+  return ROOM_LIST;
+}
+
+function getRoom(roomId) {
+  return Object.hasOwn(ROOMS, roomId) ? ROOMS[roomId] : null;
+}
+
+function getRoomMedia(roomId) {
+  const room = getRoom(roomId);
+  return room ? room.media : EMPTY_ROOM_MEDIA;
+}
 
 function formatTime(seconds) {
   if (seconds < 0) seconds = 0;
@@ -58,33 +121,16 @@ function formatTime(seconds) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function saveState(state, sessionId) {
-  const id = sessionId || (state && state.sessionId);
-  if (!id) return;
-  state.lastUpdatedAt = Date.now();
-  localStorage.setItem(getStateKey(id), JSON.stringify(state));
-}
-
-function loadState(sessionId) {
-  if (!sessionId) return null;
-  try {
-    const raw = localStorage.getItem(getStateKey(sessionId));
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
 function createInitialState(roomId, sessionId) {
-  const room = ROOMS[roomId];
+  const room = getRoom(roomId);
   return {
     sessionId: sessionId,
     roomId: room.id,
     roomName: room.name,
-    image: room.image,
+    image: room.backgroundImage,
     viewMode: 'normal',
     status: 'idle',
-    remainingSeconds: 3600,
+    remainingSeconds: room.defaultDuration,
     endsAt: null,
     hintText: '',
     activeImageSrc: null,

@@ -3,8 +3,9 @@
 (function () {
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('room');
+  const room = getRoom(roomId);
 
-  if (!roomId || !ROOMS[roomId]) {
+  if (!roomId || !room) {
     window.location.href = 'index.html';
     return;
   }
@@ -13,22 +14,28 @@
   // not already present in the URL, then stamp it back into the URL so reloads
   // keep the same session (and so the Open Cast link can pass it along).
   let sessionId = params.get('session');
-  if (!sessionId) {
+  if (!isValidSessionId(sessionId)) {
     sessionId = generateSessionId();
     params.set('session', sessionId);
     const newUrl = window.location.pathname + '?' + params.toString() + window.location.hash;
     window.history.replaceState({}, '', newUrl);
   }
 
-  const channel = new BroadcastChannel(getChannelName(sessionId));
-  let state = loadState(sessionId);
-
-  if (!state || state.roomId !== roomId || state.sessionId !== sessionId) {
-    state = createInitialState(roomId, sessionId);
+  let session = createSessionAdapter({ roomId, sessionId });
+  let loaded = session.loadSessionState();
+  if (loaded.status === 'room-mismatch' || loaded.status === 'invalid') {
+    // Never overwrite a different room's session or corrupt saved data.
+    session.close();
+    sessionId = generateSessionId();
+    params.set('session', sessionId);
+    window.history.replaceState({}, '', window.location.pathname + '?' + params.toString() + window.location.hash);
+    session = createSessionAdapter({ roomId, sessionId });
+    loaded = session.loadSessionState();
   }
+  let state = loaded.state || createInitialState(roomId, sessionId);
 
   state.sessionId = sessionId;
-  state.image = ROOMS[roomId].image;
+  state.image = room.backgroundImage;
   state.activeImageSrc = state.activeImageSrc || null;
   state.activeImageScale =
     typeof state.activeImageScale === 'number' ? state.activeImageScale : 100;
@@ -47,13 +54,12 @@
       state.status = 'ended';
       if (state.viewMode !== 'win') {
         state = setLoseState(state);
-        const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
+        const roomMedia = getRoomMedia(roomId);
         if (roomMedia.loseVideo) { state.loseMode = 'video'; } else { delete state.loseMode; }
       }
     }
   }
 
-  saveState(state);
   document.title = `${state.roomName} - Game Master`;
 
   let renderIntervalId = null;
@@ -61,16 +67,10 @@
   let timeoutHandled = state.status === 'ended';
   const HINTS_KEY = 'ahaji-saved-hints-' + roomId;
 
-  const HINTS_FILE = {
-    anbar: 'hints/prison.txt',
-    haram:  'hints/pyramid.txt',
-    saleh:  'hints/uncle-saleh.txt',
-  };
-
   let roomHints = []; // hints loaded from the room's .txt file
 
   async function loadRoomHints() {
-    const file = HINTS_FILE[roomId];
+    const file = room.hints.source;
     if (!file) return;
     try {
       const res = await fetch(file);
@@ -131,19 +131,22 @@
   render();
   broadcast();
 
+  session.subscribe(message => {
+    if (message.type === 'sync-request') session.publishSnapshot(state);
+  });
+
   if (state.status === 'running') {
     startRenderLoop();
   }
 
   function broadcast() {
-    saveState(state);
-    channel.postMessage({ type: 'state', state });
+    session.saveSessionState(state);
   }
 
   function emitLoseMediaIfNeeded() {
-    const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
+    const roomMedia = getRoomMedia(roomId);
     if (roomMedia.loseSound || roomMedia.loseVideo) {
-      channel.postMessage({ type: 'lose-media' });
+      session.publishSessionEvent('lose-media');
     }
   }
 
@@ -188,7 +191,7 @@
     let shouldEmitLose = false;
     if (state.viewMode !== 'win') {
       state = setLoseState(state);
-      const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
+      const roomMedia = getRoomMedia(roomId);
       if (roomMedia.loseVideo) { state.loseMode = 'video'; } else { delete state.loseMode; }
       shouldEmitLose = true;
     }
@@ -278,7 +281,7 @@
     render();
     broadcast();
     if (state.hintText) {
-      channel.postMessage({ type: 'hint-sound' });
+      session.publishSessionEvent('hint-sound');
     }
     elHintInput.value = '';
   }
@@ -335,7 +338,7 @@
   }
 
   function renderMediaDrop(type) {
-    const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
+    const roomMedia = getRoomMedia(roomId);
     const items = type === 'images' ? (roomMedia.gmImages || []) :
                   type === 'sounds' ? (roomMedia.gmSounds || []) : [];
 
@@ -364,7 +367,7 @@
           render();
           broadcast();
           if (isActivatingImage) {
-            channel.postMessage({ type: 'hint-sound' });
+            session.publishSessionEvent('hint-sound');
           }
         });
       }
@@ -391,7 +394,7 @@
 
   function playAlert() {
     const volume = parseFloat(elAlertVolume.value) || 0.5;
-    channel.postMessage({ type: 'alert', volume });
+    session.publishSessionEvent('alert', { volume });
   }
 
   function openCastPage() {

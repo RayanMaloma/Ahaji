@@ -2,7 +2,8 @@
 
 (function () {
   const params = new URLSearchParams(window.location.search);
-  const roomId = params.get('room') || 'default';
+  const roomId = params.get('room');
+  const room = getRoom(roomId);
   const sessionId = params.get('session');
 
   // Cast must be opened from a specific GM session. Refuse to attach to any
@@ -15,8 +16,12 @@
     );
     return;
   }
+  if (!room || !isValidSessionId(sessionId)) {
+    showInvalidSession('Invalid session', 'Check the room and session link with the Game Master.');
+    return;
+  }
 
-  const channel = new BroadcastChannel(getChannelName(sessionId));
+  const session = createSessionAdapter({ roomId, sessionId });
   const els = getCastViewElements(document);
 
   function showInvalidSession(title, message) {
@@ -170,6 +175,8 @@
 
   function applyState(nextState) {
     if (!nextState) return;
+    const invalidOverlay = document.getElementById('cast-invalid-session');
+    if (invalidOverlay) invalidOverlay.remove();
     currentState = nextState;
     renderCastView(nextState, els, { updateDocumentTitle: true });
 
@@ -212,7 +219,7 @@
     }
 
     const vol = typeof volume === 'number' ? Math.max(0, Math.min(1, volume)) : 1;
-    const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
+    const roomMedia = room ? room.media : getRoomMedia(roomId);
 
     if (roomMedia.hintSound) {
       try {
@@ -258,7 +265,7 @@
       return;
     }
 
-    const roomMedia = (ROOMS[roomId] && ROOMS[roomId].media) || {};
+    const roomMedia = room ? room.media : getRoomMedia(roomId);
     if (roomMedia.loseVideo) {
       const videoEl = document.getElementById('cast-lose-video');
       if (videoEl) {
@@ -276,35 +283,26 @@
     }
   }
 
-  const state = loadState(sessionId);
-  if (state) {
-    applyState(state);
-  }
-
-  channel.addEventListener('message', event => {
-    if (!event.data) return;
-    if (event.data.type === 'state') {
-      applyState(event.data.state);
+  session.subscribe(message => {
+    if (message.type === 'state') {
+      applyState(message.state);
     }
-    if (event.data.type === 'alert') {
-      playRoomNotificationSound(event.data.volume);
+    if (message.type === 'alert') {
+      playRoomNotificationSound(message.volume);
     }
-    if (event.data.type === 'hint-sound') {
+    if (message.type === 'hint-sound') {
       playRoomNotificationSound(1);
     }
-    if (event.data.type === 'lose-media') {
+    if (message.type === 'lose-media') {
       triggerLoseMedia();
     }
   });
 
-  const stateKey = getStateKey(sessionId);
-  window.addEventListener('storage', event => {
-    if (event.key === stateKey && event.newValue) {
-      try {
-        applyState(JSON.parse(event.newValue));
-      } catch {
-        // Ignore malformed persisted state updates.
-      }
-    }
-  });
+  const loaded = session.loadSessionState();
+  if (loaded.state) applyState(loaded.state);
+  else showInvalidSession(
+    loaded.status === 'room-mismatch' ? 'Invalid session' : 'Session unavailable',
+    'Check the link or wait for the Game Master to connect.'
+  );
+  session.requestSync();
 })();
