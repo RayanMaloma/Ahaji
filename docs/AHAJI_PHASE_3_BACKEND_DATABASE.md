@@ -33,13 +33,33 @@ Run [`supabase/tests/phase3_assertions.sql`](../supabase/tests/phase3_assertions
 
 ## Rebuild and backup
 
-Supabase CLI local configuration is in `supabase/config.toml`; it uses PostgreSQL 17 and seed.sql. On a local Docker-capable machine, `npx supabase@2.120.0 start` followed by `npx supabase@2.120.0 db reset` rebuilds migration plus seed. The local Docker daemon was unavailable during this milestone, so the reproducibility proof here is the matching recorded remote migration, remote seed, SQL assertions, and source-controlled files, rather than a local reset.
+Supabase CLI local configuration is in `supabase/config.toml`; it uses PostgreSQL 17 and seed.sql. The migration and seed remain the reproducible initial build. They are not substitutes for a backup of subsequent edits.
 
-For a free logical **data** backup, install PostgreSQL 17 (or newer) client tools, configure `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGSSLMODE=require`, and a private password prompt or `PGPASSFILE` outside Git. Run `scripts/backup-database.ps1`; it writes a timestamped custom-format dump of application rows under ignored `backups/` and prints its SHA-256. Keep a copy off this machine. Migrations and seed reconstruct schema and initial content; they are **not** a backup of later edits. [Supabase advises Free projects to export data regularly](https://supabase.com/docs/guides/platform/backups).
+### Executed Phase 3 backup and recovery test
 
-To recover into an **empty replacement Supabase project**, create its default Auth schema, run the ordered migration files with `psql --single-transaction --set ON_ERROR_STOP=1 --file <migration.sql>` using private libpq connection settings, then restore the latest data dump with `pg_restore --data-only --single-transaction --no-owner --no-acl --dbname=postgres <backup.dump>`. Do **not** run seed.sql before a data restore, because the backup already contains room rows. Compare restored counts with the backup manifest and verify RLS/grants. The initial-seed SQL assertions expect exactly 3/129/10 rows, so adapt those count checks after real content changes. Point the future app configuration at the new project. This procedure must only target a replacement database; restoring over the active project could replace data and requires Product Owner approval.
+On 2026-10-09 23:35:31 UTC, an authorized, read-only SQL query against **only** Supabase project `gbhleqizxcmxmutgcjon` exported all four application tables using [`supabase/backup/export_phase3.sql`](../supabase/backup/export_phase3.sql). The captured migration version was `20261009232032`. The same snapshot counted zero Auth users, Storage buckets, and Storage objects. The exporter deliberately refuses to package a snapshot if any of those counts becomes nonzero, because it would then omit data. The database connection password was unavailable, so this was an MCP SQL export, not a direct remote `pg_dump`.
 
-Database exports do not contain Storage object bytes. Today all media bytes are in the Git repository, and the remote project has no Storage objects. When upload management is added, export object bytes and their manifest separately before claiming complete recovery. Auth users and provider settings do not exist yet; Phase 4 must expand the backup scope when those are introduced. The schema uses ordinary PostgreSQL objects apart from an optional FK to Supabase `auth.users`; moving to another provider requires mapping that identity relationship.
+The live JSON snapshot is kept in the Git-ignored `backups/` directory. [`scripts/phase3-backup.mjs`](../scripts/phase3-backup.mjs) packaged it with the versioned schema migration, generated restore SQL for every row, and wrote SHA-256 hashes and counts to a manifest. In an isolated Docker PostgreSQL **17.11** container with no published host port, the schema and live rows restored into `ahaji_stage`. [`supabase/tests/phase3_assertions.sql`](../supabase/tests/phase3_assertions.sql) passed. A native custom-format `pg_dump` of that restored database was then restored into a second, empty disposable database, `ahaji_verify`, where the same assertions passed. Exported rows from `ahaji_verify` matched the live snapshot by per-table SHA-256 and count:
+
+| Table | Live rows | Restored rows |
+| --- | ---: | ---: |
+| `rooms` | 3 | 3 |
+| `room_hints` | 129 | 129 |
+| `room_media` | 10 | 10 |
+| `game_sessions` | 0 | 0 |
+
+The native dump is 24,375 bytes. This proves the captured Phase 3 schema and data can be recovered in plain PostgreSQL. It does not test recovery of Supabase-managed Auth or Storage configuration, nor a direct remote `pg_dump`. Neither contains application data in this project yet. Future Auth or Storage work must expand the backup before this verification is considered complete for those phases.
+
+### Repeat and recover
+
+1. Confirm the target project reference, then execute [`supabase/backup/export_phase3.sql`](../supabase/backup/export_phase3.sql) through authorized read-only SQL access. Save its single `snapshot` JSON value to a timestamped `backups/<name>.json` file. Do not save MCP result wrappers, secrets, or SQL output outside `backups/`.
+2. Run `node scripts/phase3-backup.mjs package backups/<name>.json`. This creates `-schema.sql`, `-restore-data.sql`, and `-manifest.json` beside the snapshot. The command rejects an unexpected project, migration version, table shape, or nonempty Auth/Storage inventory.
+3. In an **empty disposable PostgreSQL 17 database**, apply [`supabase/backup/local_restore_bootstrap.sql`](../supabase/backup/local_restore_bootstrap.sql) only for a plain local PostgreSQL test, then apply `-schema.sql` and `-restore-data.sql` with `psql -v ON_ERROR_STOP=1`. Run the SQL assertions. For a replacement Supabase project, its managed Auth/Storage schemas already exist: apply the ordered migration and restored data to that replacement only, omitting the local bootstrap and seed.
+4. Run `pg_dump --schema=public --format=custom --no-owner` on the first restored database and `pg_restore --no-owner --exit-on-error` into a **second empty disposable database**. Re-run assertions and export its four tables with the same SQL query. Run `node scripts/phase3-backup.mjs verify backups/<name>.json backups/<restored>.json backups/<native>.dump`. It checks file hashes and row hashes. Never point these recovery commands at the live project.
+
+The older [`scripts/backup-database.ps1`](../scripts/backup-database.ps1) offers a direct `pg_dump` data export once private database connection details and PostgreSQL client tools are available; that route has **not** been executed or verified. [Supabase recommends regular exports for Free projects](https://supabase.com/docs/guides/platform/backups). Store a separately protected copy of the backup outside this machine for disaster recovery; the local verification alone does not provide off-device recovery.
+
+`backups/` is Git-ignored and its local Windows ACL grants access only to the current user, SYSTEM, and Administrators. No Supabase database password was used or written to disk. Keep credentials outside the repository, protect any off-device copy, and never commit backup JSON, SQL, or dump files. Media bytes currently live in the Git repository; there are no remote Storage objects. The schema uses ordinary PostgreSQL objects apart from the optional foreign key to Supabase `auth.users`, which another provider would need to map.
 
 ## Free plan and roadmap boundary
 
