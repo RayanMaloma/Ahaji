@@ -1,4 +1,4 @@
-// Phase 4 application backup. Auth credentials/tokens are intentionally absent.
+// Phase 4/5 application backup. Auth credentials/tokens are intentionally absent.
 // Usage: node scripts/phase4-backup.mjs package backups/<snapshot>.json
 //        node scripts/phase4-backup.mjs verify backups/<snapshot>.json backups/<restored>.json
 import { readFile, writeFile } from 'node:fs/promises';
@@ -8,7 +8,20 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const project = 'gbhleqizxcmxmutgcjon';
-const versions = ['20261009232032', '20261010113916', '20261010115013'];
+const migrations = [
+  ['20261009232032', 'phase3_foundation'],
+  ['20261010113916', 'phase4_auth_roles'],
+  ['20261010115013', 'phase4_inactive_room_guard'],
+  ['20261010120931', 'phase5_admin_staff_directory']
+];
+function acceptedVersions(snapshot) {
+  const versions = snapshot?.migration_versions;
+  if (!Array.isArray(versions) || ![3,4].includes(versions.length) ||
+      canonical(versions) !== canonical(migrations.slice(0,versions.length).map(item=>item[0]))) {
+    throw new Error('Unexpected migration versions.');
+  }
+  return versions;
+}
 const columns = {
   rooms: ['id','name','thumbnail_ref','background_ref','default_duration_seconds','display_order','is_active','created_at','updated_at'],
   room_hints: ['id','room_id','body','display_order','created_at','updated_at'],
@@ -23,10 +36,10 @@ const canonical = value => JSON.stringify(value, (_k, item) =>
     ? Object.fromEntries(Object.keys(item).sort().map(k => [k,item[k]])) : item);
 
 function validate(snapshot) {
-  if (snapshot?.format !== 'ahaji-phase4-snapshot-v1' || snapshot.project_ref !== project ||
-      canonical(snapshot.migration_versions) !== canonical(versions)) {
+  if (snapshot?.format !== 'ahaji-phase4-snapshot-v1' || snapshot.project_ref !== project) {
     throw new Error('Wrong snapshot project, format, or migration versions.');
   }
+  acceptedVersions(snapshot);
   const inventory = snapshot.platform_inventory;
   if (!inventory || inventory.storage_buckets !== 0 || inventory.storage_objects !== 0 ||
       !Array.isArray(snapshot.auth_identity_map) || inventory.auth_users !== snapshot.auth_identity_map.length) {
@@ -115,11 +128,10 @@ function evidence(snapshot) {
 async function packageBackup(path) {
   const raw = await readFile(path,'utf8');
   const snapshot = validate(JSON.parse(raw));
+  const versions = acceptedVersions(snapshot);
   const base = path.replace(/\.json$/i,'');
   if (base === path) throw new Error('Snapshot path must end in .json.');
-  const schemas = await Promise.all(versions.map(async version => {
-    const names = ['phase3_foundation', 'phase4_auth_roles', 'phase4_inactive_room_guard'];
-    const name = names[versions.indexOf(version)];
+  const schemas = await Promise.all(migrations.slice(0,versions.length).map(async ([version,name]) => {
     return readFile(join(root,'supabase/migrations',`${version}_${name}.sql`),'utf8');
   }));
   const schema = schemas.join('\n');
@@ -147,6 +159,7 @@ async function verify(sourcePath,restoredPath) {
   const base = sourcePath.replace(/\.json$/i,'');
   const manifest = JSON.parse(await readFile(`${base}-manifest.json`,'utf8'));
   if (manifest.project_ref !== project || manifest.snapshot_sha256 !== sha(sourceRaw) ||
+      canonical(manifest.migration_versions) !== canonical(source.migration_versions) ||
       manifest.schema_sha256 !== sha(await readFile(`${base}-schema.sql`,'utf8')) ||
       manifest.data_sha256 !== sha(await readFile(`${base}-restore-data.sql`,'utf8')) ||
       manifest.local_auth_fixture_sha256 !== sha(await readFile(`${base}-local-auth-fixture.sql`,'utf8')) ||
