@@ -128,7 +128,8 @@ function renderOverview() {
     row.append(node('span', 'staff-identity-icon', (person.email || '?').slice(0,1).toUpperCase()));
     const text = node('div', 'stack-row-main');
     text.append(node('strong', '', person.email || 'Email unavailable'),
-      node('small', '', `${person.room_ids?.length || 0} room assignments`));
+      node('small', '', person.role === 'admin' ? 'All rooms' :
+        `${person.room_ids?.length || 0} room assignments`));
     row.append(text, rolePill(person.role));
     staffBody.append(row);
   }

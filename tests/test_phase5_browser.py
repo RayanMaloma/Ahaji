@@ -48,6 +48,7 @@ class Phase5BrowserTests(unittest.TestCase):
         page.goto(self.base + "/admin.html?view=overview")
         expect(page.locator(".metric-value")).to_have_text(["2", "3", "2", "1"])
         expect(page.get_by_text("Prison").first).to_be_visible()
+        expect(page.locator(".content-grid .panel").last.locator(".stack-row-main small").first).to_have_text("All rooms")
         page.locator('[data-nav="rooms"]').click()
         expect(page).to_have_url(self.base + "/admin.html?view=rooms")
         expect(page.locator(".room-tile")).to_have_count(2)
