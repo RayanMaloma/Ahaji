@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ahaji — Staff home</title><link rel="stylesheet" href="css/style.css?v=4"></head>
+<body class="auth-page" data-protected-page="staff">
+  <div id="auth-loading" class="auth-status" role="status">Checking staff access…</div>
+  <div id="auth-failure" class="auth-status" role="alert" hidden></div>
+  <main id="protected-content" class="auth-card" hidden>
+    <img src="images/ahajilogo.svg" alt="Ahaji" class="auth-logo">
+    <p class="auth-eyebrow">STAFF HOME</p><h1 id="auth-role"></h1>
+    <p id="auth-email" class="auth-intro"></p>
+    <p class="auth-intro">Choose a permitted room to operate. Room management arrives with the Admin Dashboard.</p>
+    <ul id="staff-rooms" class="staff-room-list"></ul>
+    <form id="change-email-form" class="staff-email-form">
+      <label for="new-email">Change account email</label>
+      <input id="new-email" type="email" autocomplete="email" required>
+      <button class="auth-primary" type="submit">Send verification link</button>
+    </form>
+    <p id="change-email-message" class="auth-message" role="status" hidden></p>
+    <button type="button" data-logout class="auth-secondary">Log out</button>
+  </main>
+  <script type="module" src="js/auth/guard.mjs"></script>
+</body>
+</html>

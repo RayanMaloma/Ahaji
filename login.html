@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ahaji — Staff sign in</title><link rel="stylesheet" href="css/style.css?v=4"></head>
+<body class="auth-page">
+  <main class="auth-card">
+    <img src="images/ahajilogo.svg" alt="Ahaji" class="auth-logo">
+    <p class="auth-eyebrow">STAFF ACCESS</p>
+    <h1>Sign in</h1>
+    <p class="auth-intro">Use the email and password assigned to your Ahaji staff account.</p>
+    <form id="login-form">
+      <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+      <p id="login-error" class="auth-error" role="alert" hidden></p>
+      <button id="login-submit" type="submit" class="auth-primary">Sign in</button>
+    </form>
+    <a href="recover.html" class="auth-link">Forgot password?</a>
+  </main>
+  <script type="module" src="js/auth/login.mjs"></script>
+</body>
+</html>

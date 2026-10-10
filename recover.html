@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ahaji — Password recovery</title><link rel="stylesheet" href="css/style.css?v=4"></head>
+<body class="auth-page">
+  <main class="auth-card">
+    <img src="images/ahajilogo.svg" alt="Ahaji" class="auth-logo">
+    <p class="auth-eyebrow">STAFF ACCESS</p>
+    <h1>Password recovery</h1>
+    <p id="recovery-intro" class="auth-intro">Enter your staff email to receive a reset link.</p>
+    <form id="request-form">
+      <label for="email">Email</label><input id="email" type="email" autocomplete="email" required>
+      <button id="request-submit" type="submit" class="auth-primary">Send reset link</button>
+    </form>
+    <form id="update-form" hidden>
+      <label for="new-password">New password</label><input id="new-password" type="password" minlength="12" autocomplete="new-password" required>
+      <button id="update-submit" type="submit" class="auth-primary">Set new password</button>
+    </form>
+    <p id="recovery-message" class="auth-message" role="status" hidden></p>
+    <a href="login.html" class="auth-link">Back to sign in</a>
+  </main>
+  <script type="module" src="js/auth/recover.mjs"></script>
+</body>
+</html>

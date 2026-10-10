@@ -9,6 +9,7 @@ import unittest
 from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import expect, sync_playwright
+from auth_fixture import install_auth_mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -39,6 +40,7 @@ class Phase2BrowserTests(unittest.TestCase):
 
     def setUp(self):
         self.context = self.browser.new_context()
+        install_auth_mock(self.context)
         self.errors = []
 
     def tearDown(self):

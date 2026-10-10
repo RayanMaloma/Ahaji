@@ -4,16 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ahaji - Game Master</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=4" />
 </head>
 <body class="gm-page">
-
+  <div id="auth-loading" class="auth-status" role="status">Checking Game Master access…</div>
+  <div id="auth-failure" class="auth-status" role="alert" hidden></div>
+  <div id="protected-content" class="gm-protected-content" hidden>
   <header class="gm-header">
     <div class="gm-header-left">
       <img src="images/ahajilogo.svg" alt="Ahaji" class="gm-logo" />
       <span class="gm-room-name" id="gm-room-name"></span>
     </div>
-    <button class="gm-open-cast" id="btn-open-cast">Open Cast Screen</button>
+    <div class="gm-header-actions"><span id="auth-role"></span><button type="button" class="auth-logout" data-logout>Log out</button><button class="gm-open-cast" id="btn-open-cast">Open Cast Screen</button></div>
   </header>
 
   <main class="gm-body">
@@ -152,9 +154,11 @@
     </div>
 
   </main>
+  </div>
 
   <script src="js/app.js"></script>
   <script src="js/session-adapter.js"></script>
-  <script src="js/gm.js"></script>
+  <script>document.body.dataset.protectedPage = 'gm';</script>
+  <script type="module" src="js/auth/guard.mjs"></script>
 </body>
 </html>

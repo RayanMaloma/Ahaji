@@ -1,0 +1,16 @@
+{
+  "name": "ahaji",
+  "version": "4.0.0",
+  "private": true,
+  "scripts": {
+    "build:auth": "esbuild js/auth/sdk-entry.mjs --bundle --format=esm --minify --target=es2022 --outfile=js/vendor/supabase.bundle.mjs",
+    "test": "node --test tests/*.mjs"
+  },
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
