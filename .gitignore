@@ -4,5 +4,6 @@ __pycache__/
 .env.*
 !.env.example
 backups/
+node_modules/
 supabase/.temp/
 supabase/.branches/
