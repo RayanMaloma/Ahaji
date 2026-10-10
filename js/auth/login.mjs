@@ -3,11 +3,14 @@ import { supabase, currentAccess, safeNext } from './client.mjs';
 const form = document.getElementById('login-form');
 const submit = document.getElementById('login-submit');
 const errorBox = document.getElementById('login-error');
-const next = safeNext(new URLSearchParams(location.search).get('next'));
+const requestedNext = new URLSearchParams(location.search).get('next');
+const next = safeNext(requestedNext);
 
 function showError(message) { errorBox.textContent = message; errorBox.hidden = false; }
 function route(access) {
-  window.location.replace(access.role ? next : 'unauthorized.html');
+  window.location.replace(access.role
+    ? (!requestedNext && access.role === 'admin' ? 'admin.html?view=overview' : next)
+    : 'unauthorized.html');
 }
 
 try {

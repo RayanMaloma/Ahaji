@@ -12,7 +12,7 @@ export function safeNext(value) {
   if (!value || typeof value !== 'string') return 'index.html';
   try {
     const url = new URL(value, window.location.href);
-    if (url.origin !== window.location.origin || !['/index.html', '/gm.html', '/staff.html'].includes(url.pathname)) {
+    if (url.origin !== window.location.origin || !['/index.html', '/gm.html', '/staff.html', '/admin.html'].includes(url.pathname)) {
       return 'index.html';
     }
     return url.pathname.slice(1) + url.search;

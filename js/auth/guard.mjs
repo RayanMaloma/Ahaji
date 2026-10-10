@@ -37,6 +37,8 @@ async function checkAccess() {
     if (roleLabel) roleLabel.textContent = access.role === 'admin' ? 'Admin' : 'Game Master';
     const emailLabel = document.getElementById('auth-email');
     if (emailLabel) emailLabel.textContent = access.user.email || '';
+    const adminLink = document.getElementById('admin-dashboard-link');
+    if (adminLink) adminLink.hidden = access.role !== 'admin';
     loading.hidden = true;
     panel.hidden = false;
     if (!window.ahajiPageLoaded) {
