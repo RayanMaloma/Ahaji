@@ -20,3 +20,46 @@ a{color:inherit;text-decoration:none}button{cursor:pointer}button:disabled{curso
 @media(max-width:760px){.admin-sidebar{position:fixed;transform:translateX(-100%);transition:transform .2s;height:100dvh}.admin-sidebar.open{transform:translateX(0)}.admin-scrim:not([hidden]){position:fixed;inset:0;background:#111a;border:0;z-index:19;display:block}.admin-menu-button{display:block}.admin-topbar{height:62px;padding:0 20px}.admin-topbar-label{display:none}.admin-content{padding:28px 20px 50px}.room-hero{grid-template-columns:1fr}.room-hero-image{height:215px}.account-layout{grid-template-columns:1fr}.staff-table{min-width:650px}}
 @media(max-width:540px){.metric-grid,.room-grid-admin{grid-template-columns:1fr}.metric-card{min-height:108px}.page-heading{align-items:flex-start;flex-direction:column}.filterbar{align-items:stretch;flex-direction:column}.filterbar input,.filterbar select{width:100%}.room-tile-image{height:190px}.detail-meta{grid-template-columns:1fr 1fr}.admin-breadcrumbs{font-size:11px}.admin-content{padding:26px 16px 45px}.admin-topbar{padding:0 16px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+
+/* Phase 5 review: Ahaji's original charcoal/yellow system in a true RTL workspace. */
+:root{font-family:Tahoma,'Segoe UI',Arial,sans-serif;color:#f5f5f5;background:#0d0d0d;--paper:#0d0d0d;--white:#141414;--ink:#f5f5f5;--muted:#aaa9a5;--line:rgba(255,255,255,.1);--yellow:#f5c800;--sidebar:#121212;--good:#79e8a0;--bad:#ff9c98}
+body{direction:rtl;background:var(--paper)}
+.admin-sidebar{border-inline-end:1px solid var(--line)}
+.admin-brand{align-items:flex-start;border-bottom-color:var(--line)}.admin-brand img{display:block}
+.admin-brand span{color:var(--yellow);font-size:12px;letter-spacing:0}
+.admin-workspace-label{color:#92918c;letter-spacing:0;font-size:11px}
+.admin-nav a{color:#c2c1bd}.admin-nav a:hover{background:#222;border-color:var(--line)}
+.nav-icon{width:20px;height:20px;flex:none;background:currentColor;mask-size:contain;mask-repeat:no-repeat;mask-position:center}
+.icon-door{mask-image:url('../images/icons/door-open.svg')}.icon-users{mask-image:url('../images/icons/users-round.svg')}.icon-user{mask-image:url('../images/icons/user-round.svg')}
+.admin-sidebar-bottom,.admin-sidebar-profile{border-color:var(--line)}
+.admin-operations-link{color:var(--yellow)}.admin-sidebar-profile small{color:var(--muted);text-align:right}.admin-sidebar-logout{text-align:right}
+.admin-topbar{background:#141414;border-bottom-color:var(--line)}.admin-breadcrumbs{color:var(--muted)}.admin-breadcrumbs a:hover{color:var(--yellow)}.admin-breadcrumbs strong{color:var(--ink)}.admin-topbar-label{color:#92918c;letter-spacing:0}
+.admin-menu-button{color:var(--ink)}
+.page-kicker{color:var(--yellow);letter-spacing:0;text-transform:none;font-size:12px}.page-heading h1{letter-spacing:0;line-height:1.35}.page-heading p{line-height:1.7}
+.subtle-button,.button-dark{background:#1c1c1c;border-color:rgba(255,255,255,.17);color:var(--ink)}.subtle-button:hover{background:#242424;border-color:var(--yellow);color:var(--yellow)}
+.button-dark{background:var(--yellow);border-color:var(--yellow);color:#111}.button-dark:hover{background:#ffe047;border-color:#ffe047}
+.room-back{margin-bottom:20px}
+.panel{background:#141414;border-color:var(--line)}.panel-head{border-color:var(--line)}.panel-head h2{letter-spacing:0}.panel-body{min-width:0}
+.room-grid-admin{gap:18px}.room-tile{background:#141414;border-color:var(--line);box-shadow:none}.room-tile:hover{border-color:var(--yellow);box-shadow:none}
+.room-tile-image{height:auto;aspect-ratio:16/10;overflow:hidden;background:#1c1c1c}.room-tile-image img{display:block;width:100%;height:100%;object-fit:cover}
+.room-tile-image .status-pill{inset-inline-start:12px;left:auto;background:#151515ed}
+.room-tile-body h2{letter-spacing:0;line-height:1.5}.room-tile-meta{color:var(--muted)}.room-tile-meta strong{color:var(--ink)}
+.technical-id{direction:ltr;unicode-bidi:isolate;font-family:'Segoe UI',Arial,sans-serif}
+.filterbar{justify-content:flex-start}.filterbar input,.filterbar select,.account-form input{background:#1c1c1c;border-color:rgba(255,255,255,.17);color:var(--ink)}.filterbar input::placeholder{color:#92918c}.filterbar input:focus,.filterbar select:focus,.account-form input:focus{border-color:var(--yellow)}
+.empty-box{grid-column:1/-1;background:#141414;border-color:rgba(255,255,255,.17);color:var(--muted)}.empty-box strong{color:var(--ink)}
+.room-hero{grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr);background:#141414;border-color:var(--line)}
+.room-hero-image{height:100%;min-height:300px;overflow:hidden;background:#1c1c1c}.room-hero-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.room-hero-image .mini-thumb-fallback,.room-tile-image .mini-thumb-fallback{display:grid;place-items:center;width:100%;height:100%}
+.room-hero-body h2{letter-spacing:0;line-height:1.35}
+.detail-list li,.detail-meta div,.account-field{border-color:var(--line)}.item-index{color:var(--muted);direction:ltr}.detail-text{overflow-wrap:anywhere}
+.media-kind,.media-link{color:var(--yellow)}
+.status-pill.active{background:rgba(35,197,94,.13);color:#79e8a0}.status-pill.inactive{background:rgba(229,57,53,.13);color:#f29b98}
+.role-pill.admin{background:rgba(245,200,0,.16);color:#ffe173}.role-pill.game_master{background:rgba(136,174,238,.15);color:#bfd4fb}
+.staff-table th{text-align:right;color:var(--muted);background:#1c1c1c;border-color:var(--line)}.staff-table td{border-color:var(--line)}.staff-identity-icon{background:var(--yellow);color:#111}.staff-identity strong{text-align:right;overflow-wrap:anywhere}.staff-identity small{color:var(--muted)}.assignment-chip{border-color:rgba(255,255,255,.17);color:var(--ink)}
+.account-field strong{display:block;text-align:right;overflow-wrap:anywhere}.account-form input{text-align:left}.security-list{padding-left:0;padding-inline-start:20px;color:var(--muted)}.form-message{color:#79e8a0}.form-message.error{color:#ff9c98}
+.loading-panel,.error-panel{background:#141414;border-color:var(--line);color:var(--muted)}.error-panel{border-left:1px solid var(--line);border-inline-start:4px solid #e53935}.error-panel h2{color:var(--ink)}.error-panel p{color:var(--muted)}
+.admin-gate{color:var(--muted)}.admin-gate button{background:#1c1c1c;color:var(--ink);border-color:rgba(255,255,255,.17)}
+.admin-scrim:not([hidden]){background:#000b}
+@media(max-width:850px){.room-hero{grid-template-columns:1fr}.room-hero-image{height:auto;min-height:0;aspect-ratio:16/9}.account-layout{grid-template-columns:1fr}}
+@media(max-width:760px){.admin-sidebar{inset-inline-start:0;left:auto;right:0;transform:translateX(100%)}.admin-sidebar.open{transform:translateX(0)}.admin-topbar{justify-content:flex-start}.admin-topbar-right{margin-inline-start:auto}}
+@media(max-width:540px){.room-tile-image{height:auto}.detail-list li{flex-wrap:wrap}}

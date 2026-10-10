@@ -9,7 +9,7 @@ const next = safeNext(requestedNext);
 function showError(message) { errorBox.textContent = message; errorBox.hidden = false; }
 function route(access) {
   window.location.replace(access.role
-    ? (!requestedNext && access.role === 'admin' ? 'admin.html?view=overview' : next)
+    ? (!requestedNext && access.role === 'admin' ? 'admin.html?view=rooms' : next)
     : 'unauthorized.html');
 }
 
@@ -21,21 +21,21 @@ try {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   submit.disabled = true;
-  submit.textContent = 'Signing in…';
+  submit.textContent = 'جارٍ تسجيل الدخول…';
   errorBox.hidden = true;
   try {
     const { error } = await supabase.auth.signInWithPassword({
       email: document.getElementById('email').value.trim(),
       password: document.getElementById('password').value
     });
-    if (error) { showError('Email or password is incorrect, or this account is not confirmed.'); return; }
+    if (error) { showError('البريد الإلكتروني أو كلمة المرور غير صحيحة، أو لم يُوثّق الحساب بعد.'); return; }
     const access = await currentAccess();
-    if (!access) { showError('Sign-in could not be verified. Please try again.'); return; }
+    if (!access) { showError('تعذّر التحقق من تسجيل الدخول. حاول مرة أخرى.'); return; }
     route(access);
   } catch {
-    showError('Could not reach the sign-in service. Check your connection and retry.');
+    showError('تعذّر الاتصال بخدمة الدخول. تحقّق من اتصالك وأعد المحاولة.');
   } finally {
     submit.disabled = false;
-    submit.textContent = 'Sign in';
+    submit.textContent = 'دخول';
   }
 });

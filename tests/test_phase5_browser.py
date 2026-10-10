@@ -14,6 +14,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def log_message(self, *_args):
         pass
 
@@ -42,30 +44,38 @@ class Phase5BrowserTests(unittest.TestCase):
         self.addCleanup(context.close)
         return context
 
-    def test_overview_rooms_details_and_history(self):
+    def test_rooms_details_and_history_in_rtl(self):
         context = self.context(authenticated=True)
         page = context.new_page()
-        page.goto(self.base + "/admin.html?view=overview")
-        expect(page.locator(".metric-value")).to_have_text(["2", "3", "2", "1"])
-        expect(page.get_by_text("Prison").first).to_be_visible()
-        expect(page.locator(".content-grid .panel").last.locator(".stack-row-main small").first).to_have_text("All rooms")
-        page.locator('[data-nav="rooms"]').click()
+        page.goto(self.base + "/admin.html")
         expect(page).to_have_url(self.base + "/admin.html?view=rooms")
+        self.assertEqual(page.locator("html").get_attribute("dir"), "rtl")
+        expect(page.locator('[data-nav="rooms"]')).to_have_attribute("aria-current", "page")
+        expect(page.get_by_role("heading", name="الغرف", exact=True)).to_be_visible()
+        self.assertEqual(page.locator("body").evaluate("el => getComputedStyle(el).direction"), "rtl")
+        self.assertEqual(page.locator("body").evaluate("el => getComputedStyle(el).backgroundColor"), "rgb(13, 13, 13)")
         expect(page.locator(".room-tile")).to_have_count(2)
-        page.get_by_label("Filter room status").select_option("inactive")
+        page.get_by_label("تصفية حسب حالة الغرفة").select_option("inactive")
         expect(page.locator(".room-tile")).to_have_count(1)
-        expect(page.locator(".room-tile h2")).to_have_text("Pyramid")
-        page.get_by_label("Filter room status").select_option("all")
-        page.get_by_label("Search rooms").fill("prison")
+        expect(page.locator(".room-tile h2")).to_have_text("الهرم")
+        page.get_by_label("تصفية حسب حالة الغرفة").select_option("all")
+        page.get_by_label("ابحث عن غرفة").fill("السجن")
         expect(page.locator(".room-tile")).to_have_count(1)
         page.locator(".room-tile").click()
         expect(page).to_have_url(self.base + "/admin.html?view=room&id=anbar")
+        expect(page.get_by_role("link", name="جميع الغرف")).to_be_visible()
+        self.assertIn("→", page.get_by_role("link", name="جميع الغرف").inner_text())
+        expect(page.locator(".room-hero-image img")).to_have_css("display", "block")
+        page.wait_for_function("() => document.querySelector('.room-hero-image img')?.naturalWidth > 0")
+        self.assertLess(page.locator(".room-hero-image img").evaluate("el => Math.abs(el.getBoundingClientRect().bottom - el.parentElement.getBoundingClientRect().bottom)"), 1)
         expect(page.locator(".detail-list li")).to_have_count(3)
         expect(page.get_by_text("Look behind the door")).to_be_visible()
         expect(page.get_by_text("Door clue")).to_be_visible()
         page.reload()
         expect(page.get_by_text("Look behind the door")).to_be_visible()
         page.go_back()
+        expect(page).to_have_url(self.base + "/admin.html?view=rooms")
+        page.goto(self.base + "/admin.html?view=overview")
         expect(page).to_have_url(self.base + "/admin.html?view=rooms")
 
     def test_staff_account_and_logout(self):
@@ -74,12 +84,12 @@ class Phase5BrowserTests(unittest.TestCase):
         page.goto(self.base + "/admin.html?view=staff")
         expect(page.locator(".staff-table tbody tr")).to_have_count(2)
         expect(page.get_by_text("gm@test.invalid")).to_be_visible()
-        expect(page.get_by_text("All rooms")).to_be_visible()
+        expect(page.get_by_text("جميع الغرف")).to_be_visible()
         page.locator('[data-nav="account"]').click()
         expect(page.get_by_text("staff@test.invalid").last).to_be_visible()
         page.locator("#admin-new-email").fill("new@test.invalid")
         page.locator("#admin-email-form button").click()
-        expect(page.locator(".form-message")).to_contain_text("confirmation link")
+        expect(page.locator(".form-message")).to_contain_text("رابط التوثيق")
         page.locator("#admin-logout").click()
         expect(page).to_have_url(self.base + "/login.html")
 
@@ -99,16 +109,42 @@ class Phase5BrowserTests(unittest.TestCase):
     def test_error_retry_and_mobile_navigation(self):
         context = self.context(authenticated=True, fail_dashboard_once=True)
         page = context.new_page()
-        page.goto(self.base + "/admin.html?view=overview")
-        expect(page.get_by_text("Could not load the dashboard")).to_be_visible()
-        page.get_by_role("button", name="Try again").click()
-        expect(page.locator(".metric-value")).to_have_text(["2", "3", "2", "1"])
+        page.goto(self.base + "/admin.html?view=rooms")
+        expect(page.get_by_text("تعذّر تحميل البيانات")).to_be_visible()
+        page.get_by_role("button", name="إعادة المحاولة").click()
+        expect(page.locator(".room-tile")).to_have_count(2)
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#admin-menu-button").click()
         expect(page.locator("#admin-sidebar")).to_have_class("admin-sidebar open")
+        self.assertGreaterEqual(page.locator("#admin-sidebar").bounding_box()["x"], 0)
         page.locator('[data-nav="rooms"]').click()
         expect(page.locator("#admin-sidebar")).to_have_class("admin-sidebar")
         expect(page.locator(".room-tile")).to_have_count(2)
+        self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
+
+    def test_all_existing_room_images_load_in_browser(self):
+        context = self.context(authenticated=True)
+        page = context.new_page()
+        page.goto(self.base + "/admin.html?view=rooms")
+        expect(page.locator(".room-tile")).to_have_count(2)
+        paths = [
+            "images/prison.jpg", "images/pyramid.png", "images/unclesaleh.png",
+            "source/prison/background.jpg", "source/pyramid/background.jpg",
+            "source/unclesaleh/background.jpg",
+        ]
+        loaded = page.evaluate("""async paths => {
+            const results = [];
+            for (const path of paths) {
+                results.push(await new Promise(resolve => {
+                    const img = new Image();
+                    img.onload = () => resolve(img.naturalWidth > 0 && img.naturalHeight > 0);
+                    img.onerror = () => resolve(false);
+                    img.src = '/' + path;
+                }));
+            }
+            return results;
+        }""", paths)
+        self.assertEqual(loaded, [True] * len(paths))
 
 
 if __name__ == "__main__":

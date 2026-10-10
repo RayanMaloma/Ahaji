@@ -13,7 +13,7 @@ function show(messageText, error = false) {
 function enableUpdate() {
   requestForm.hidden = true;
   updateForm.hidden = false;
-  intro.textContent = 'Choose a new password for your staff account.';
+  intro.textContent = 'اختر كلمة مرور جديدة لحسابك.';
 }
 
 supabase.auth.onAuthStateChange((event) => {
@@ -24,7 +24,7 @@ if (new URLSearchParams(location.search).has('setup')) {
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session) {
     updateForm.hidden = true;
-    show('This setup link has expired. Request a fresh link.', true);
+    show('انتهت صلاحية الرابط. اطلب رابطاً جديداً.', true);
   }
 }
 
@@ -35,9 +35,9 @@ requestForm.addEventListener('submit', async (event) => {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(document.getElementById('email').value.trim());
     if (error) throw error;
-    show('If this email belongs to a staff account, a reset link has been sent. Check your inbox.');
+    show('إذا كان البريد مرتبطاً بحساب فريق عمل، فستصلك رسالة الاستعادة. تحقّق من صندوق بريدك.');
   } catch {
-    show('The reset request could not be sent. Please try again later.', true);
+    show('تعذّر إرسال طلب الاستعادة. حاول لاحقاً.', true);
   } finally { button.disabled = false; }
 });
 
@@ -50,8 +50,8 @@ updateForm.addEventListener('submit', async (event) => {
     if (error) throw error;
     await supabase.auth.signOut();
     updateForm.hidden = true;
-    show('Password updated. Sign in with your new password.');
+    show('تم تحديث كلمة المرور. يمكنك الدخول بكلمة المرور الجديدة.');
   } catch {
-    show('The password could not be updated. Request a fresh reset link.', true);
+    show('تعذّر تحديث كلمة المرور. اطلب رابط استعادة جديداً.', true);
   } finally { button.disabled = false; }
 });

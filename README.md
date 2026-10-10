@@ -4,7 +4,7 @@ Ahaji is an escape room Game Master and Cast display application. Current gamepl
 
 ## Local preview
 
-From the repository root, run `python -m http.server 8765 --bind 127.0.0.1` and open `http://127.0.0.1:8765/login.html`. Sign in with a verified staff account, select a permitted room, then use **Open Cast Screen** on the GM page. Cast audio needs a user interaction to unlock playback.
+From the repository root, run `python -m http.server 8765 --bind 127.0.0.1 --protocol HTTP/1.1` and open `http://127.0.0.1:8765/login.html`. A verified Admin lands on the Arabic Rooms workspace; a Game Master selects a permitted room and uses **Open Cast Screen** on the GM page. Cast audio needs a user interaction to unlock playback.
 
 ## Database foundation
 
@@ -12,7 +12,7 @@ Phase 3 added a protected Supabase PostgreSQL schema for rooms, hints, media ref
 
 Phase 4 added Supabase email/password staff authentication, Admin/Game Master roles, room assignments, RLS, protected GM entry, and password recovery. Gameplay synchronization remains local. See [the Phase 4 architecture and recovery note](docs/AHAJI_PHASE_4_AUTH_RBAC.md). Run `npm ci` and `npm run build:auth` after updating the pinned Supabase client bundle.
 
-Phase 5 added a read-only Admin Dashboard backed by real Supabase catalog and staff data. Admins can review overview metrics, rooms and their content, staff access, and their own account at `http://127.0.0.1:8765/admin.html?view=overview`. See [the Phase 5 architecture, security, and recovery note](docs/AHAJI_PHASE_5_ADMIN_DASHBOARD.md). Room editing and staff provisioning are not part of this milestone.
+Phase 5 added an Arabic-first, RTL, dark Admin Dashboard backed by real Supabase catalog and staff data. Admins land on the read-only Rooms workspace at `http://127.0.0.1:8765/admin.html?view=rooms` and can review room content, staff access, and their own account. See [the Phase 5 architecture, security, and recovery note](docs/AHAJI_PHASE_5_ADMIN_DASHBOARD.md). Room editing and staff provisioning are not part of this milestone.
 
 ## Checks
 

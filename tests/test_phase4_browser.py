@@ -47,6 +47,7 @@ class Phase4BrowserTests(unittest.TestCase):
         context = self.context()
         page = context.new_page()
         page.goto(self.base + "/login.html")
+        self.assertEqual(page.locator("html").get_attribute("dir"), "rtl")
         page.locator("#email").fill("wrong@test.invalid")
         page.locator("#password").fill(secrets.token_urlsafe(18))
         page.locator("#login-submit").click()
@@ -55,10 +56,10 @@ class Phase4BrowserTests(unittest.TestCase):
 
         page.locator("#email").fill("staff@test.invalid")
         page.locator("#login-submit").click()
-        expect(page).to_have_url(self.base + "/admin.html?view=overview")
-        expect(page.locator(".metric-card")).to_have_count(4)
+        expect(page).to_have_url(self.base + "/admin.html?view=rooms")
+        expect(page.locator(".room-tile")).to_have_count(3)
         page.reload()
-        expect(page.locator(".metric-card")).to_have_count(4)
+        expect(page.locator(".room-tile")).to_have_count(3)
         page.locator("#admin-logout").click()
         expect(page).to_have_url(self.base + "/login.html")
         page.goto(self.base + "/gm.html?room=anbar")
@@ -77,7 +78,7 @@ class Phase4BrowserTests(unittest.TestCase):
         no_role = no_role_context.new_page()
         no_role.goto(self.base + "/staff.html")
         expect(no_role).to_have_url(self.base + "/unauthorized.html")
-        expect(no_role.locator("#denial-message")).to_contain_text("does not have an active")
+        expect(no_role.locator("#denial-message")).to_contain_text("لا توجد صلاحية نشطة")
 
     def test_recovery_request_and_expired_setup_link(self):
         context = self.context()
@@ -85,20 +86,22 @@ class Phase4BrowserTests(unittest.TestCase):
         page.goto(self.base + "/recover.html")
         page.locator("#email").fill("staff@test.invalid")
         page.locator("#request-submit").click()
-        expect(page.locator("#recovery-message")).to_contain_text("reset link has been sent")
+        expect(page.locator("#recovery-message")).to_contain_text("رسالة الاستعادة")
         page.goto(self.base + "/recover.html?setup=1")
-        expect(page.locator("#recovery-message")).to_contain_text("expired")
+        expect(page.locator("#recovery-message")).to_contain_text("انتهت صلاحية الرابط")
         expect(page.locator("#update-form")).to_be_hidden()
 
     def test_staff_home_and_email_change_request(self):
         context = self.context(authenticated=True)
         page = context.new_page()
         page.goto(self.base + "/staff.html")
-        expect(page.locator("#auth-role")).to_have_text("Admin")
+        expect(page.locator("#auth-role")).to_have_text("مدير")
+        self.assertEqual(page.locator("html").get_attribute("dir"), "rtl")
+        expect(page.locator("#staff-rooms li").first).to_contain_text("السجن")
         expect(page.locator("#staff-rooms li")).to_have_count(3)
         page.locator("#new-email").fill("new-staff@test.invalid")
         page.locator("#change-email-form button").click()
-        expect(page.locator("#change-email-message")).to_contain_text("confirmation link")
+        expect(page.locator("#change-email-message")).to_contain_text("رابط التوثيق")
 
 
 if __name__ == "__main__":

@@ -1,43 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#171717">
-  <title>Admin Dashboard · Ahaji</title>
+  <title>الغرف · أحاجي</title>
   <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
-  <div id="admin-auth-loading" class="admin-gate" role="status">Checking Admin access…</div>
+  <div id="admin-auth-loading" class="admin-gate" role="status">جارٍ التحقق من صلاحية الإدارة…</div>
   <div id="admin-auth-error" class="admin-gate" role="alert" hidden>
-    <p>We could not verify your access.</p>
-    <button id="admin-auth-retry" type="button">Try again</button>
+    <p>تعذّر التحقق من صلاحية الدخول.</p>
+    <button id="admin-auth-retry" type="button">إعادة المحاولة</button>
   </div>
   <div id="admin-shell" class="admin-shell" hidden>
-    <button class="admin-scrim" id="admin-scrim" type="button" aria-label="Close navigation" hidden></button>
-    <aside class="admin-sidebar" id="admin-sidebar" aria-label="Primary navigation">
-      <a class="admin-brand" href="admin.html?view=overview" data-admin-link>
+    <button class="admin-scrim" id="admin-scrim" type="button" aria-label="إغلاق القائمة" hidden></button>
+    <aside class="admin-sidebar" id="admin-sidebar" aria-label="التنقل الرئيسي">
+      <a class="admin-brand" href="admin.html?view=rooms" data-admin-link>
         <img src="images/ahajilogo.svg" alt="Ahaji">
-        <span>OPERATIONS</span>
+        <span>لوحة الإدارة</span>
       </a>
-      <div class="admin-workspace-label">WORKSPACE</div>
-      <nav class="admin-nav" aria-label="Admin sections">
-        <a href="admin.html?view=overview" data-admin-link data-nav="overview"><span class="nav-mark" aria-hidden="true">▦</span> Overview</a>
-        <a href="admin.html?view=rooms" data-admin-link data-nav="rooms"><span class="nav-mark" aria-hidden="true">▣</span> Rooms</a>
-        <a href="admin.html?view=staff" data-admin-link data-nav="staff"><span class="nav-mark" aria-hidden="true">♙</span> Staff</a>
-        <a href="admin.html?view=account" data-admin-link data-nav="account"><span class="nav-mark" aria-hidden="true">◉</span> Account</a>
+      <div class="admin-workspace-label">مساحة العمل</div>
+      <nav class="admin-nav" aria-label="أقسام الإدارة">
+        <a href="admin.html?view=rooms" data-admin-link data-nav="rooms"><span class="nav-icon icon-door" aria-hidden="true"></span> الغرف</a>
+        <a href="admin.html?view=staff" data-admin-link data-nav="staff"><span class="nav-icon icon-users" aria-hidden="true"></span> فريق العمل</a>
+        <a href="admin.html?view=account" data-admin-link data-nav="account"><span class="nav-icon icon-user" aria-hidden="true"></span> حسابي</a>
       </nav>
       <div class="admin-sidebar-bottom">
-        <a class="admin-operations-link" href="index.html">Open Game Master <span aria-hidden="true">↗</span></a>
-        <div class="admin-sidebar-profile"><span class="admin-avatar">A</span><span><strong>Admin account</strong><small id="sidebar-email"></small></span></div>
-        <button id="admin-logout" class="admin-sidebar-logout" type="button">Log out <span aria-hidden="true">↗</span></button>
+        <a class="admin-operations-link" href="index.html">فتح واجهة مدير اللعبة <span aria-hidden="true">↗</span></a>
+        <div class="admin-sidebar-profile"><span class="admin-avatar">أ</span><span><strong>حساب المدير</strong><small id="sidebar-email" dir="ltr"></small></span></div>
+        <button id="admin-logout" class="admin-sidebar-logout" type="button">تسجيل الخروج <span aria-hidden="true">↗</span></button>
       </div>
     </aside>
     <div class="admin-main">
       <header class="admin-topbar">
-        <button class="admin-menu-button" id="admin-menu-button" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="admin-sidebar">☰</button>
-        <nav id="admin-breadcrumbs" class="admin-breadcrumbs" aria-label="Breadcrumb"></nav>
-        <div class="admin-topbar-right"><span class="admin-topbar-label">ADMIN WORKSPACE</span><span class="admin-topbar-avatar">A</span></div>
+        <button class="admin-menu-button" id="admin-menu-button" type="button" aria-label="فتح القائمة" aria-expanded="false" aria-controls="admin-sidebar">☰</button>
+        <nav id="admin-breadcrumbs" class="admin-breadcrumbs" aria-label="مسار الصفحة"></nav>
+        <div class="admin-topbar-right"><span class="admin-topbar-label">إدارة أحاجي</span><span class="admin-topbar-avatar">أ</span></div>
       </header>
       <main id="admin-content" class="admin-content" tabindex="-1" aria-live="polite"></main>
     </div>

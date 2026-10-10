@@ -34,7 +34,7 @@ async function checkAccess() {
       window.ahajiAuthorizedRoomIds = new Set((data || []).map(room => room.id));
     }
     const roleLabel = document.getElementById('auth-role');
-    if (roleLabel) roleLabel.textContent = access.role === 'admin' ? 'Admin' : 'Game Master';
+    if (roleLabel) roleLabel.textContent = page === 'staff' ? (access.role === 'admin' ? 'مدير' : 'مدير لعبة') : (access.role === 'admin' ? 'Admin' : 'Game Master');
     const emailLabel = document.getElementById('auth-email');
     if (emailLabel) emailLabel.textContent = access.user.email || '';
     const adminLink = document.getElementById('admin-dashboard-link');
@@ -48,7 +48,7 @@ async function checkAccess() {
   } catch (error) {
     loading.hidden = true;
     failure.hidden = false;
-    failure.textContent = 'Could not verify access. Check your connection and retry.';
+    failure.textContent = page === 'staff' ? 'تعذّر التحقق من صلاحية الدخول. تحقّق من اتصالك وأعد المحاولة.' : 'Could not verify access. Check your connection and retry.';
     console.error('Access verification failed:', error);
   }
 }
