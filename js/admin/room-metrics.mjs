@@ -4,7 +4,7 @@ export function roomMetrics(room) {
   const counts = { hints: room.hints.length, images: 0, videos: 0, audio: 0 };
   for (const record of room.mediaRecords) {
     if (record.kind === 'gm_image') counts.images += 1;
-    else if (record.kind === 'lose_video') counts.videos += 1;
+    else if (record.kind === 'lose_video' || record.kind === 'gm_video') counts.videos += 1;
     else if (AUDIO_KINDS.has(record.kind)) counts.audio += 1;
   }
   return counts;

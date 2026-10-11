@@ -26,6 +26,7 @@ function normalizeRoom(row, hints, media) {
   return {
     id: row.id,
     name: row.name,
+    description: row.description || '',
     displayOrder: row.display_order,
     thumbnail: row.thumbnail_ref,
     backgroundImage: row.background_ref,
@@ -44,7 +45,8 @@ function normalizeRoom(row, hints, media) {
       loseSound: first('lose_sound'),
       loseVideo: first('lose_video'),
       gmImages: list('gm_image'),
-      gmSounds: list('gm_sound')
+      gmSounds: list('gm_sound'),
+      gmVideos: list('gm_video')
     }
   };
 }
@@ -54,7 +56,7 @@ export function createRoomRepository(client) {
 
   async function listRooms({ includeInactive = false } = {}) {
     let query = client.from('rooms').select(
-      'id,name,thumbnail_ref,background_ref,default_duration_seconds,display_order,is_active,created_at,updated_at'
+      'id,name,description,thumbnail_ref,background_ref,default_duration_seconds,display_order,is_active,created_at,updated_at'
     );
     if (!includeInactive) query = query.eq('is_active', true);
     const rooms = await read(query.order('display_order').order('id'));

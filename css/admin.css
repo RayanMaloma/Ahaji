@@ -113,3 +113,26 @@ body{direction:rtl;background:var(--paper)}
 .logout-icon{display:block;width:19px;height:19px;flex:none;background:currentColor;mask:url('../images/icons/log-out.svg') center / contain no-repeat;transform:scaleX(-1)}
 @media(max-width:850px){.account-layout{grid-template-columns:1fr}}
 @media(max-width:540px){.admin-breadcrumbs{font-size:25px}.admin-nav a{font-size:15px}}
+
+/* Operational editing controls */
+.room-add-tile{min-height:250px;border:2px dashed rgba(245,200,0,.5);border-radius:12px;background:#171717;color:var(--yellow);font:700 24px "Thmanyah Serif Display",Tahoma,sans-serif;cursor:pointer}
+.room-add-tile:hover,.room-add-tile:focus-visible{background:#222;border-color:var(--yellow)}
+.room-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;padding:28px;max-width:920px}
+.form-field{display:grid;gap:8px;color:var(--ink);font-size:14px;font-weight:700;min-width:0}
+.form-field:has(textarea),.form-buttons{grid-column:1/-1}
+.admin-input,.admin-textarea,.admin-select{width:100%;border:1px solid rgba(255,255,255,.2);border-radius:8px;background:#202020;color:var(--ink);padding:11px 13px;font:inherit;font-weight:400;min-width:0}
+.admin-input:focus,.admin-textarea:focus,.admin-select:focus{outline:2px solid var(--yellow);outline-offset:1px}
+.form-field input[type=checkbox]{width:22px;height:22px;accent-color:var(--yellow)}
+.form-buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.item-actions{display:inline-flex;flex-wrap:wrap;gap:6px;margin-inline-start:auto}
+.mini-action{border:1px solid rgba(255,255,255,.2);border-radius:6px;background:#242424;color:var(--ink);padding:6px 9px;font:inherit;font-size:12px;cursor:pointer}
+.mini-action:hover,.mini-action:focus-visible{border-color:var(--yellow);color:var(--yellow)}
+.mini-action.danger,.danger-button{color:#ffaaa7}
+.room-danger-zone{display:flex;justify-content:flex-end;margin-top:28px}
+.admin-dialog{width:min(94vw,540px);max-height:90vh;overflow:auto;border:1px solid rgba(255,255,255,.22);border-radius:14px;background:#181818;color:var(--ink);padding:0;box-shadow:0 20px 80px #000a}
+.admin-dialog::backdrop{background:#000b}
+.admin-dialog-form{display:grid;gap:18px;padding:24px}
+.admin-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.admin-dialog-head h2{margin:0;font-size:22px}
+.admin-dialog-form .button-dark{justify-self:start}
+@media(max-width:650px){.room-editor{grid-template-columns:1fr;padding:18px}.room-add-tile{min-height:180px}}

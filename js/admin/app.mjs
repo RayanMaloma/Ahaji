@@ -18,7 +18,7 @@ const arabicRoomNames = { anbar: 'السجن', haram: 'الهرم', saleh: 'ال
 const roomName = room => arabicRoomNames[room.id] || room.name;
 const mediaKinds = {
   hint_sound: 'صوت التلميح', lose_sound: 'صوت الخسارة',
-  lose_video: 'فيديو الخسارة', gm_image: 'صورة', gm_sound: 'مؤثر صوتي'
+  lose_video: 'فيديو الخسارة', gm_image: 'صورة', gm_sound: 'مؤثر صوتي', gm_video: 'فيديو'
 };
 
 function node(tag, className = '', value) {
@@ -39,6 +39,11 @@ function button(label, className = 'subtle-button') {
   return item;
 }
 function assetUrl(ref) {
+  if (typeof ref === 'string' && ref.startsWith('storage://room-assets/')) {
+    const path=ref.slice('storage://room-assets/'.length);
+    if(!/^[a-z][a-z0-9_-]{0,63}\/[A-Za-z0-9._-]+$/.test(path))return null;
+    return supabase.storage.from('room-assets').getPublicUrl(path).data.publicUrl;
+  }
   if (typeof ref !== 'string' || !/^(images|source)\//.test(ref) || ref.includes('..')) return null;
   const url = new URL(ref, location.origin + '/');
   return url.origin === location.origin ? url.href : null;
@@ -116,13 +121,18 @@ function roomTile(room) {
 }
 function renderRooms() {
   const rooms = state.data.rooms;
-  content.append(node('h1', 'sr-only', 'الغرف'));
+  const add=button('＋ إضافة غرفة','button-dark');
+  add.addEventListener('click',()=>navigate('admin.html?view=new-room'));
+  content.append(heading('إدارة الغرف','الغرف','إعداد الغرف ومحتواها وتشغيلها.',add));
   const grid = node('div','room-grid-admin');
   if (!rooms.length) {
     const empty = node('div','empty-box');
     empty.append(node('strong','','لا توجد غرف بعد'),node('span','','ستظهر الغرف هنا عند إعدادها.'));
     grid.append(empty);
   } else rooms.forEach(room => grid.append(roomTile(room)));
+  const addTile=button('＋  إضافة غرفة','room-add-tile');
+  addTile.addEventListener('click',()=>navigate('admin.html?view=new-room'));
+  grid.append(addTile);
   content.append(grid);
 }
 
@@ -133,7 +143,9 @@ function renderRoom(roomId) {
   const room = state.data.rooms.find(item => item.id === roomId);
   if (!room) { renderNotFound('لم نتمكن من العثور على هذه الغرفة في قاعدة البيانات.'); return; }
   const back = link('admin.html?view=rooms','subtle-button room-back','→  جميع الغرف');
-  content.append(back, heading('تفاصيل الغرفة',roomName(room),'إعدادات الغرفة ومحتواها الحالي · للعرض فقط'));
+  const edit=button('تعديل الغرفة','button-dark');
+  edit.addEventListener('click',()=>navigate(`admin.html?view=edit-room&id=${encodeURIComponent(roomId)}`));
+  content.append(back, heading('تفاصيل الغرفة',roomName(room),room.description||'إعدادات الغرفة ومحتواها',edit));
   const hero = node('section','room-hero');
   const cover = node('div','room-hero-image'); cover.append(image(room.backgroundImage,`خلفية غرفة ${roomName(room)}`,'room-background'));
   const body = node('div','room-hero-body');
@@ -145,15 +157,26 @@ function renderRoom(roomId) {
   body.append(summary,metricTags(room),meta); hero.append(cover,body); content.append(hero);
   const columns = node('div','detail-columns');
   const hints = panel('التلميحات النصية',metricLabel('hints',room.hints.length));
+  const addHint=button('＋ تلميح','subtle-button');
+  addHint.addEventListener('click',()=>showHintEditor(room,null));
+  hints.head.append(addHint);
   const hintsList = node('ol','detail-list');
   if (!room.hints.length) hints.wrap.append(node('p','panel-empty','لا توجد تلميحات نصية لهذه الغرفة.'));
   room.hints.forEach((hint,index) => {
     const item = node('li');
     const copy = node('span','detail-text',hint.text); copy.dir = 'auto';
-    item.append(node('span','item-index',String(index+1).padStart(2,'0')),copy); hintsList.append(item);
+    item.append(node('span','item-index',String(index+1).padStart(2,'0')),copy);
+    const actions=node('span','item-actions');
+    const editHint=button('تعديل','mini-action');editHint.addEventListener('click',()=>showHintEditor(room,hint));
+    const delHint=button('حذف','mini-action danger');delHint.addEventListener('click',()=>removeHint(room,hint));
+    actions.append(editHint,delHint);
+    if(index>0){const up=button('↑','mini-action');up.setAttribute('aria-label','رفع التلميح');up.addEventListener('click',()=>moveHint(room,index,-1));actions.append(up);}
+    if(index<room.hints.length-1){const down=button('↓','mini-action');down.setAttribute('aria-label','خفض التلميح');down.addEventListener('click',()=>moveHint(room,index,1));actions.append(down);}
+    item.append(actions);hintsList.append(item);
   });
   if (room.hints.length) { const padding = node('div','panel-body'); padding.append(hintsList); hints.wrap.append(padding); }
   const media = panel('مكتبة الوسائط',`${room.mediaRecords.length} ملف`);
+  const addMedia=button('＋ ملف','subtle-button');addMedia.addEventListener('click',()=>showMediaEditor(room));media.head.append(addMedia);
   if (!room.mediaRecords.length) media.wrap.append(node('p','panel-empty','لا توجد ملفات وسائط لهذه الغرفة.'));
   else {
     const list = node('ul','detail-list');
@@ -166,11 +189,141 @@ function renderRoom(roomId) {
       item.append(text);
       const src = assetUrl(record.assetRef);
       if (src) { const open = link(src,'media-link','فتح الملف ↗'); open.target='_blank'; open.rel='noopener noreferrer'; item.append(open); }
+      const actions=node('span','item-actions');
+      const replace=button('استبدال','mini-action');replace.addEventListener('click',()=>replaceMedia(room,record));
+      const remove=button('حذف','mini-action danger');remove.addEventListener('click',()=>removeMedia(room,record));
+      actions.append(replace,remove);item.append(actions);
       list.append(item);
     }
     const padding = node('div','panel-body'); padding.append(list); media.wrap.append(padding);
   }
   columns.append(hints.wrap,media.wrap); content.append(columns);
+  if(room.isActive){
+    const archive=button('أرشفة الغرفة','subtle-button danger-button');
+    archive.addEventListener('click',()=>archiveRoom(room));
+    content.append(node('div','room-danger-zone'));content.lastElementChild.append(archive);
+  }
+}
+
+function showDialog(title,build) {
+  const dialog=node('dialog','admin-dialog');
+  const form=node('form','admin-dialog-form');form.method='dialog';
+  const head=node('div','admin-dialog-head');head.append(node('h2','',title));
+  const close=button('✕','mini-action');close.setAttribute('aria-label','إغلاق');close.addEventListener('click',()=>dialog.close());head.append(close);
+  form.append(head);build(form,dialog);
+  dialog.append(form);document.body.append(dialog);
+  dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
+  return {dialog,form};
+}
+function field(label,control){const wrap=node('label','form-field');wrap.append(node('span','',label),control);return wrap;}
+function formStatus(form,message,error=true){let status=form.querySelector('[data-form-status]');if(!status){status=node('p','form-message');status.dataset.formStatus='';status.setAttribute('role','status');form.append(status);}status.classList.toggle('error',error);status.textContent=message;}
+async function refresh(){await loadData();}
+function showHintEditor(room,hint){
+  showDialog(hint?'تعديل التلميح':'إضافة تلميح',(form,dialog)=>{
+    const text=node('textarea','admin-textarea');text.required=true;text.maxLength=2000;text.rows=5;text.value=hint?.text||'';
+    form.append(field('نص التلميح',text));
+    const save=button('حفظ التلميح','button-dark');save.type='submit';form.append(save);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();save.disabled=true;
+      try{await repository.saveHint(room.id,{id:hint?.id,text:text.value.trim(),displayOrder:Math.max(-1,...room.hints.map(h=>h.displayOrder))+1});dialog.close();await refresh();}
+      catch(error){formStatus(form,error.message||'تعذّر حفظ التلميح.');save.disabled=false;}
+    });
+  });
+}
+async function removeHint(room,hint){
+  if(!confirm('حذف هذا التلميح؟'))return;
+  try{await repository.deleteHint(room.id,hint.id);await refresh();}
+  catch(error){alert(error.message||'تعذّر حذف التلميح.');}
+}
+async function moveHint(room,index,direction){
+  const ids=room.hints.map(h=>h.id);[ids[index],ids[index+direction]]=[ids[index+direction],ids[index]];
+  try{await repository.reorderHints(room.id,ids);await refresh();}
+  catch(error){alert(error.message||'تعذّر تغيير ترتيب التلميحات.');}
+}
+function mediaAccept(kind){return kind==='gm_image'?'image/jpeg,image/png,image/webp,image/gif':
+  kind==='lose_video'||kind==='gm_video'?'video/mp4,video/webm':'audio/mpeg,audio/ogg,audio/wav,audio/mp4';}
+function showMediaEditor(room){
+  showDialog('إضافة ملف وسائط',(form,dialog)=>{
+    const kind=node('select','admin-select');
+    for(const [value,label] of Object.entries(mediaKinds)){const option=node('option','',label);option.value=value;kind.append(option);}
+    kind.value='gm_image';
+    const label=node('input','admin-input');label.required=true;label.maxLength=120;
+    const file=node('input','admin-input');file.type='file';file.required=true;file.accept=mediaAccept(kind.value);
+    kind.addEventListener('change',()=>{file.accept=mediaAccept(kind.value);file.value='';});
+    form.append(field('نوع الملف',kind),field('اسم الملف',label),field('الملف · حتى 10 ميغابايت',file));
+    const save=button('رفع وحفظ','button-dark');save.type='submit';form.append(save);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();save.disabled=true;let ref=null;
+      try{
+        ref=await repository.uploadAsset(room.id,file.files[0]);
+        const next=Math.max(-1,...room.mediaRecords.filter(x=>x.kind===kind.value).map(x=>x.displayOrder))+1;
+        await repository.saveMedia(room.id,{kind:kind.value,label:label.value.trim(),assetRef:ref,displayOrder:next});
+        dialog.close();await refresh();
+      }catch(error){if(ref)await repository.removeAsset(ref).catch(()=>{});formStatus(form,error.message||'تعذّر حفظ الملف.');save.disabled=false;}
+    });
+  });
+}
+function replaceMedia(room,record){
+  showDialog('استبدال الملف',(form,dialog)=>{
+    const file=node('input','admin-input');file.type='file';file.required=true;file.accept=mediaAccept(record.kind);
+    form.append(node('p','account-note',record.label||mediaKinds[record.kind]||'الملف'),field('الملف الجديد · حتى 10 ميغابايت',file));
+    const save=button('استبدال','button-dark');save.type='submit';form.append(save);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();save.disabled=true;let ref=null;
+      try{ref=await repository.uploadAsset(room.id,file.files[0]);
+        await repository.saveMedia(room.id,{...record,assetRef:ref});
+        dialog.close();await repository.removeAsset(record.assetRef).catch(()=>{});await refresh();
+      }catch(error){if(ref)await repository.removeAsset(ref).catch(()=>{});formStatus(form,error.message||'تعذّر استبدال الملف.');save.disabled=false;}
+    });
+  });
+}
+async function removeMedia(room,record){
+  if(!confirm('حذف هذا الملف من مكتبة الغرفة؟'))return;
+  try{await repository.deleteMedia(room.id,record.id);await repository.removeAsset(record.assetRef).catch(()=>{});await refresh();}
+  catch(error){alert(error.message||'تعذّر حذف الملف.');}
+}
+async function archiveRoom(room){
+  if(!confirm(`أرشفة غرفة ${roomName(room)}؟ ستبقى بياناتها وتاريخها محفوظة.`))return;
+  try{await repository.updateRoom(room.id,{is_active:false});await refresh();}
+  catch(error){alert(error.message||'تعذّرت أرشفة الغرفة. قد تكون هناك جلسة نشطة.');}
+}
+function renderRoomForm(roomId){
+  const room=roomId?state.data.rooms.find(r=>r.id===roomId):null;
+  if(roomId&&!room){renderNotFound('الغرفة غير موجودة.');return;}
+  const creating=!room;
+  content.append(heading('إدارة الغرف',creating?'إضافة غرفة':'تعديل الغرفة',
+    creating?'أدخل البيانات الأساسية ثم أضف التلميحات والوسائط.':'تحديث بيانات الغرفة ومظهرها.'));
+  const form=node('form','room-editor panel');
+  const id=node('input','admin-input');id.required=true;id.pattern='[a-z][a-z0-9_-]{0,63}';id.maxLength=64;id.dir='ltr';id.value=room?.id||'';id.disabled=!creating;
+  const name=node('input','admin-input');name.required=true;name.maxLength=120;name.value=room?.name||'';
+  const description=node('textarea','admin-textarea');description.maxLength=2000;description.rows=3;description.value=room?.description||'';
+  const duration=node('input','admin-input');duration.type='number';duration.min='1';duration.max='99';duration.required=true;duration.value=String(Math.round((room?.defaultDuration||3600)/60));
+  const active=node('input');active.type='checkbox';active.checked=room?.isActive??true;
+  const cover=node('input','admin-input');cover.type='file';cover.accept='image/jpeg,image/png,image/webp,image/gif';
+  const background=node('input','admin-input');background.type='file';background.accept=cover.accept;
+  form.append(field('معرّف الغرفة · أحرف لاتينية صغيرة',id),field('اسم الغرفة',name),field('الوصف',description),field('مدة اللعبة بالدقائق',duration),field('صورة الغلاف',cover),field('صورة الخلفية',background),field('الغرفة نشطة',active));
+  const buttons=node('div','form-buttons');const save=button(creating?'إنشاء الغرفة':'حفظ التغييرات','button-dark');save.type='submit';
+  buttons.append(save,link(creating?'admin.html?view=rooms':roomUrl(room),'subtle-button','إلغاء'));form.append(buttons);content.append(form);
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();save.disabled=true;
+    const roomKey=id.value.trim();const uploaded=[];let created=false;
+    try{
+      const values={name:name.value.trim(),description:description.value.trim(),
+        default_duration_seconds:Number(duration.value)*60,is_active:active.checked};
+      if(creating){await repository.createRoom({id:roomKey,...values,is_active:false,
+        thumbnail_ref:'images/ahajilogo.svg',background_ref:'images/ahajilogo.svg'});created=true;}
+      if(cover.files[0]){values.thumbnail_ref=await repository.uploadAsset(roomKey,cover.files[0]);uploaded.push(values.thumbnail_ref);}
+      if(background.files[0]){values.background_ref=await repository.uploadAsset(roomKey,background.files[0]);uploaded.push(values.background_ref);}
+      await repository.updateRoom(roomKey,values);
+      for(const old of [cover.files[0]&&room?.thumbnail,background.files[0]&&room?.backgroundImage])
+        if(old)await repository.removeAsset(old).catch(()=>{});
+      navigate(roomUrl({id:roomKey}));await refresh();
+    }catch(error){
+      for(const ref of uploaded)await repository.removeAsset(ref).catch(()=>{});
+      if(created)await repository.deleteNewRoom(roomKey).catch(()=>{});
+      formStatus(form,error.message||'تعذّر حفظ الغرفة.');save.disabled=false;
+    }
+  });
 }
 
 function renderStaff() {
@@ -265,13 +418,14 @@ function route(){
   return {view:requested,id:params.get('id')||''};
 }
 function setNavigation(view,id){
-  const section=view==='room'?'rooms':view;
+  const section=['room','new-room','edit-room'].includes(view)?'rooms':view;
   document.querySelectorAll('[data-nav]').forEach(item=>{
     if(item.dataset.nav===section)item.setAttribute('aria-current','page');
     else item.removeAttribute('aria-current');
   });
   breadcrumbs.replaceChildren();
-  const titles={rooms:'الغرف',staff:'فريق العمل',account:'حسابي',room:'تفاصيل الغرفة'};
+  const titles={rooms:'الغرف',staff:'فريق العمل',account:'حسابي',room:'تفاصيل الغرفة',
+    'new-room':'إضافة غرفة','edit-room':'تعديل الغرفة'};
   let title=titles[view]||'صفحة غير موجودة';
   if(view==='room'){
     const room=state.data?.rooms.find(r=>r.id===id);
@@ -297,8 +451,15 @@ function render(){
   if(!state.data){content.append(node('div','loading-panel','جارٍ تحميل بيانات الغرف…'));return;}
   if(view==='rooms')renderRooms();
   else if(view==='room')renderRoom(id);
+  else if(view==='new-room')renderRoomForm(null);
+  else if(view==='edit-room')renderRoomForm(id);
   else if(view==='staff')renderStaff();
   else renderNotFound('هذا الرابط لا يشير إلى صفحة في لوحة الإدارة.');
+}
+function navigate(href){
+  const url=new URL(href,location.href);
+  history.pushState(null,'',url.pathname+url.search);closeMenu();render();
+  content.focus({preventScroll:true});window.scrollTo(0,0);
 }
 function closeMenu(){sidebar.classList.remove('open');scrim.hidden=true;menuButton.setAttribute('aria-expanded','false');}
 function openMenu(){sidebar.classList.add('open');scrim.hidden=false;menuButton.setAttribute('aria-expanded','true');}
