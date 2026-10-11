@@ -244,7 +244,9 @@ function renderAccount() {
   security.append(node('h2','','الدخول والأمان'));
   security.append(node('p','account-note','يمكنك استعادة كلمة المرور عبر رابط يُرسل إلى بريدك الإلكتروني.'),
     link('recover.html','subtle-button','استعادة كلمة المرور ↗'));
-  grid.append(profile,change,security);content.append(grid);
+  const actions=node('div','account-actions');
+  actions.append(change,security);
+  grid.append(profile,actions);content.append(grid);
 }
 function detailAccount(label,value,ltr=false){const row=node('div','account-field');const text=node('strong','',value);if(ltr)text.dir='ltr';row.append(node('small','',label),text);return row;}
 function renderNotFound(message){
@@ -275,7 +277,10 @@ function setNavigation(view,id){
     const room=state.data?.rooms.find(r=>r.id===id);
     if(room)title=roomName(room);
   }
-  breadcrumbs.append(node('strong','',title));
+  const displayTitles={rooms:'الغـــرف',staff:'فريق العمـــل',account:'حسابـــي'};
+  const visibleTitle=node('strong','page-title',displayTitles[view]||title);
+  visibleTitle.setAttribute('aria-hidden','true');
+  breadcrumbs.append(visibleTitle,node('span','sr-only',title));
   document.title=`${title} · أحاجي`;
 }
 function render(){

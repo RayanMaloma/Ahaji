@@ -21,6 +21,14 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 
 class Phase5BrowserTests(unittest.TestCase):
+    DISPLAY_TITLES = {"الغرف": "الغـــرف", "فريق العمل": "فريق العمـــل", "حسابي": "حسابـــي"}
+
+    def assert_page_title(self, page, title):
+        expect(page.locator("#admin-breadcrumbs .page-title")).to_have_text(
+            self.DISPLAY_TITLES.get(title, title))
+        expect(page.locator("#admin-breadcrumbs .sr-only")).to_have_text(title)
+        self.assertEqual(page.title(), f"{title} · أحاجي")
+
     @classmethod
     def setUpClass(cls):
         handler = functools.partial(QuietHandler, directory=str(ROOT))
@@ -51,8 +59,7 @@ class Phase5BrowserTests(unittest.TestCase):
         expect(page).to_have_url(self.base + "/admin.html?view=rooms")
         self.assertEqual(page.locator("html").get_attribute("dir"), "rtl")
         expect(page.locator('[data-nav="rooms"]')).to_have_attribute("aria-current", "page")
-        expect(page.locator("#admin-breadcrumbs")).to_have_text("الغرف")
-        self.assertEqual(page.title(), "الغرف · أحاجي")
+        self.assert_page_title(page, "الغرف")
         expect(page.locator(".page-heading, .filterbar, .filter-count")).to_have_count(0)
         expect(page.locator(".admin-workspace-label")).to_have_count(0)
         expect(page.locator("#sidebar-avatar")).to_have_text("ل")
@@ -69,8 +76,7 @@ class Phase5BrowserTests(unittest.TestCase):
         self.assertNotIn("anbar", page.locator(".room-tile").first.inner_text())
         page.locator(".room-tile").first.click()
         expect(page).to_have_url(self.base + "/admin.html?view=room&id=anbar")
-        expect(page.locator("#admin-breadcrumbs")).to_have_text("السجن")
-        self.assertEqual(page.title(), "السجن · أحاجي")
+        self.assert_page_title(page, "السجن")
         expect(page.get_by_role("link", name="جميع الغرف")).to_be_visible()
         self.assertIn("→", page.get_by_role("link", name="جميع الغرف").inner_text())
         expect(page.locator(".room-hero-image img")).to_have_css("display", "block")
@@ -93,15 +99,13 @@ class Phase5BrowserTests(unittest.TestCase):
         context = self.context(authenticated=True)
         page = context.new_page()
         page.goto(self.base + "/admin.html?view=staff")
-        expect(page.locator("#admin-breadcrumbs")).to_have_text("فريق العمل")
-        self.assertEqual(page.title(), "فريق العمل · أحاجي")
+        self.assert_page_title(page, "فريق العمل")
         expect(page.locator(".page-heading")).to_have_count(0)
         expect(page.locator(".staff-table tbody tr")).to_have_count(2)
         expect(page.get_by_text("gm@test.invalid")).to_be_visible()
         expect(page.get_by_text("جميع الغرف")).to_be_visible()
         page.locator('[data-nav="account"]').click()
-        expect(page.locator("#admin-breadcrumbs")).to_have_text("حسابي")
-        self.assertEqual(page.title(), "حسابي · أحاجي")
+        self.assert_page_title(page, "حسابي")
         expect(page.locator(".page-heading")).to_have_count(0)
         expect(page.get_by_text("staff@test.invalid").last).to_be_visible()
         expect(page.locator(".account-avatar")).to_have_text("ل")
@@ -121,7 +125,7 @@ class Phase5BrowserTests(unittest.TestCase):
         user["email"] = "updated@test.invalid"
         user["user_metadata"]["display_name"] = "سارة"
         page.locator('[data-nav="staff"]').click()
-        expect(page.locator("#admin-breadcrumbs")).to_have_text("فريق العمل")
+        self.assert_page_title(page, "فريق العمل")
         page.locator('[data-nav="account"]').click()
         expect(page.locator(".account-profile-identity strong")).to_have_text("سارة")
         expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("updated@test.invalid")
@@ -139,7 +143,7 @@ class Phase5BrowserTests(unittest.TestCase):
         page = context.new_page()
         page.goto(self.base + "/admin.html?view=account")
         expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
-        expect(page.locator("#admin-breadcrumbs")).to_have_text("حسابي")
+        self.assert_page_title(page, "حسابي")
         expect(page.locator("#admin-new-email")).to_be_visible()
         expect(page.get_by_text("تعذّر تحميل البيانات")).to_have_count(0)
         page.locator('[data-nav="rooms"]').click()
@@ -199,6 +203,9 @@ class Phase5BrowserTests(unittest.TestCase):
         staff.focus()
         expect(staff).to_have_css("outline-color", "rgb(255, 225, 91)")
         logout = page.locator("#admin-logout")
+        expect(logout.locator(".logout-icon")).to_be_visible()
+        self.assertIn("/images/icons/log-out.svg", logout.locator(".logout-icon").evaluate(
+            "el => getComputedStyle(el).maskImage"))
         expect(logout).to_have_css("color", "rgb(255, 170, 167)")
         logout.focus()
         expect(logout).to_have_css("outline-color", "rgb(255, 170, 167)")
@@ -239,14 +246,24 @@ class Phase5BrowserTests(unittest.TestCase):
             page.set_viewport_size({"width": width, "height": height})
             for view, title in [("rooms", "الغرف"), ("staff", "فريق العمل"), ("account", "حسابي")]:
                 page.goto(self.base + f"/admin.html?view={view}")
-                expect(page.locator("#admin-breadcrumbs")).to_have_text(title)
-                self.assertEqual(page.title(), f"{title} · أحاجي")
+                self.assert_page_title(page, title)
                 self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), width + 1)
                 if view == "rooms":
                     expect(page.locator(".room-tile")).to_have_count(3)
                 elif view == "account":
                     expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
                     expect(page.locator("#admin-new-email")).to_be_visible()
+                    profile = page.locator(".account-layout > .account-card").bounding_box()
+                    email = page.locator(".account-actions .account-card").first.bounding_box()
+                    security = page.locator(".account-actions .account-card").last.bounding_box()
+                    self.assertAlmostEqual(email["x"], security["x"], delta=1)
+                    self.assertAlmostEqual(email["width"], security["width"], delta=1)
+                    self.assertLessEqual(email["y"] + email["height"], security["y"])
+                    self.assertLess(security["y"] - email["y"] - email["height"], 25)
+                    if width > 850:
+                        self.assertGreater(profile["x"], email["x"])
+                    else:
+                        self.assertLess(profile["y"], email["y"])
 
     def test_thmanyah_font_loads_on_dashboard_and_auth_pages(self):
         files = {
@@ -281,6 +298,9 @@ class Phase5BrowserTests(unittest.TestCase):
             self.assertEqual(dict(audit["faces"]), {weight: "loaded" for weight in files})
             self.assertEqual(set(audit["requests"]), set(files.values()))
             self.assertEqual(responses, {name: 200 for name in files.values()})
+            for selector in (".admin-brand span", ".admin-nav a", ".admin-breadcrumbs .page-title", ".room-tile-body h2"):
+                expect(page.locator(selector).first).to_have_css("font-weight", "700")
+            self.assertTrue(page.evaluate("document.fonts.check('700 25px \"Thmanyah Serif Display\"', 'الغـــرف')"))
 
         for path, options in [
             ("login.html", {"authenticated": False}),
