@@ -12,6 +12,7 @@ ROOMS = ["anbar", "haram", "saleh"]
 DASHBOARD_ROOMS = [
     {"id": "anbar", "name": "Prison", "thumbnail_ref": "images/prison.jpg", "background_ref": "source/prison/background.jpg", "default_duration_seconds": 3600, "display_order": 0, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
     {"id": "haram", "name": "Pyramid", "thumbnail_ref": "images/pyramid.png", "background_ref": "source/pyramid/background.jpg", "default_duration_seconds": 2700, "display_order": 1, "is_active": False, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
+    {"id": "saleh", "name": "Uncle Saleh", "thumbnail_ref": "images/unclesaleh.png", "background_ref": "source/unclesaleh/background.jpg", "default_duration_seconds": 3600, "display_order": 2, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
 ]
 DASHBOARD_HINTS = [
     {"id": "hint-1", "room_id": "anbar", "body": "Look behind the door", "display_order": 0},
@@ -20,7 +21,15 @@ DASHBOARD_HINTS = [
 ]
 DASHBOARD_MEDIA = [
     {"id": "media-1", "room_id": "anbar", "kind": "gm_image", "label": "Door clue", "asset_ref": "source/prison/images/مكان فك الزنزانة.png", "display_order": 0},
-    {"id": "media-2", "room_id": "haram", "kind": "hint_sound", "label": None, "asset_ref": "source/pyramid/hint-sound.mp3", "display_order": 0},
+    {"id": "media-2", "room_id": "anbar", "kind": "gm_sound", "label": "Sound cue", "asset_ref": "source/prison/sounds/صوت باب العنبر.mp3", "display_order": 0},
+    {"id": "media-3", "room_id": "anbar", "kind": "hint_sound", "label": None, "asset_ref": "source/prison/hint-sound.mp3", "display_order": 0},
+    {"id": "media-4", "room_id": "anbar", "kind": "lose_sound", "label": None, "asset_ref": "source/prison/loose-sound.mp3", "display_order": 0},
+    {"id": "media-5", "room_id": "haram", "kind": "gm_image", "label": "Image 1", "asset_ref": "source/pyramid/imghint1.png", "display_order": 0},
+    {"id": "media-6", "room_id": "haram", "kind": "gm_image", "label": "Image 2", "asset_ref": "source/pyramid/imghint2.png", "display_order": 1},
+    {"id": "media-7", "room_id": "haram", "kind": "hint_sound", "label": None, "asset_ref": "source/pyramid/hint-sound.mp3", "display_order": 0},
+    {"id": "media-8", "room_id": "saleh", "kind": "gm_image", "label": "Image 1", "asset_ref": "source/unclesaleh/imghint1.png", "display_order": 0},
+    {"id": "media-9", "room_id": "saleh", "kind": "hint_sound", "label": None, "asset_ref": "source/unclesaleh/hint-sound.mp3", "display_order": 0},
+    {"id": "media-10", "room_id": "saleh", "kind": "lose_video", "label": None, "asset_ref": "source/unclesaleh/loose-video.mp4", "display_order": 0},
 ]
 DASHBOARD_STAFF = [
     {"user_id": USER_ID, "email": "staff@test.invalid", "email_confirmed": True, "role": "admin", "active": True, "created_at": "2026-01-01T00:00:00Z", "room_ids": []},
@@ -33,7 +42,7 @@ def session():
         return base64.urlsafe_b64encode(json.dumps(value).encode()).decode().rstrip("=")
     exp = int(time.time()) + 3600
     token = f"{b64({'alg': 'HS256', 'typ': 'JWT'})}.{b64({'sub': USER_ID, 'exp': exp, 'role': 'authenticated'})}.mock"
-    user = {"id": USER_ID, "email": "staff@test.invalid", "email_confirmed_at": "2026-01-01T00:00:00Z", "role": "authenticated", "aud": "authenticated"}
+    user = {"id": USER_ID, "email": "staff@test.invalid", "email_confirmed_at": "2026-01-01T00:00:00Z", "role": "authenticated", "aud": "authenticated", "user_metadata": {"display_name": "ليلى"}}
     return {"access_token": token, "refresh_token": "local-fixture-only", "token_type": "bearer",
             "expires_in": 3600, "expires_at": exp, "user": user}
 

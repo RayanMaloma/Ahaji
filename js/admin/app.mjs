@@ -1,5 +1,7 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
 import { createAdminRepository } from '../data/admin-repository.mjs';
+import { metricLabel, roomMetrics } from './room-metrics.mjs';
+import { profileInitial, profileName } from './profile-avatar.mjs';
 
 const repository = createAdminRepository(supabase);
 const shell = document.getElementById('admin-shell');
@@ -93,51 +95,34 @@ function fmtDate(value) {
   return Number.isNaN(date.getTime()) ? 'غير متاح' : new Intl.DateTimeFormat('ar-SA',{dateStyle:'medium',numberingSystem:'latn'}).format(date);
 }
 function roomUrl(room) { return `admin.html?view=room&id=${encodeURIComponent(room.id)}`; }
-function roomSummary(room) { return `${room.hints.length} تلميح · ${room.mediaRecords.length} ملف وسائط`; }
+function metricTags(room) {
+  const metrics = roomMetrics(room);
+  const list = node('div', 'room-metric-tags');
+  for (const kind of ['hints', 'images', 'videos', 'audio']) {
+    list.append(node('span', `room-metric-tag metric-${kind}`, metricLabel(kind, metrics[kind])));
+  }
+  return list;
+}
 
 function roomTile(room) {
   const tile = link(roomUrl(room), 'room-tile', '');
   const cover = node('div', 'room-tile-image');
   cover.append(image(room.thumbnail, `صورة غرفة ${roomName(room)}`, 'room-cover'), statusPill(room.isActive));
   const body = node('div', 'room-tile-body');
-  const id = node('p', '', 'معرّف الغرفة: ');
-  const code = node('bdi', 'technical-id', room.id); code.dir = 'ltr'; id.append(code);
-  body.append(node('h2', '', roomName(room)), id);
-  const meta = node('div', 'room-tile-meta');
-  const hints = node('span'); hints.append(node('strong', '', String(room.hints.length)), ' تلميح');
-  const media = node('span'); media.append(node('strong', '', String(room.mediaRecords.length)), ' ملف وسائط');
-  const time = node('span'); time.append(node('strong', '', fmtDuration(room.defaultDuration)));
-  meta.append(hints, media, time);
-  body.append(meta); tile.append(cover, body);
+  body.append(node('h2', '', roomName(room)), metricTags(room));
+  tile.append(cover, body);
   return tile;
 }
 function renderRooms() {
   const rooms = state.data.rooms;
-  content.append(heading('إدارة الغرف', 'الغرف', 'اطّلع على الغرف ومحتواها الحالي. التعديل متاح في المرحلة السادسة.'));
-  const filters = node('div', 'filterbar');
-  const search = node('input'); search.type = 'search'; search.placeholder = 'ابحث عن غرفة'; search.setAttribute('aria-label', 'ابحث عن غرفة');
-  const status = node('select'); status.setAttribute('aria-label','تصفية حسب حالة الغرفة');
-  for (const [value,label] of [['all','جميع الحالات'],['active','نشطة'],['inactive','غير نشطة']]) {
-    const option = node('option', '', label); option.value = value; status.append(option);
-  }
-  filters.append(search,status); content.append(filters);
-  const count = node('p','filter-count'); const grid = node('div','room-grid-admin');
-  content.append(count,grid);
-  function update() {
-    const q = search.value.trim().toLocaleLowerCase();
-    const visible = rooms.filter(room =>
-      (status.value === 'all' || room.isActive === (status.value === 'active')) &&
-      (!q || roomName(room).toLocaleLowerCase().includes(q) ||
-        room.name.toLocaleLowerCase().includes(q) || room.id.toLocaleLowerCase().includes(q)));
-    count.textContent = `${visible.length} من ${rooms.length} غرف`;
-    grid.replaceChildren();
-    if (!visible.length) {
-      const empty = node('div','empty-box');
-      empty.append(node('strong','','لا توجد غرف مطابقة'),node('span','','جرّب اسماً أو حالة أخرى.'));
-      grid.append(empty);
-    } else visible.forEach(room => grid.append(roomTile(room)));
-  }
-  search.addEventListener('input',update); status.addEventListener('change',update); update();
+  content.append(node('h1', 'sr-only', 'الغرف'));
+  const grid = node('div','room-grid-admin');
+  if (!rooms.length) {
+    const empty = node('div','empty-box');
+    empty.append(node('strong','','لا توجد غرف بعد'),node('span','','ستظهر الغرف هنا عند إعدادها.'));
+    grid.append(empty);
+  } else rooms.forEach(room => grid.append(roomTile(room)));
+  content.append(grid);
 }
 
 function detailField(label, value) {
@@ -152,16 +137,13 @@ function renderRoom(roomId) {
   const cover = node('div','room-hero-image'); cover.append(image(room.backgroundImage,`خلفية غرفة ${roomName(room)}`,'room-background'));
   const body = node('div','room-hero-body');
   const summary = node('div');
-  const id = node('p', '', 'المعرّف: '); const code = node('bdi','technical-id',room.id); code.dir='ltr'; id.append(code);
-  summary.append(statusPill(room.isActive),node('h2','',roomName(room)),id);
+  summary.append(statusPill(room.isActive),node('h2','',roomName(room)));
   const meta = node('div','detail-meta');
   meta.append(detailField('الوقت الافتراضي',fmtDuration(room.defaultDuration)),
-    detailField('التلميحات النصية',String(room.hints.length)),
-    detailField('ملفات الوسائط',String(room.mediaRecords.length)),
     detailField('آخر تحديث',fmtDate(room.updatedAt)));
-  body.append(summary,meta); hero.append(cover,body); content.append(hero);
+  body.append(summary,metricTags(room),meta); hero.append(cover,body); content.append(hero);
   const columns = node('div','detail-columns');
-  const hints = panel('التلميحات النصية',`${room.hints.length} تلميح`);
+  const hints = panel('التلميحات النصية',metricLabel('hints',room.hints.length));
   const hintsList = node('ol','detail-list');
   if (!room.hints.length) hints.wrap.append(node('p','panel-empty','لا توجد تلميحات نصية لهذه الغرفة.'));
   room.hints.forEach((hint,index) => {
@@ -193,8 +175,8 @@ function renderRoom(roomId) {
 function renderStaff() {
   const staff = state.data.staff;
   const rooms = new Map(state.data.rooms.map(room => [room.id,roomName(room)]));
-  content.append(heading('الفريق والصلاحيات','فريق العمل','الحسابات والأدوار والغرف المسموح بها · للعرض فقط'));
-  const panelData = panel('دليل الفريق',`${staff.length} حساب`);
+  content.append(node('h1','sr-only','فريق العمل'));
+  const panelData = panel('حسابات الفريق',`${staff.length} حساب`);
   if (!staff.length) panelData.wrap.append(node('p','panel-empty','لا توجد حسابات فريق عمل حالياً.'));
   else {
     const wrap = node('div','table-wrap'); const table = node('table','staff-table');
@@ -228,7 +210,10 @@ function renderAccount() {
   content.append(heading('إعدادات الحساب','حسابي','بيانات الهوية وخيارات الدخول إلى حساب الإدارة.'));
   const grid=node('div','account-layout');
   const profile=node('section','panel account-card');
-  profile.append(node('h2','','بيانات الحساب'),
+  const profileHeader = node('div','account-profile-heading');
+  profileHeader.append(node('span','admin-avatar account-avatar',profileInitial(access.user)),
+    node('div','',profileName(access.user)));
+  profile.append(profileHeader,node('h2','','بيانات الحساب'),
     detailAccount('البريد الإلكتروني',access.user.email||'غير متاح',true),
     detailAccount('الدور','مدير'),
     detailAccount('حالة البريد',access.user.email_confirmed_at?'موثّق':'بانتظار التوثيق'));
@@ -296,6 +281,7 @@ function setNavigation(view,id){
 }
 function render(){
   const {view,id}=route();setNavigation(view,id);content.replaceChildren();
+  content.classList.toggle('compact-content',view==='rooms'||view==='staff');
   if(state.error){
     const box=node('div','error-panel');
     box.append(node('h2','','تعذّر تحميل البيانات'),
@@ -341,6 +327,10 @@ async function verifyAccess(){
     if(!access){location.replace(`login.html?next=${encodeURIComponent(location.pathname.slice(1)+location.search)}`);return false;}
     if(access.role!=='admin'){state.data=null;location.replace('unauthorized.html?reason=admin');return false;}
     state.access=access;
+    const initial=profileInitial(access.user);
+    document.getElementById('sidebar-avatar').textContent=initial;
+    document.getElementById('topbar-avatar').textContent=initial;
+    document.getElementById('sidebar-name').textContent=profileName(access.user);
     document.getElementById('sidebar-email').textContent=access.user.email||'';
     gate.hidden=true;gateError.hidden=true;shell.hidden=false;
     return true;

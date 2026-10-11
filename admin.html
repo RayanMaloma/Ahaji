@@ -20,7 +20,6 @@
         <img src="images/ahajilogo.svg" alt="Ahaji">
         <span>لوحة الإدارة</span>
       </a>
-      <div class="admin-workspace-label">مساحة العمل</div>
       <nav class="admin-nav" aria-label="أقسام الإدارة">
         <a href="admin.html?view=rooms" data-admin-link data-nav="rooms"><span class="nav-icon icon-door" aria-hidden="true"></span> الغرف</a>
         <a href="admin.html?view=staff" data-admin-link data-nav="staff"><span class="nav-icon icon-users" aria-hidden="true"></span> فريق العمل</a>
@@ -28,7 +27,7 @@
       </nav>
       <div class="admin-sidebar-bottom">
         <a class="admin-operations-link" href="index.html">فتح واجهة مدير اللعبة <span aria-hidden="true">↗</span></a>
-        <div class="admin-sidebar-profile"><span class="admin-avatar">أ</span><span><strong>حساب المدير</strong><small id="sidebar-email" dir="ltr"></small></span></div>
+        <div class="admin-sidebar-profile"><span class="admin-avatar" id="sidebar-avatar" aria-hidden="true">•</span><span><strong id="sidebar-name">حساب المدير</strong><small id="sidebar-email" dir="ltr"></small></span></div>
         <button id="admin-logout" class="admin-sidebar-logout" type="button">تسجيل الخروج <span aria-hidden="true">↗</span></button>
       </div>
     </aside>
@@ -36,7 +35,7 @@
       <header class="admin-topbar">
         <button class="admin-menu-button" id="admin-menu-button" type="button" aria-label="فتح القائمة" aria-expanded="false" aria-controls="admin-sidebar">☰</button>
         <nav id="admin-breadcrumbs" class="admin-breadcrumbs" aria-label="مسار الصفحة"></nav>
-        <div class="admin-topbar-right"><span class="admin-topbar-label">إدارة أحاجي</span><span class="admin-topbar-avatar">أ</span></div>
+        <div class="admin-topbar-right"><span class="admin-topbar-label">إدارة أحاجي</span><span class="admin-topbar-avatar" id="topbar-avatar" aria-hidden="true">•</span></div>
       </header>
       <main id="admin-content" class="admin-content" tabindex="-1" aria-live="polite"></main>
     </div>
