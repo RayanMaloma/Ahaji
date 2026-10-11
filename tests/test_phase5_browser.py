@@ -134,6 +134,19 @@ class Phase5BrowserTests(unittest.TestCase):
         page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
         expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("final@test.invalid")
 
+    def test_account_remains_available_when_catalog_request_fails(self):
+        context = self.context(authenticated=True, fail_dashboard=True)
+        page = context.new_page()
+        page.goto(self.base + "/admin.html?view=account")
+        expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
+        expect(page.locator("#admin-breadcrumbs")).to_have_text("حسابي")
+        expect(page.locator("#admin-new-email")).to_be_visible()
+        expect(page.get_by_text("تعذّر تحميل البيانات")).to_have_count(0)
+        page.locator('[data-nav="rooms"]').click()
+        expect(page.get_by_text("تعذّر تحميل البيانات")).to_be_visible()
+        page.locator('[data-nav="account"]').click()
+        expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
+
     def test_unauthenticated_and_gm_direct_access_denied(self):
         anonymous = self.context(authenticated=False)
         anon_page = anonymous.new_page()
@@ -234,6 +247,67 @@ class Phase5BrowserTests(unittest.TestCase):
                 elif view == "account":
                     expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
                     expect(page.locator("#admin-new-email")).to_be_visible()
+
+    def test_thmanyah_font_loads_on_dashboard_and_auth_pages(self):
+        files = {
+            "300": "thmanyahserifdisplay-Light.otf",
+            "400": "thmanyahserifdisplay-Regular.otf",
+            "500": "thmanyahserifdisplay-Medium.otf",
+            "700": "thmanyahserifdisplay-Bold.otf",
+            "900": "thmanyahserifdisplay-Black.otf",
+        }
+        for width in (1440, 390):
+            context = self.context(authenticated=True)
+            page = context.new_page()
+            page.set_viewport_size({"width": width, "height": 900})
+            responses = {}
+            page.on("response", lambda response: responses.update({response.url.rsplit("/", 1)[-1]: response.status})
+                    if ".otf" in response.url else None)
+            page.goto(self.base + "/admin.html?view=rooms")
+            expect(page.locator(".room-tile")).to_have_count(3)
+            audit = page.evaluate("""async () => {
+                await document.fonts.ready;
+                for (const weight of [300, 400, 500, 700, 900])
+                    await document.fonts.load(`${weight} 20px "Thmanyah Serif Display"`, 'الغرف');
+                return {
+                    computed: getComputedStyle(document.body).fontFamily,
+                    faces: [...document.fonts].map(face => [face.weight, face.status]),
+                    requests: performance.getEntriesByType('resource')
+                        .filter(item => item.name.endsWith('.otf'))
+                        .map(item => item.name.split('/').pop())
+                };
+            }""")
+            self.assertIn('"Thmanyah Serif Display"', audit["computed"])
+            self.assertEqual(dict(audit["faces"]), {weight: "loaded" for weight in files})
+            self.assertEqual(set(audit["requests"]), set(files.values()))
+            self.assertEqual(responses, {name: 200 for name in files.values()})
+
+        for path, options in [
+            ("login.html", {"authenticated": False}),
+            ("recover.html", {"authenticated": False}),
+            ("staff.html", {"authenticated": True, "role": "game_master"}),
+        ]:
+            context = self.context(**options)
+            page = context.new_page()
+            page.set_viewport_size({"width": 390, "height": 844})
+            page.goto(self.base + "/" + path)
+            expect(page.locator(".auth-card")).to_be_visible()
+            audit = page.evaluate("""async () => {
+                await document.fonts.ready;
+                return {
+                    computed: getComputedStyle(document.body).fontFamily,
+                    loaded: [...document.fonts].filter(face => face.status === 'loaded')
+                        .map(face => face.weight),
+                    requests: performance.getEntriesByType('resource')
+                        .filter(item => item.name.endsWith('.otf'))
+                        .map(item => item.name.split('/').pop())
+                };
+            }""")
+            self.assertIn('"Thmanyah Serif Display"', audit["computed"])
+            self.assertIn("400", audit["loaded"])
+            self.assertIn("700", audit["loaded"])
+            self.assertIn(files["400"], audit["requests"])
+            self.assertIn(files["700"], audit["requests"])
 
 
 if __name__ == "__main__":

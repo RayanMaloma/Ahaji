@@ -281,6 +281,7 @@ function setNavigation(view,id){
 function render(){
   const {view,id}=route();setNavigation(view,id);content.replaceChildren();
   content.classList.toggle('compact-content',view==='rooms'||view==='staff'||view==='account');
+  if(view==='account' && state.access){renderAccount();return;}
   if(state.error){
     const box=node('div','error-panel');
     box.append(node('h2','','تعذّر تحميل البيانات'),
@@ -292,7 +293,6 @@ function render(){
   if(view==='rooms')renderRooms();
   else if(view==='room')renderRoom(id);
   else if(view==='staff')renderStaff();
-  else if(view==='account')renderAccount();
   else renderNotFound('هذا الرابط لا يشير إلى صفحة في لوحة الإدارة.');
 }
 function closeMenu(){sidebar.classList.remove('open');scrim.hidden=true;menuButton.setAttribute('aria-expanded','false');}
@@ -326,10 +326,11 @@ window.addEventListener('popstate',()=>{
 
 async function loadData(){
   if(state.loading)return;
-  state.loading=true;state.error=false;state.data=null;render();
-  try{state.data=await repository.load();render();}
+  state.loading=true;state.error=false;state.data=null;
+  if(route().view!=='account')render();
+  try{state.data=await repository.load();if(route().view!=='account')render();}
   catch{
-    state.error=true;render();
+    state.error=true;if(route().view!=='account')render();
   } finally{state.loading=false;}
 }
 async function verifyAccess(){
@@ -352,7 +353,7 @@ async function verifyAccess(){
       previous.user.id!==access.user.id || previous.user.email!==access.user.email ||
       previous.user.email_confirmed_at!==access.user.email_confirmed_at ||
       profileName(previous.user)!==profileName(access.user));
-    if(state.data && route().view==='account' && (identityChanged || content.querySelector('.loading-panel')))render();
+    if(route().view==='account' && (identityChanged || content.querySelector('.loading-panel') || !content.hasChildNodes()))render();
     return true;
   }catch{
     if(requestId!==accessRequestId)return false;

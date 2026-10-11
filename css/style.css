@@ -1,3 +1,4 @@
+@import url("./fonts.css?v=phase5-font-1");
 /* Ahaji GM System — Styles */
 
 *, *::before, *::after {
@@ -27,7 +28,7 @@
 
 html, body {
   height: 100%;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Thmanyah Serif Display', Tahoma, 'Segoe UI', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -194,7 +195,7 @@ html, body {
 }
 
 /* Arabic-first staff entry, using the existing Ahaji dark palette. */
-body.auth-page { direction: rtl; unicode-bidi: normal; font-family: Tahoma, 'Segoe UI', Arial, sans-serif; }
+body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Serif Display', Tahoma, 'Segoe UI', Arial, sans-serif; }
 .auth-page .auth-eyebrow { letter-spacing: 0; font-size: .75rem; }
 .auth-page .auth-card input { text-align: left; }
 .auth-page .auth-card input[dir='ltr'], .auth-page #auth-email { direction: ltr; unicode-bidi: isolate; }
