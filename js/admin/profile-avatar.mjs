@@ -10,5 +10,6 @@ export function profileInitial(user) {
 export function profileName(user) {
   const metadata = user?.user_metadata || {};
   return [metadata.display_name, metadata.full_name, metadata.name]
-    .find(value => typeof value === 'string' && value.trim())?.trim() || 'حساب المدير';
+    .find(value => typeof value === 'string' && value.trim())?.trim() ||
+    (typeof user?.email === 'string' ? user.email.trim() : '');
 }

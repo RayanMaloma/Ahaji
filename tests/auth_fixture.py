@@ -47,7 +47,7 @@ def session():
             "expires_in": 3600, "expires_at": exp, "user": user}
 
 
-def install_auth_mock(context, role="admin", rooms=None, authenticated=True, dashboard=False, fail_dashboard=False, fail_dashboard_once=False):
+def install_auth_mock(context, role="admin", rooms=None, authenticated=True, dashboard=False, fail_dashboard=False, fail_dashboard_once=False, user_override=None):
     allowed = ROOMS if rooms is None else rooms
     failures_left = 1 if fail_dashboard_once else 0
     if authenticated:
@@ -66,7 +66,7 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
         query = parse_qs(parsed.query)
         headers = {"content-type": "application/json", "access-control-allow-origin": "*"}
         if path.endswith("/auth/v1/user"):
-            route.fulfill(status=200, headers=headers, body=json.dumps(session()["user"]))
+            route.fulfill(status=200, headers=headers, body=json.dumps(user_override if user_override is not None else session()["user"]))
         elif path.endswith("/auth/v1/logout"):
             route.fulfill(status=204, headers=headers, body="")
         elif path.endswith("/auth/v1/token"):

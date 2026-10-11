@@ -23,5 +23,6 @@ test('avatar initial prefers display name, then email, then neutral fallback', (
   assert.equal(profileInitial({ email: '.rayan@example.com' }), 'R');
   assert.equal(profileInitial({}), '•');
   assert.equal(profileName({ user_metadata: { name: '  Sara  ' } }), 'Sara');
-  assert.equal(profileName({ email: 'a@example.com' }), 'حساب المدير');
+  assert.equal(profileName({ email: 'a@example.com' }), 'a@example.com');
+  assert.equal(profileName({}), '');
 });

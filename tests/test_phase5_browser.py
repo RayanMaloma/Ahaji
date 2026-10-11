@@ -7,7 +7,7 @@ import threading
 import unittest
 
 from playwright.sync_api import expect, sync_playwright
-from auth_fixture import install_auth_mock
+from auth_fixture import install_auth_mock, session
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -51,6 +51,8 @@ class Phase5BrowserTests(unittest.TestCase):
         expect(page).to_have_url(self.base + "/admin.html?view=rooms")
         self.assertEqual(page.locator("html").get_attribute("dir"), "rtl")
         expect(page.locator('[data-nav="rooms"]')).to_have_attribute("aria-current", "page")
+        expect(page.locator("#admin-breadcrumbs")).to_have_text("الغرف")
+        self.assertEqual(page.title(), "الغرف · أحاجي")
         expect(page.locator(".page-heading, .filterbar, .filter-count")).to_have_count(0)
         expect(page.locator(".admin-workspace-label")).to_have_count(0)
         expect(page.locator("#sidebar-avatar")).to_have_text("ل")
@@ -67,6 +69,8 @@ class Phase5BrowserTests(unittest.TestCase):
         self.assertNotIn("anbar", page.locator(".room-tile").first.inner_text())
         page.locator(".room-tile").first.click()
         expect(page).to_have_url(self.base + "/admin.html?view=room&id=anbar")
+        expect(page.locator("#admin-breadcrumbs")).to_have_text("السجن")
+        self.assertEqual(page.title(), "السجن · أحاجي")
         expect(page.get_by_role("link", name="جميع الغرف")).to_be_visible()
         self.assertIn("→", page.get_by_role("link", name="جميع الغرف").inner_text())
         expect(page.locator(".room-hero-image img")).to_have_css("display", "block")
@@ -89,11 +93,16 @@ class Phase5BrowserTests(unittest.TestCase):
         context = self.context(authenticated=True)
         page = context.new_page()
         page.goto(self.base + "/admin.html?view=staff")
+        expect(page.locator("#admin-breadcrumbs")).to_have_text("فريق العمل")
+        self.assertEqual(page.title(), "فريق العمل · أحاجي")
         expect(page.locator(".page-heading")).to_have_count(0)
         expect(page.locator(".staff-table tbody tr")).to_have_count(2)
         expect(page.get_by_text("gm@test.invalid")).to_be_visible()
         expect(page.get_by_text("جميع الغرف")).to_be_visible()
         page.locator('[data-nav="account"]').click()
+        expect(page.locator("#admin-breadcrumbs")).to_have_text("حسابي")
+        self.assertEqual(page.title(), "حسابي · أحاجي")
+        expect(page.locator(".page-heading")).to_have_count(0)
         expect(page.get_by_text("staff@test.invalid").last).to_be_visible()
         expect(page.locator(".account-avatar")).to_have_text("ل")
         page.locator("#admin-new-email").fill("new@test.invalid")
@@ -101,6 +110,29 @@ class Phase5BrowserTests(unittest.TestCase):
         expect(page.locator(".form-message")).to_contain_text("رابط التوثيق")
         page.locator("#admin-logout").click()
         expect(page).to_have_url(self.base + "/login.html")
+
+    def test_account_rechecks_identity_on_navigation_refresh_and_direct_url(self):
+        user = session()["user"]
+        context = self.context(authenticated=True, user_override=user)
+        page = context.new_page()
+        page.goto(self.base + "/admin.html?view=account")
+        expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
+        expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("staff@test.invalid")
+        user["email"] = "updated@test.invalid"
+        user["user_metadata"]["display_name"] = "سارة"
+        page.locator('[data-nav="staff"]').click()
+        expect(page.locator("#admin-breadcrumbs")).to_have_text("فريق العمل")
+        page.locator('[data-nav="account"]').click()
+        expect(page.locator(".account-profile-identity strong")).to_have_text("سارة")
+        expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("updated@test.invalid")
+        expect(page.locator("#sidebar-name")).to_have_text("سارة")
+        page.reload()
+        expect(page.locator(".account-profile-identity strong")).to_have_text("سارة")
+        page.goto(self.base + "/admin.html?view=account")
+        expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("updated@test.invalid")
+        user["email"] = "final@test.invalid"
+        page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+        expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("final@test.invalid")
 
     def test_unauthenticated_and_gm_direct_access_denied(self):
         anonymous = self.context(authenticated=False)
@@ -186,6 +218,22 @@ class Phase5BrowserTests(unittest.TestCase):
             return results;
         }""", paths)
         self.assertEqual(loaded, [True] * len(paths))
+
+    def test_room_staff_and_account_layouts_at_desktop_tablet_mobile(self):
+        context = self.context(authenticated=True)
+        page = context.new_page()
+        for width, height in [(1440, 900), (820, 1024), (390, 844)]:
+            page.set_viewport_size({"width": width, "height": height})
+            for view, title in [("rooms", "الغرف"), ("staff", "فريق العمل"), ("account", "حسابي")]:
+                page.goto(self.base + f"/admin.html?view={view}")
+                expect(page.locator("#admin-breadcrumbs")).to_have_text(title)
+                self.assertEqual(page.title(), f"{title} · أحاجي")
+                self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), width + 1)
+                if view == "rooms":
+                    expect(page.locator(".room-tile")).to_have_count(3)
+                elif view == "account":
+                    expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
+                    expect(page.locator("#admin-new-email")).to_be_visible()
 
 
 if __name__ == "__main__":

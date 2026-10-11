@@ -1,7 +1,7 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
 import { createAdminRepository } from '../data/admin-repository.mjs';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
-import { profileInitial, profileName } from './profile-avatar.mjs';
+import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
 
 const repository = createAdminRepository(supabase);
 const shell = document.getElementById('admin-shell');
@@ -13,6 +13,7 @@ const sidebar = document.getElementById('admin-sidebar');
 const menuButton = document.getElementById('admin-menu-button');
 const scrim = document.getElementById('admin-scrim');
 const state = { access: null, data: null, loading: false, error: false };
+let accessRequestId = 0;
 const arabicRoomNames = { anbar: 'السجن', haram: 'الهرم', saleh: 'العم صالح' };
 const roomName = room => arabicRoomNames[room.id] || room.name;
 const mediaKinds = {
@@ -207,16 +208,17 @@ function renderStaff() {
 
 function renderAccount() {
   const access=state.access;
-  content.append(heading('إعدادات الحساب','حسابي','بيانات الهوية وخيارات الدخول إلى حساب الإدارة.'));
+  content.append(node('h1','sr-only','حسابي'));
   const grid=node('div','account-layout');
   const profile=node('section','panel account-card');
   const profileHeader = node('div','account-profile-heading');
-  profileHeader.append(node('span','admin-avatar account-avatar',profileInitial(access.user)),
-    node('div','',profileName(access.user)));
-  profile.append(profileHeader,node('h2','','بيانات الحساب'),
-    detailAccount('البريد الإلكتروني',access.user.email||'غير متاح',true),
-    detailAccount('الدور','مدير'),
-    detailAccount('حالة البريد',access.user.email_confirmed_at?'موثّق':'بانتظار التوثيق'));
+  const identity=node('div','account-profile-identity');
+  identity.append(node('strong','',profileName(access.user)||'حسابي'),rolePill(access.role));
+  profileHeader.append(node('span','admin-avatar account-avatar',profileInitial(access.user)),identity);
+  profile.append(profileHeader);
+  if(profileName(access.user)!==access.user.email)
+    profile.append(detailAccount('البريد الإلكتروني',access.user.email||'غير متاح',true));
+  profile.append(detailAccount('حالة البريد',access.user.email_confirmed_at?'موثّق':'بانتظار التوثيق'));
   const change=node('section','panel account-card');
   change.append(node('h2','','تغيير البريد الإلكتروني'));
   const form=node('form','account-form');form.id='admin-email-form';
@@ -240,11 +242,8 @@ function renderAccount() {
   });
   const security=node('section','panel account-card');
   security.append(node('h2','','الدخول والأمان'));
-  const list=node('ul','security-list');
-  list.append(node('li','','تُدار كلمة المرور عبر خدمة تسجيل الدخول الآمنة.'),
-    node('li','','تُحدَّد صلاحيتك من سجلات الفريق المحمية.'),
-    node('li','','استعادة كلمة المرور تتم عبر رابط يُرسل إلى بريدك.'));
-  security.append(list,link('recover.html','subtle-button','استعادة كلمة المرور ↗'));
+  security.append(node('p','account-note','يمكنك استعادة كلمة المرور عبر رابط يُرسل إلى بريدك الإلكتروني.'),
+    link('recover.html','subtle-button','استعادة كلمة المرور ↗'));
   grid.append(profile,change,security);content.append(grid);
 }
 function detailAccount(label,value,ltr=false){const row=node('div','account-field');const text=node('strong','',value);if(ltr)text.dir='ltr';row.append(node('small','',label),text);return row;}
@@ -271,17 +270,17 @@ function setNavigation(view,id){
   });
   breadcrumbs.replaceChildren();
   const titles={rooms:'الغرف',staff:'فريق العمل',account:'حسابي',room:'تفاصيل الغرفة'};
+  let title=titles[view]||'صفحة غير موجودة';
   if(view==='room'){
-    breadcrumbs.append(link('admin.html?view=rooms','','الغرف'),node('span','','/'));
     const room=state.data?.rooms.find(r=>r.id===id);
-    breadcrumbs.append(node('strong','',room?roomName(room):'تفاصيل الغرفة'));
-  } else if(view==='rooms') breadcrumbs.append(node('strong','','الغرف'));
-  else breadcrumbs.append(link('admin.html?view=rooms','','الغرف'),node('span','','/'),node('strong','',titles[view]||'غير موجودة'));
-  document.title=`${titles[view]||'صفحة غير موجودة'} · أحاجي`;
+    if(room)title=roomName(room);
+  }
+  breadcrumbs.append(node('strong','',title));
+  document.title=`${title} · أحاجي`;
 }
 function render(){
   const {view,id}=route();setNavigation(view,id);content.replaceChildren();
-  content.classList.toggle('compact-content',view==='rooms'||view==='staff');
+  content.classList.toggle('compact-content',view==='rooms'||view==='staff'||view==='account');
   if(state.error){
     const box=node('div','error-panel');
     box.append(node('h2','','تعذّر تحميل البيانات'),
@@ -308,10 +307,22 @@ document.addEventListener('click',event=>{
   const target=new URL(anchor.href);
   if(target.origin!==location.origin)return;
   history.pushState(null,'',target.pathname+target.search);
-  closeMenu();render();content.focus({preventScroll:true});window.scrollTo(0,0);
-  verifyAccess();
+  closeMenu();
+  if(target.searchParams.get('view')==='account') {
+    const {view,id}=route();setNavigation(view,id);
+    content.replaceChildren(node('div','loading-panel','جارٍ تحديث بيانات الحساب…'));
+    verifyAccess();
+  } else {render();verifyAccess();}
+  content.focus({preventScroll:true});window.scrollTo(0,0);
 });
-window.addEventListener('popstate',()=>{closeMenu();render();verifyAccess();});
+window.addEventListener('popstate',()=>{
+  closeMenu();
+  if(route().view==='account') {
+    const {view,id}=route();setNavigation(view,id);
+    content.replaceChildren(node('div','loading-panel','جارٍ تحديث بيانات الحساب…'));
+    verifyAccess();
+  } else {render();verifyAccess();}
+});
 
 async function loadData(){
   if(state.loading)return;
@@ -322,19 +333,29 @@ async function loadData(){
   } finally{state.loading=false;}
 }
 async function verifyAccess(){
+  const requestId=++accessRequestId;
   try{
+    const previous=state.access;
     const access=await currentAccess();
+    if(requestId!==accessRequestId)return false;
     if(!access){location.replace(`login.html?next=${encodeURIComponent(location.pathname.slice(1)+location.search)}`);return false;}
     if(access.role!=='admin'){state.data=null;location.replace('unauthorized.html?reason=admin');return false;}
     state.access=access;
     const initial=profileInitial(access.user);
     document.getElementById('sidebar-avatar').textContent=initial;
     document.getElementById('topbar-avatar').textContent=initial;
-    document.getElementById('sidebar-name').textContent=profileName(access.user);
+    const name=profileName(access.user);
+    document.getElementById('sidebar-name').textContent=name===access.user.email?'مدير':name||'مدير';
     document.getElementById('sidebar-email').textContent=access.user.email||'';
     gate.hidden=true;gateError.hidden=true;shell.hidden=false;
+    const identityChanged=previous && (
+      previous.user.id!==access.user.id || previous.user.email!==access.user.email ||
+      previous.user.email_confirmed_at!==access.user.email_confirmed_at ||
+      profileName(previous.user)!==profileName(access.user));
+    if(state.data && route().view==='account' && (identityChanged || content.querySelector('.loading-panel')))render();
     return true;
   }catch{
+    if(requestId!==accessRequestId)return false;
     if(!state.access){gate.hidden=true;gateError.hidden=false;}
     else{state.data=null;state.error=true;render();}
     return false;
@@ -353,4 +374,6 @@ supabase.auth.onAuthStateChange(event=>{
   if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED')setTimeout(verifyAccess,0);
 });
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)verifyAccess();});
+const initialRoute=route();
+setNavigation(initialRoute.view,initialRoute.id);
 if(await verifyAccess())await loadData();
