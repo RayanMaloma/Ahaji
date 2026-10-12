@@ -24,11 +24,19 @@ form.addEventListener('submit', async (event) => {
   submit.textContent = 'جارٍ تسجيل الدخول…';
   errorBox.hidden = true;
   try {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: document.getElementById('email').value.trim(),
-      password: document.getElementById('password').value
-    });
-    if (error) { showError('البريد الإلكتروني أو كلمة المرور غير صحيحة، أو لم يُوثّق الحساب بعد.'); return; }
+    const identifier=document.getElementById('email').value.trim().toLowerCase();
+    const password=document.getElementById('password').value;
+    if(!identifier.includes('@') || identifier.endsWith('@ahaji.com')){
+      const {data,error}=await supabase.functions.invoke('operator-login',{
+        body:{username:identifier,password}});
+      if(error || data?.error || !data?.access_token){showError('اسم المستخدم أو كلمة المرور غير صحيحة.');return;}
+      const established=await supabase.auth.setSession({
+        access_token:data.access_token,refresh_token:data.refresh_token});
+      if(established.error){showError('تعذّر إكمال تسجيل الدخول.');return;}
+    }else{
+      const { error } = await supabase.auth.signInWithPassword({email:identifier,password});
+      if(error){showError('البريد الإلكتروني أو كلمة المرور غير صحيحة، أو لم يُوثّق الحساب بعد.');return;}
+    }
     const access = await currentAccess();
     if (!access) { showError('تعذّر التحقق من تسجيل الدخول. حاول مرة أخرى.'); return; }
     route(access);

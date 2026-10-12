@@ -25,8 +25,12 @@ export async function currentAccess() {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return null;
   const { data, error } = await supabase.from('staff_accounts')
-    .select('role,active').eq('user_id', userData.user.id).maybeSingle();
+    .select('role,active,account_type,login_name').eq('user_id', userData.user.id).maybeSingle();
   if (error) throw error;
   if (!data?.active || !['admin', 'game_master'].includes(data.role)) return { user: userData.user, role: null };
-  return { user: userData.user, role: data.role };
+  const {data:profile,error:profileError}=await supabase.from('staff_profiles')
+    .select('display_name,avatar_ref').eq('user_id',userData.user.id).maybeSingle();
+  if(profileError)throw profileError;
+  return { user: userData.user, role: data.role, accountType:data.account_type,
+    loginName:data.login_name, profile:profile||null };
 }

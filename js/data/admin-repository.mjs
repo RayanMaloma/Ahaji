@@ -34,6 +34,27 @@ export function createAdminRepository(client) {
     return checked(client.from('session_events').select('id,event_type,payload,created_at,actor_user_id')
       .eq('session_id',sessionId).order('id'));
   }
+  async function loadHistory(){
+    const sessions=[];
+    for(let offset=0;;offset+=500){
+      const page=await checked(client.from('game_sessions')
+        .select('id,room_id,gm_user_id,status,result,started_at,ended_at,created_at,updated_at,remaining_seconds,revision')
+        .order('created_at',{ascending:false}).range(offset,offset+499));
+      sessions.push(...page);if(page.length<500)break;
+    }
+    const eventMap=new Map(sessions.map(s=>[s.id,[]]));
+    for(let index=0;index<sessions.length;index+=25){
+      const ids=sessions.slice(index,index+25).map(s=>s.id);
+      for(let offset=0;;offset+=500){
+        const events=await checked(client.from('session_events')
+          .select('session_id,event_type,created_at,id').in('session_id',ids)
+          .order('id').range(offset,offset+499));
+        for(const event of events)eventMap.get(event.session_id)?.push(event);
+        if(events.length<500)break;
+      }
+    }
+    return {sessions,eventMap};
+  }
 
   async function createRoom(values) {
     return checked(client.from('rooms').insert(values).select('id').single());
@@ -82,6 +103,6 @@ export function createAdminRepository(client) {
     if(error) throw error;
   }
 
-  return Object.freeze({ load,listEvents,createRoom,updateRoom,deleteNewRoom,saveHint,
+  return Object.freeze({ load,loadHistory,listEvents,createRoom,updateRoom,deleteNewRoom,saveHint,
     deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
 }

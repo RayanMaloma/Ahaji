@@ -23,7 +23,8 @@ async function checkAccess() {
       return;
     }
     if (page === 'gm' || page === 'index') {
-      const rooms = await createRoomRepository(supabase).listRooms();
+      const restoring=page==='gm' && new URLSearchParams(location.search).has('session');
+      const rooms = await createRoomRepository(supabase).listRooms({includeInactive:restoring});
       setRoomCatalog(rooms);
       window.ahajiAuthorizedRoomIds = new Set(rooms.map(room => room.id));
       if (page === 'gm') {
@@ -57,7 +58,15 @@ async function checkAccess() {
     const roleLabel = document.getElementById('auth-role');
     if (roleLabel) roleLabel.textContent = access.role === 'admin' ? 'مدير' : 'مدير لعبة';
     const emailLabel = document.getElementById('auth-email');
-    if (emailLabel) emailLabel.textContent = access.user.email || '';
+    if (emailLabel) {
+      const name=access.profile?.display_name?.trim();
+      const login=access.accountType==='operator'
+        ? `${access.loginName}@ahaji.com` : access.user.email||'';
+      emailLabel.textContent=name?`${name} · ${login}`:login;
+      emailLabel.dir='auto';
+    }
+    const emailForm=document.getElementById('change-email-form');
+    if(emailForm)emailForm.hidden=access.accountType==='operator';
     const adminLink = document.getElementById('admin-dashboard-link');
     if (adminLink) adminLink.hidden = access.role !== 'admin';
     loading.hidden = true;

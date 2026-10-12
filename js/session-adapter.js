@@ -114,6 +114,7 @@
         receiveState(data.state);
         if(!connected){connected=true;notify({type:'connection',status:'connected'});}
       }catch(error){
+        console.warn('[cast] Session poll failed',error);
         if(error.code==='ACCESS_DENIED' && pollTimer){clearInterval(pollTimer);pollTimer=null;}
         if(connected || error.code==='ACCESS_DENIED'){
           connected=false;notify({type:'connection',status:'disconnected'});

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const project='gbhleqizxcmxmutgcjon';
-const tables={
+const legacyTables={
   rooms:['id','name','thumbnail_ref','background_ref','default_duration_seconds','display_order','is_active','created_at','updated_at','description'],
   room_hints:['id','room_id','body','display_order','created_at','updated_at'],
   room_media:['id','room_id','kind','label','asset_ref','display_order','created_at','updated_at'],
@@ -18,18 +18,23 @@ const tables={
   staff_room_access:['user_id','room_id','created_at'],
   admin_audit:['id','actor_user_id','action','entity_type','entity_id','before_record','after_record','created_at']
 };
-const jsonColumns=new Set(['state','payload','before_record','after_record','metadata']);
+const newTables={...legacyTables,
+  rooms:[...legacyTables.rooms,'presentation_settings'],
+  staff_accounts:[...legacyTables.staff_accounts,'account_type','login_name'],
+  staff_profiles:['user_id','display_name','avatar_ref','updated_at']};
+const spec=value=>value.format==='ahaji-full-snapshot-v2'?newTables:legacyTables;
+const jsonColumns=new Set(['state','payload','before_record','after_record','metadata','presentation_settings']);
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const canonical=value=>JSON.stringify(value,(_key,item)=>
   item && !Array.isArray(item) && typeof item==='object'
     ?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
 function validate(value){
-  if(value?.format!=='ahaji-full-snapshot-v1'||value.project_ref!==project||
+  if(!['ahaji-full-snapshot-v1','ahaji-full-snapshot-v2'].includes(value?.format)||value.project_ref!==project||
     !Array.isArray(value.migration_versions)||!Array.isArray(value.auth_identity_map)||
     !Array.isArray(value.storage_objects)||!value.tables||
-    Object.keys(value.tables).sort().join()!==Object.keys(tables).sort().join())
+    Object.keys(value.tables).sort().join()!==Object.keys(spec(value)).sort().join())
     throw new Error('Incomplete or wrong-project snapshot.');
-  for(const [name,columns] of Object.entries(tables)){
+  for(const [name,columns] of Object.entries(spec(value))){
     if(!Array.isArray(value.tables[name]))throw new Error(`Missing ${name}.`);
     for(const row of value.tables[name])if(Object.keys(row).sort().join()!==[...columns].sort().join())
       throw new Error(`Unexpected ${name} columns.`);
@@ -46,25 +51,31 @@ function sql(value,column){
   if(string.includes('\0'))throw new Error('NUL byte in snapshot.');
   return `'${string.replaceAll("'","''")}'${jsonColumns.has(column)?'::jsonb':''}`;
 }
-function insert(table,row){
-  const names=tables[table];
+function insert(table,row,value){
+  const names=spec(value)[table];
   const override=['session_events','admin_audit'].includes(table)?' overriding system value':'';
   return `insert into public.${table} (${names.join(',')})${override} values (${names.map(k=>sql(row[k],k)).join(',')});`;
 }
 function restoreData(value){
   const lines=['-- Disposable PostgreSQL fixture only. Never apply directly to live Supabase.',
     'set standard_conforming_strings=on;','begin;'];
-  for(const table of ['rooms','room_hints','room_media','staff_accounts','staff_room_access'])
+  for(const table of ['rooms','room_hints','room_media','staff_accounts',
+    ...(value.format==='ahaji-full-snapshot-v2'?['staff_profiles']:[]),'staff_room_access'])
     lines.push(`alter table public.${table} disable trigger user;`);
-  for(const table of ['rooms','room_hints','room_media','staff_accounts','staff_room_access',
+  for(const table of ['rooms','room_hints','room_media','staff_accounts',
+    ...(value.format==='ahaji-full-snapshot-v2'?['staff_profiles']:[]),'staff_room_access',
     'game_sessions','session_events','admin_audit'])
-    for(const row of value.tables[table])lines.push(insert(table,row));
+    for(const row of value.tables[table])lines.push(insert(table,row,value));
   for(const item of value.storage_objects){
-    if(item.bucket_id!=='room-assets'||!/^[a-z][a-z0-9_-]{0,63}\/[A-Za-z0-9._-]+$/.test(item.name))
+    if(!['room-assets','profile-assets'].includes(item.bucket_id)||
+      !(item.bucket_id==='room-assets'
+        ?/^[a-z][a-z0-9_-]{0,63}\/[A-Za-z0-9._-]+$/.test(item.name)
+        :/^[0-9a-f-]{36}\/[A-Za-z0-9._-]+$/i.test(item.name)))
       throw new Error('Unsafe Storage object name.');
-    lines.push(`insert into storage.objects(bucket_id,name,metadata) values ('room-assets',${sql(item.name)},${sql(item.metadata,'metadata')});`);
+    lines.push(`insert into storage.objects(bucket_id,name,metadata) values (${sql(item.bucket_id)},${sql(item.name)},${sql(item.metadata,'metadata')});`);
   }
-  for(const table of ['rooms','room_hints','room_media','staff_accounts','staff_room_access'])
+  for(const table of ['rooms','room_hints','room_media','staff_accounts',
+    ...(value.format==='ahaji-full-snapshot-v2'?['staff_profiles']:[]),'staff_room_access'])
     lines.push(`alter table public.${table} enable trigger user;`);
   for(const table of ['session_events','admin_audit'])
     lines.push(`select setval(pg_get_serial_sequence('public.${table}','id'),
@@ -79,7 +90,7 @@ function authFixture(value){
       `insert into auth.users(id,email,email_confirmed_at,deleted_at) values (${sql(user.id)},${sql(user.email)},${user.confirmed?'now()':'null'},${user.deleted?'now()':'null'});`
     ).join('\n')+'\n';
 }
-const evidence=value=>Object.fromEntries(Object.keys(tables).map(name=>[name,{
+const evidence=value=>Object.fromEntries(Object.keys(spec(value)).map(name=>[name,{
   rows:value.tables[name].length,sha256:digest(canonical(value.tables[name]))
 }]));
 async function packageSnapshot(path){

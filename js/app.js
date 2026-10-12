@@ -18,6 +18,35 @@ const EMPTY_ROOM_MEDIA = Object.freeze({
 
 const ROOM_CONFIGS = [];
 
+const DEFAULT_PRESENTATION = Object.freeze({
+  timerScale: 1, timerPosition: 'center', timerColor: '#ffffff', timerFont: 'mono',
+  hintScale: 1, hintPosition: 'bottom', hintDurationSeconds: 0,
+  imageFit: 'contain', videoFit: 'contain',
+  winMessage: 'مبروك الفوز', loseMessage: 'كنتم قريبين جداً'
+});
+
+function normalizePresentationSettings(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const choice = (key, allowed) => allowed.includes(source[key]) ? source[key] : DEFAULT_PRESENTATION[key];
+  const number = (key, min, max) => Number.isFinite(Number(source[key])) &&
+    Number(source[key]) >= min && Number(source[key]) <= max
+      ? Number(source[key]) : DEFAULT_PRESENTATION[key];
+  const message = key => typeof source[key] === 'string' && source[key].trim() &&
+    source[key].length <= 80 ? source[key].trim() : DEFAULT_PRESENTATION[key];
+  return {
+    timerScale: number('timerScale', .7, 1.3),
+    timerPosition: choice('timerPosition', ['top', 'center', 'bottom']),
+    timerColor: /^#[\da-fA-F]{6}$/.test(source.timerColor || '') ? source.timerColor : DEFAULT_PRESENTATION.timerColor,
+    timerFont: choice('timerFont', ['mono', 'serif']),
+    hintScale: number('hintScale', .75, 1.5),
+    hintPosition: choice('hintPosition', ['top', 'bottom']),
+    hintDurationSeconds: number('hintDurationSeconds', 0, 120),
+    imageFit: choice('imageFit', ['contain', 'cover']),
+    videoFit: choice('videoFit', ['contain', 'cover']),
+    winMessage: message('winMessage'), loseMessage: message('loseMessage')
+  };
+}
+
 function resolveRoomAsset(ref) {
   if (typeof ref !== 'string') return null;
   if (/^(images|source)\//.test(ref) && !ref.includes('..')) return ref;
@@ -38,6 +67,7 @@ function normalizeRoom(room) {
     backgroundImage: resolveRoomAsset(room.backgroundImage),
     image: resolveRoomAsset(room.backgroundImage),
     defaultDuration: typeof room.defaultDuration === 'number' ? room.defaultDuration : 3600,
+    presentation: Object.freeze(normalizePresentationSettings(room.presentation)),
     media: Object.freeze({
       hintSound: resolveRoomAsset(media.hintSound),
       loseSound: resolveRoomAsset(media.loseSound),
@@ -180,6 +210,18 @@ function getCastViewElements(root = document) {
 function renderCastView(state, els, options = {}) {
   if (!state || !els) return;
 
+  const presentation = normalizePresentationSettings(state.roomConfig?.presentation);
+  const stage = els.timer?.closest('[data-cast-stage]') || document.body;
+  stage.dataset.timerPosition = presentation.timerPosition;
+  stage.dataset.hintPosition = presentation.hintPosition;
+  stage.dataset.imageFit = presentation.imageFit;
+  stage.style.setProperty('--cast-timer-scale', String(presentation.timerScale));
+  stage.style.setProperty('--cast-hint-scale', String(presentation.hintScale));
+  stage.style.setProperty('--cast-timer-color', presentation.timerColor);
+  stage.style.setProperty('--cast-video-fit', presentation.videoFit);
+  stage.style.setProperty('--cast-timer-font', presentation.timerFont === 'serif'
+    ? '"Thmanyah Serif Display", Tahoma, sans-serif' : '"Courier New", "Lucida Console", monospace');
+
   const updateDocumentTitle = options.updateDocumentTitle === true;
 
   if (updateDocumentTitle) {
@@ -236,8 +278,8 @@ function renderCastView(state, els, options = {}) {
 
   if (els.resultMessageAr) {
     els.resultMessageAr.textContent =
-      resultMode === 'win'  ? '\u0645\u0628\u0631\u0648\u0643 \u0627\u0644\u0641\u0648\u0632' :
-      resultMode === 'lose' ? (state.loseMode === 'video' ? '\u062c\u0627\u0631\u064a \u0639\u0631\u0636 \u0627\u0644\u0641\u064a\u062f\u064a\u0648' : '\u0643\u0646\u062a\u0645 \u0642\u0631\u064a\u0628\u064a\u0646 \u062c\u062f\u0627\u064b') :
+      resultMode === 'win'  ? presentation.winMessage :
+      resultMode === 'lose' ? (state.loseMode === 'video' ? '\u062c\u0627\u0631\u064a \u0639\u0631\u0636 \u0627\u0644\u0641\u064a\u062f\u064a\u0648' : presentation.loseMessage) :
       '';
   }
 
@@ -275,7 +317,9 @@ function renderCastView(state, els, options = {}) {
     els.timer.className = `${baseClassName} ${state.status}`.trim();
   }
 
-  const hint = state.hintText ? state.hintText.trim() : '';
+  const hintExpired = typeof state.hintExpiresAt === 'number' &&
+    Date.now() + (window.ahajiClockOffset || 0) >= state.hintExpiresAt;
+  const hint = state.hintText && !hintExpired ? state.hintText.trim() : '';
   if (els.hintBox && els.hintText) {
     els.hintText.dir = 'auto';
     if (resultMode !== 'normal') {

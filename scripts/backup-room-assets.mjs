@@ -1,4 +1,4 @@
-// Download and verify the bytes of Ahaji's public room-assets bucket.
+// Download and verify Ahaji room and profile Storage bytes.
 // Usage: node scripts/backup-room-assets.mjs backup backups/full.json
 //        node scripts/backup-room-assets.mjs verify backups/full.json
 //        node scripts/backup-room-assets.mjs restore-disposable backups/full.json
@@ -11,8 +11,12 @@ import { fileURLToPath } from 'node:url';
 
 const project = 'gbhleqizxcmxmutgcjon';
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
-const safeName = name => typeof name === 'string' &&
-  /^[a-z][a-z0-9_-]{0,63}\/[A-Za-z0-9._-]+$/.test(name) && !name.includes('..');
+const safeName = (bucket,name) => typeof name === 'string' && !name.includes('..') &&
+  (bucket==='room-assets'
+    ?/^[a-z][a-z0-9_-]{0,63}\/[A-Za-z0-9._-]+$/.test(name)
+    :bucket==='profile-assets'&&/^[0-9a-f-]{36}\/[A-Za-z0-9._-]+$/i.test(name));
+const objectPath=(base,item,v2)=>resolve(base,
+  ...(v2?[item.bucket_id]:[]),item.name);
 const targetDir = file => resolve(file.replace(/\.json$/i, '') + '-assets');
 const run = promisify(execFile);
 async function download(url, destination) {
@@ -31,10 +35,10 @@ async function download(url, destination) {
 }
 async function snapshot(file) {
   const value = JSON.parse(await readFile(file, 'utf8'));
-  if (value.format !== 'ahaji-full-snapshot-v1' || value.project_ref !== project ||
+  if (!['ahaji-full-snapshot-v1','ahaji-full-snapshot-v2'].includes(value.format) || value.project_ref !== project ||
       !Array.isArray(value.storage_objects)) throw new Error('Wrong backup format or project.');
   for (const item of value.storage_objects) {
-    if (item.bucket_id !== 'room-assets' || !safeName(item.name))
+    if (!safeName(item.bucket_id,item.name))
       throw new Error('Unsafe Storage object path.');
   }
   return value;
@@ -45,18 +49,19 @@ async function backup(file) {
   await mkdir(folder, { recursive: true, mode: 0o700 });
   const objects = [];
   for (const item of value.storage_objects) {
-    const url = `https://${project}.supabase.co/storage/v1/object/public/room-assets/` +
+    const url = `https://${project}.supabase.co/storage/v1/object/public/${item.bucket_id}/` +
       item.name.split('/').map(encodeURIComponent).join('/');
-    const destination = resolve(folder, item.name);
+    const destination = objectPath(folder,item,value.format==='ahaji-full-snapshot-v2');
     if (!destination.startsWith(folder + sep)) throw new Error('Path escaped backup directory.');
     await mkdir(dirname(destination), { recursive: true, mode: 0o700 });
     const bytes = await download(url, destination);
-    if (bytes.length > 10 * 1024 * 1024) throw new Error(`Object exceeds 10 MB: ${item.name}`);
+    if (bytes.length > (item.bucket_id==='profile-assets'?2:10) * 1024 * 1024)
+      throw new Error(`Object exceeds bucket limit: ${item.name}`);
     if (process.platform !== 'win32')
       await writeFile(destination, bytes, { flag: 'wx', mode: 0o600 });
-    objects.push({ name: item.name, bytes: bytes.length, sha256: hash(bytes) });
+    objects.push({ bucket_id:item.bucket_id,name: item.name, bytes: bytes.length, sha256: hash(bytes) });
   }
-  const manifest = { format: 'ahaji-room-assets-manifest-v1', project_ref: project,
+  const manifest = { format: 'ahaji-storage-assets-manifest-v2', project_ref: project,
     snapshot_sha256: hash(await readFile(file)), objects };
   await writeFile(join(folder, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n',
     { flag: 'wx', mode: 0o600 });
@@ -70,8 +75,10 @@ async function verify(file) {
       manifest.objects.length !== value.storage_objects.length)
     throw new Error('Storage backup manifest does not match snapshot.');
   for (const item of manifest.objects) {
-    if (!safeName(item.name)) throw new Error('Unsafe manifest path.');
-    const bytes = await readFile(resolve(folder, item.name));
+    const bucket=item.bucket_id||'room-assets';
+    if (!safeName(bucket,item.name)) throw new Error('Unsafe manifest path.');
+    const bytes = await readFile(objectPath(folder,{...item,bucket_id:bucket},
+      value.format==='ahaji-full-snapshot-v2'));
     if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
       throw new Error(`Object digest mismatch: ${item.name}`);
   }
@@ -84,11 +91,14 @@ async function restoreDisposable(file) {
   const manifest = JSON.parse(await readFile(join(source, 'manifest.json'), 'utf8'));
   await mkdir(destinationRoot, { recursive: false, mode: 0o700 });
   for (const item of manifest.objects) {
-    if (!safeName(item.name)) throw new Error('Unsafe manifest path.');
-    const destination = resolve(destinationRoot, item.name);
+    const bucket=item.bucket_id||'room-assets';
+    if (!safeName(bucket,item.name)) throw new Error('Unsafe manifest path.');
+    const destination = objectPath(destinationRoot,{...item,bucket_id:bucket},
+      (await snapshot(file)).format==='ahaji-full-snapshot-v2');
     if (!destination.startsWith(destinationRoot + sep)) throw new Error('Path escaped restore directory.');
     await mkdir(dirname(destination), { recursive: true, mode: 0o700 });
-    const bytes = await readFile(resolve(source, item.name));
+    const bytes = await readFile(objectPath(source,{...item,bucket_id:bucket},
+      (await snapshot(file)).format==='ahaji-full-snapshot-v2'));
     await writeFile(destination, bytes, { flag: 'wx', mode: 0o600 });
     const restored = await readFile(destination);
     if (restored.length !== item.bytes || hash(restored) !== item.sha256)

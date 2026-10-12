@@ -170,7 +170,9 @@
   function startRenderLoop() {
     if (renderIntervalId !== null) return;
     renderIntervalId = setInterval(() => {
-      if (!currentState || currentState.status !== 'running') {
+      const hintPending = currentState?.hintText && typeof currentState.hintExpiresAt === 'number' &&
+        Date.now() + (window.ahajiClockOffset || 0) < currentState.hintExpiresAt;
+      if (!currentState || (currentState.status !== 'running' && !hintPending)) {
         stopRenderLoop();
         return;
       }
@@ -198,7 +200,9 @@
       }else{roomVideo.hidden=true;roomVideo.pause();roomVideo.removeAttribute('src');}
     }
 
-    if (nextState.status === 'running' && typeof nextState.endsAt === 'number') {
+    if ((nextState.status === 'running' && typeof nextState.endsAt === 'number') ||
+        (nextState.hintText && typeof nextState.hintExpiresAt === 'number' &&
+        Date.now() + (window.ahajiClockOffset || 0) < nextState.hintExpiresAt)) {
       startRenderLoop();
     } else {
       stopRenderLoop();
