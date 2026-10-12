@@ -1,27 +1,28 @@
 # Ahaji
 
-Ahaji is an escape room Game Master and Cast display application. Current gameplay runs on localhost with vanilla HTML/CSS/JavaScript. Room configuration is shared in `js/app.js`; the Phase 2 session adapter keeps game state in localStorage and synchronizes tabs with BroadcastChannel. GM and Cast must share a browser storage context.
+Ahaji is an Arabic-first escape-room operations app with an Admin workspace, a Game Master console, and a paired Cast display. The frontend is static HTML/CSS/JavaScript; Supabase is the protected data and session backend. The three original rooms and 129 hints are held in the database.
 
-## Local preview
+## Local review
 
-From the repository root, run `python -m http.server 8765 --bind 127.0.0.1 --protocol HTTP/1.1` and open `http://127.0.0.1:8765/login.html`. A verified Admin lands on the Arabic Rooms workspace; a Game Master selects a permitted room and uses **Open Cast Screen** on the GM page. Cast audio needs a user interaction to unlock playback.
+From this directory, run `python -m http.server 8765 --bind 127.0.0.1 --protocol HTTP/1.1`, then open [Admin login](http://127.0.0.1:8765/login.html). Rooms are the default Admin page. A Game Master can select an authorized room at [room selection](http://127.0.0.1:8765/index.html). Cast opens from its GM session and requires the generated session link; it does not require a staff account. The Cast screen needs one click to enable audio.
 
-## Database foundation
+For separate devices, serve on `0.0.0.0` and open the GM page through the computer's LAN address so the generated Cast link uses that address. See [operations and recovery](docs/AHAJI_OPERATIONS.md) for the exact procedure and security limits.
 
-Phase 3 added a protected Supabase PostgreSQL schema for rooms, hints, media references, and future session snapshots. The Admin Dashboard now reads the catalog from Supabase; game controls and local synchronization are unchanged. The migration, seed, security model, backup procedure, and recovery steps are in [the Phase 3 architecture note](docs/AHAJI_PHASE_3_BACKEND_DATABASE.md). No credentials belong in this repository; `.env.example` lists configuration names only.
+## Architecture
 
-Phase 4 added Supabase email/password staff authentication, Admin/Game Master roles, room assignments, RLS, protected GM entry, and password recovery. Gameplay synchronization remains local. See [the Phase 4 architecture and recovery note](docs/AHAJI_PHASE_4_AUTH_RBAC.md). Run `npm ci` and `npm run build:auth` after updating the pinned Supabase client bundle.
+- `js/app.js`: normalized database room configuration and shared display utilities.
+- `js/data/`: Supabase room and Admin data boundaries.
+- `js/session-adapter.js`: server-backed session commands, GM Realtime subscription, and token-checked Cast synchronization. The local adapter exists only for the legacy browser fixture.
+- `js/gm.js` and `js/cast.js`: timer, controls, media presentation, and display behavior.
+- `supabase/migrations/`: versioned schema, RLS, grants, audit, and trusted session functions.
+- `supabase/functions/staff-invite/`: JWT-verified Admin invitation endpoint. Privileged keys remain in Supabase's function environment.
 
-Phase 5 added an Arabic-first, RTL, dark Admin Dashboard backed by real Supabase catalog and staff data. Admins land on the read-only Rooms workspace at `http://127.0.0.1:8765/admin.html?view=rooms` and can review room content, staff access, and their own account. See [the Phase 5 architecture, security, and recovery note](docs/AHAJI_PHASE_5_ADMIN_DASHBOARD.md). Room editing and staff provisioning are not part of this milestone.
+Do not put service-role credentials, Auth sessions, or backup files in Git. The publishable key in the browser is constrained by Supabase Auth, RLS, and server functions.
 
 ## Checks
 
-- `python -m unittest discover -s tests -p 'test_phase2_browser.py' -v` — Playwright GM/Cast browser flows.
-- `node --test tests/test_room_repository.mjs` — future catalog data-access boundary.
-- `supabase/tests/phase3_assertions.sql` — database integrity and privilege checks after migration and seed.
-- `python -m unittest discover -s tests -v` — all Playwright browser journeys, including Auth and Admin Dashboard flows.
-- `npm test` — repository data boundary tests.
-- `supabase/tests/phase4_rls.sql` — run against a disposable PostgreSQL 17 database after the Phase 3 and 4 migrations.
-- `supabase/tests/phase5_directory_rls.sql` — run against a disposable PostgreSQL 17 database after the Phase 5 migration.
+Run `npm ci`, `npm test`, and `python -m unittest discover -s tests -v`. Browser tests use Playwright. Versioned SQL regression tests are in `supabase/tests/`; apply them inside a rolled-back transaction on the named project or a disposable PostgreSQL 17 restore. The [delivery tracker](docs/AHAJI_DELIVERY_STATUS.md) records actual validation and outstanding acceptance gaps.
 
-The Product Owner approves each roadmap milestone before the next phase begins.
+## Staff email limit
+
+Supabase's built-in sender can restrict recipients and is unsuitable for guaranteed production invitations. The invitation endpoint rejects delivery failures; reliable onboarding of arbitrary staff needs a configured SMTP service. Ahaji does not bypass email ownership verification. See [Supabase's SMTP guidance](https://supabase.com/docs/guides/auth/auth-smtp) and the delivery tracker before treating staff onboarding as accepted.
