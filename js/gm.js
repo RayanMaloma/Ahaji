@@ -4,6 +4,7 @@
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('room');
   const room = getRoom(roomId);
+  const serverMode=Boolean(window.ahajiSupabase && !window.ahajiUseLocalSession);
 
   if (!roomId || !room) {
     window.location.href = 'index.html';
@@ -36,7 +37,11 @@
 
   state.sessionId = sessionId;
   state.image = room.backgroundImage;
+  state.roomConfig = room;
+  state.activeImageSrc = resolveRoomAsset(state.activeImageSrc);
+  state.activeVideoSrc = resolveRoomAsset(state.activeVideoSrc);
   state.activeImageSrc = state.activeImageSrc || null;
+  state.activeVideoSrc = state.activeVideoSrc || null;
   state.activeImageScale =
     typeof state.activeImageScale === 'number' ? state.activeImageScale : 100;
 
@@ -70,6 +75,10 @@
   let roomHints = []; // hints loaded from the room's .txt file
 
   async function loadRoomHints() {
+    if (Array.isArray(room.hints.items)) {
+      roomHints = [...room.hints.items];
+      return;
+    }
     const file = room.hints.source;
     if (!file) return;
     try {
@@ -133,14 +142,30 @@
 
   session.subscribe(message => {
     if (message.type === 'sync-request') session.publishSnapshot(state);
+    if (message.type === 'state' && message.authority === 'server') {
+      state={...message.state,roomConfig:room};
+      state.activeImageSrc=resolveRoomAsset(state.activeImageSrc);
+      state.activeVideoSrc=resolveRoomAsset(state.activeVideoSrc);
+      timeoutHandled=state.status==='ended';
+      if(state.status==='running')startRenderLoop();else stopRenderLoop();
+      render();
+    }
+    if(message.type==='error')alert(message.error?.message||'تعذّر حفظ حالة الجلسة. أعد تحميل الصفحة.');
+    if(message.type==='connection'){
+      const indicator=document.getElementById('gm-connection');
+      if(indicator){indicator.textContent=message.status==='connected'?'متصل':'جارٍ إعادة الاتصال…';
+        indicator.classList.toggle('connected',message.status==='connected');}
+    }
   });
 
   if (state.status === 'running') {
     startRenderLoop();
   }
 
-  function broadcast() {
-    session.saveSessionState(state);
+  function broadcast(command,value) {
+    const sent=session.saveSessionState(state,command,value);
+    if(sent && typeof sent.catch==='function')sent.catch(()=>{});
+    return sent;
   }
 
   function emitLoseMediaIfNeeded() {
@@ -196,7 +221,7 @@
       shouldEmitLose = true;
     }
     render();
-    broadcast();
+    broadcast('timeout');
     if (shouldEmitLose) emitLoseMediaIfNeeded();
   }
 
@@ -213,6 +238,7 @@
   const MAX_SECONDS = 5999;
 
   function doUpdateTimer() {
+    if(serverMode && state.status==='ended')return;
     const minutes = parseInt(elTimeAdjValue.value, 10);
     if (isNaN(minutes)) return;
 
@@ -242,10 +268,11 @@
       }
     }
     render();
-    broadcast();
+    broadcast('adjust',{delta_seconds:minutes*60});
   }
 
   function doStart() {
+    if(serverMode && state.status==='ended')return;
     if (state.status !== 'idle' && state.status !== 'ended') return;
     const remainingSecs = typeof state.remainingSeconds === 'number' ? state.remainingSeconds : 0;
     if (remainingSecs <= 0) return;
@@ -255,10 +282,11 @@
     timeoutHandled = false;
     startRenderLoop();
     render();
-    broadcast();
+    broadcast('start');
   }
 
   function doTogglePause() {
+    const command=state.status==='running'?'pause':'resume';
     if (state.status === 'running') {
       state = freezeRunningTimer(state);
       state.status = 'paused';
@@ -273,13 +301,13 @@
     }
 
     render();
-    broadcast();
+    broadcast(command);
   }
 
   function doSendHint() {
     state.hintText = elHintInput.value.trim();
     render();
-    broadcast();
+    broadcast('hint',{text:state.hintText});
     if (state.hintText) {
       session.publishSessionEvent('hint-sound');
     }
@@ -289,36 +317,50 @@
   function doClearHint() {
     state.hintText = '';
     render();
-    broadcast();
+    broadcast('hint',{text:''});
   }
 
   function doClearImage() {
     state.activeImageSrc = null;
     state.activeImageScale = 100;
     render();
-    broadcast();
+    broadcast('image',{media_id:null});
   }
 
   function doImageSize() {
     const scale = parseInt(elImageSizeSlider.value, 10);
     state.activeImageScale = isNaN(scale) ? 100 : scale;
     render();
-    broadcast();
+    broadcast('scale',{scale:state.activeImageScale});
   }
 
   function handleWin() {
+    if(serverMode && !['running','paused'].includes(state.status))return;
     stopRenderLoop();
     state = freezeRunningTimer(state);
-    state.status = 'paused';
+    state.status = 'ended';
     state.viewMode = 'win';
     state.resultState = 'win';
     state.isWin = true;
     state.isLose = false;
     render();
-    broadcast();
+    broadcast('win');
   }
 
   function handleReset() {
+    if(window.ahajiSupabase && !window.ahajiUseLocalSession){
+      (async()=>{
+        try{
+          if(state.status==='running'||state.status==='paused')
+            await session.saveSessionState(state,'lose');
+          const {data,error}=await window.ahajiSupabase.rpc('create_game_session',{p_room_id:roomId});
+          if(error)throw error;
+          localStorage.setItem(`ahaji-cast-${roomId}-${data.sessionId}`,data.castToken);
+          location.replace(`gm.html?room=${encodeURIComponent(roomId)}&session=${encodeURIComponent(data.sessionId)}`);
+        }catch(error){alert(error.message||'تعذّر إنشاء جلسة جديدة.');}
+      })();
+      return;
+    }
     stopRenderLoop();
     state = resetGameState(state);
     timeoutHandled = false;
@@ -340,9 +382,10 @@
   function renderMediaDrop(type) {
     const roomMedia = getRoomMedia(roomId);
     const items = type === 'images' ? (roomMedia.gmImages || []) :
-                  type === 'sounds' ? (roomMedia.gmSounds || []) : [];
+                  type === 'sounds' ? (roomMedia.gmSounds || []) :
+                  type === 'videos' ? (roomMedia.gmVideos || []) : [];
 
-    elMediaHeader.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+    elMediaHeader.textContent = {images:'الصور',sounds:'الأصوات',videos:'الفيديوهات'}[type] || '';
     elMediaList.innerHTML = '';
     elMediaEmpty.style.display = items.length === 0 ? 'block' : 'none';
 
@@ -363,12 +406,22 @@
             state.activeImageSrc = null;
           } else {
             state.activeImageSrc = item.src;
+            state.activeVideoSrc = null;
           }
           render();
-          broadcast();
+          broadcast('image',{media_id:state.activeImageSrc?item.id:null});
           if (isActivatingImage) {
             session.publishSessionEvent('hint-sound');
           }
+        });
+      }
+
+      if (type === 'videos') {
+        if (state.activeVideoSrc === item.src) li.classList.add('selected');
+        li.addEventListener('click', () => {
+          state.activeVideoSrc = state.activeVideoSrc === item.src ? null : item.src;
+          if (state.activeVideoSrc) state.activeImageSrc = null;
+          render();broadcast('video',{media_id:state.activeVideoSrc?item.id:null});
         });
       }
 
@@ -381,9 +434,10 @@
         const playBtn = document.createElement('button');
         playBtn.className = 'gm-media-play-btn';
         playBtn.textContent = '▶';
-        playBtn.title = 'Play';
+        playBtn.title = 'تشغيل';
         playBtn.addEventListener('click', () => {
           try { new Audio(item.src).play().catch(() => {}); } catch (e) {}
+          session.publishSessionEvent('alert',{type:'gm-sound',media_id:item.id});
         });
         li.appendChild(playBtn);
       }
@@ -398,7 +452,10 @@
   }
 
   function openCastPage() {
-    const url = `cast.html?room=${encodeURIComponent(roomId)}&session=${encodeURIComponent(sessionId)}`;
+    const token=window.ahajiUseLocalSession?'':localStorage.getItem(`ahaji-cast-${roomId}-${sessionId}`);
+    if(!window.ahajiUseLocalSession && !token){alert('رابط العرض غير متاح لهذه الجلسة. ابدأ جلسة جديدة.');return;}
+    const url = `cast.html?room=${encodeURIComponent(roomId)}&session=${encodeURIComponent(sessionId)}`+
+      (token?`&key=${encodeURIComponent(token)}`:'');
     window.open(url, '_blank');
   }
 
@@ -540,7 +597,7 @@
 
     const hasImage = Boolean(state.activeImageSrc);
     elCurrentImageBlock.style.display = hasImage ? 'flex' : 'none';
-    elCurrentImageStatus.textContent = hasImage ? 'Image displayed' : '';
+    elCurrentImageStatus.textContent = hasImage ? 'الصورة معروضة' : '';
 
     const scale = typeof state.activeImageScale === 'number' ? state.activeImageScale : 100;
     if (document.activeElement !== elImageSizeSlider) {
@@ -550,7 +607,7 @@
 
     if (elPreviewImageOverlay && elPreviewImageOverlayImg) {
       if (hasImage) {
-        elPreviewImageOverlayImg.src = state.activeImageSrc;
+        elPreviewImageOverlayImg.src = resolveRoomAsset(state.activeImageSrc) || '';
         elPreviewImageOverlayImg.style.maxWidth = scale + '%';
         elPreviewImageOverlayImg.style.maxHeight = scale + '%';
         elPreviewImageOverlay.style.display = 'flex';
@@ -558,6 +615,13 @@
         elPreviewImageOverlay.style.display = 'none';
         elPreviewImageOverlayImg.src = '';
       }
+    }
+    const previewVideo=document.getElementById('gm-preview-video');
+    if(previewVideo){
+      if(state.activeVideoSrc){
+        if(previewVideo.getAttribute('src')!==state.activeVideoSrc){previewVideo.src=resolveRoomAsset(state.activeVideoSrc)||'';previewVideo.play().catch(()=>{});}
+        previewVideo.hidden=false;
+      }else{previewVideo.hidden=true;previewVideo.pause();previewVideo.removeAttribute('src');}
     }
 
     if (activeMediaType) {
@@ -571,11 +635,17 @@
     const isEnded = state.status === 'ended';
     const isIdle = state.status === 'idle';
 
-    btnPause.textContent = isPaused ? 'Resume' : 'Pause';
-    btnStart.disabled = isRunning || isPaused;
+    if(serverMode && isEnded){elMediaDrop.classList.remove('visible');activeMediaType=null;}
+
+    btnPause.textContent = isPaused ? 'استئناف' : 'إيقاف مؤقت';
+    btnStart.disabled = isRunning || isPaused || (serverMode && isEnded);
     btnPause.disabled = isIdle || isEnded;
-    btnAddTime.disabled = false;
-    btnSubTime.disabled = false;
+    btnWin.disabled = serverMode && (isIdle || isEnded);
+    btnAddTime.disabled = serverMode && isEnded;
+    btnSubTime.disabled = serverMode && isEnded;
     btnUpdateTime.disabled = isEnded;
+    for(const control of [btnSendHint,btnClearHint,btnClearImage,btnShowVideos,
+      btnShowImages,btnShowSounds,btnAlert,btnVolume,elImageSizeSlider,elHintInput])
+      control.disabled=serverMode && isEnded;
   }
 })();

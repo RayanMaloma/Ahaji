@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ahaji - Game Master</title>
-  <link rel="stylesheet" href="css/style.css?v=phase5-font-1" />
+  <title>مدير اللعبة · أحاجي</title>
+  <link rel="stylesheet" href="css/style.css?v=full-delivery-2" />
 </head>
 <body class="gm-page">
-  <div id="auth-loading" class="auth-status" role="status">Checking Game Master access…</div>
+  <div id="gm-connection" class="gm-connection" role="status">جارٍ الاتصال…</div>
+  <div id="auth-loading" class="auth-status" role="status">جارٍ التحقق من صلاحية مدير اللعبة…</div>
   <div id="auth-failure" class="auth-status" role="alert" hidden></div>
   <div id="protected-content" class="gm-protected-content" hidden>
   <header class="gm-header">
@@ -15,7 +16,7 @@
       <img src="images/ahajilogo.svg" alt="Ahaji" class="gm-logo" />
       <span class="gm-room-name" id="gm-room-name"></span>
     </div>
-    <div class="gm-header-actions"><span id="auth-role"></span><button type="button" class="auth-logout" data-logout>Log out</button><button class="gm-open-cast" id="btn-open-cast">Open Cast Screen</button></div>
+    <div class="gm-header-actions"><span id="auth-role"></span><button type="button" class="auth-logout" data-logout>تسجيل الخروج</button><button class="gm-open-cast" id="btn-open-cast">فتح شاشة العرض</button></div>
   </header>
 
   <main class="gm-body">
@@ -26,16 +27,16 @@
         <div class="gm-timer-top-actions">
           <button class="btn btn-accent gm-top-action-btn" id="btn-win">
             <img class="btn-icon-svg" src="images/celebration-party-winter-svgrepo-com.svg" alt="" aria-hidden="true" />
-            WIN
+            فوز
           </button>
           <button class="btn gm-alert-btn gm-top-action-btn" id="btn-alert">
             <svg class="btn-icon-svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1.5a3.5 3.5 0 0 1 3.5 3.5v2.5l1 1.5h-9l1-1.5V5a3.5 3.5 0 0 1 3.5-3.5z"/><path d="M5.5 11.5a1.5 1.5 0 0 0 3 0"/></svg>
-            Alert
+            تنبيه
           </button>
           <div class="gm-volume-ctrl" id="gm-volume-ctrl">
             <button class="btn gm-volume-btn gm-top-action-btn" id="btn-volume">
               <svg class="btn-icon-svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="1.5,5 4.5,5 7,2.5 7,11.5 4.5,9 1.5,9"/><path d="M9.5 4.5a3.5 3.5 0 0 1 0 5"/></svg>
-              Volume
+              الصوت
             </button>
             <div class="gm-volume-popover" id="gm-volume-popover" hidden>
               <input class="gm-volume-slider" id="alert-volume" type="range" min="0" max="1" step="0.05" value="0.5" />
@@ -43,7 +44,7 @@
           </div>
           <button class="btn gm-top-action-btn gm-reset-btn" id="btn-reset">
             <svg class="btn-icon-svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 4.5-4.5 4.5 4.5 0 0 0-3 1.1"/><polyline points="2.5,2.5 2.5,5.5 5.5,5.5"/></svg>
-            RESET
+            جلسة جديدة
           </button>
         </div>
 
@@ -53,8 +54,8 @@
 
         <div class="gm-controls">
           <div class="ctrl-group">
-            <button class="btn btn-primary ctrl-btn ctrl-btn-start" id="btn-start">Start</button>
-            <button class="btn ctrl-btn" id="btn-pause">Pause</button>
+            <button class="btn btn-primary ctrl-btn ctrl-btn-start" id="btn-start">ابدأ</button>
+            <button class="btn ctrl-btn" id="btn-pause">إيقاف مؤقت</button>
           </div>
         </div>
       </div>
@@ -62,18 +63,18 @@
       <div class="gm-panel gm-adjust-panel">
         <div class="time-adj">
           <div class="time-adj-stepper">
-            <button class="btn btn-accent time-adj-btn" id="btn-sub-time" aria-label="Decrease time adjustment">-</button>
+            <button class="btn btn-accent time-adj-btn" id="btn-sub-time" aria-label="تقليل تعديل الوقت">-</button>
             <input class="time-adj-input" id="time-adj-value" type="text" value="1" inputmode="numeric" lang="en" dir="ltr" spellcheck="false" />
-            <button class="btn btn-accent time-adj-btn" id="btn-add-time" aria-label="Increase time adjustment">+</button>
+            <button class="btn btn-accent time-adj-btn" id="btn-add-time" aria-label="زيادة تعديل الوقت">+</button>
           </div>
-          <span class="time-adj-unit">Minutes</span>
+          <span class="time-adj-unit">دقائق</span>
         </div>
-        <button class="btn btn-primary time-adj-update" id="btn-update-time">Apply</button>
+        <button class="btn btn-primary time-adj-update" id="btn-update-time">تطبيق</button>
       </div>
 
       <div class="gm-panel gm-preview-panel">
         <div class="gm-cast-preview cast-preview" id="gm-cast-preview">
-          <img class="cast-bg" data-cast-bg src="" alt="Room preview" />
+          <img class="cast-bg" data-cast-bg src="" alt="معاينة الغرفة" />
           <div class="cast-overlay" data-cast-overlay></div>
           <img class="cast-logo gm-preview-logo" src="images/ahajilogo.svg" alt="Ahaji" />
           <div class="cast-idle-room-name gm-preview-idle" data-cast-idle-name>
@@ -107,6 +108,7 @@
           <div class="cast-image-overlay gm-preview-image-overlay" id="gm-preview-image-overlay" style="display:none;">
             <img id="gm-preview-image-overlay-img" alt="" />
           </div>
+          <video id="gm-preview-video" class="gm-preview-video" muted playsinline hidden></video>
         </div>
       </div>
 
@@ -116,49 +118,49 @@
       <div class="gm-media-drop" id="gm-media-drop">
         <div class="gm-media-drop-header" id="gm-media-header"></div>
         <ul class="gm-media-list" id="gm-media-list"></ul>
-        <p class="gm-media-empty" id="gm-media-empty" style="display:none">No items available.</p>
+        <p class="gm-media-empty" id="gm-media-empty" style="display:none">لا توجد عناصر متاحة.</p>
       </div>
 
       <div class="saved-hints-drop" id="saved-hints-drop">
         <ul class="saved-hints-list" id="saved-hints-list"></ul>
-        <p class="saved-hints-empty" id="saved-hints-empty" style="display:none">No saved hints yet.</p>
+        <p class="saved-hints-empty" id="saved-hints-empty" style="display:none">لا توجد تلميحات محفوظة بعد.</p>
       </div>
 
       <div class="gm-hint-actions-row">
         <div class="gm-media-options" id="gm-media-options">
-          <button class="btn gm-chip-btn" id="btn-show-videos">Videos<span class="chip-chevron" aria-hidden="true"></span></button>
-          <button class="btn gm-chip-btn" id="btn-show-hints">Hints<span class="chip-chevron" aria-hidden="true"></span></button>
-          <button class="btn gm-chip-btn" id="btn-show-images">Images<span class="chip-chevron" aria-hidden="true"></span></button>
-          <button class="btn gm-chip-btn" id="btn-show-sounds">Sounds<span class="chip-chevron" aria-hidden="true"></span></button>
+          <button class="btn gm-chip-btn" id="btn-show-videos">الفيديوهات<span class="chip-chevron" aria-hidden="true"></span></button>
+          <button class="btn gm-chip-btn" id="btn-show-hints">التلميحات<span class="chip-chevron" aria-hidden="true"></span></button>
+          <button class="btn gm-chip-btn" id="btn-show-images">الصور<span class="chip-chevron" aria-hidden="true"></span></button>
+          <button class="btn gm-chip-btn" id="btn-show-sounds">الأصوات<span class="chip-chevron" aria-hidden="true"></span></button>
         </div>
-        <textarea class="hint-textarea" id="hint-input" placeholder="Type a hint for the players..."></textarea>
-        <button class="btn btn-primary hint-btn" id="btn-send-hint">Send</button>
+        <textarea class="hint-textarea" id="hint-input" placeholder="اكتب تلميحًا للاعبين…"></textarea>
+        <button class="btn btn-primary hint-btn" id="btn-send-hint">إرسال</button>
       </div>
 
       <div class="gm-current-hint-block" id="gm-current-hint-block" style="display:none;">
         <div class="gm-current-hint-row">
           <div class="gm-current-hint-display" id="gm-current-hint-display"></div>
-          <button class="btn gm-clear-hint-btn" id="btn-clear-hint" type="button">Clear</button>
+          <button class="btn gm-clear-hint-btn" id="btn-clear-hint" type="button">مسح</button>
         </div>
       </div>
 
       <div class="gm-current-image-block" id="gm-current-image-block" style="display:none;">
         <div class="gm-current-image-display" id="gm-current-image-status"></div>
         <div class="gm-image-size-ctrl">
-          <span class="gm-image-size-label">Size</span>
+          <span class="gm-image-size-label">الحجم</span>
           <input class="gm-image-size-slider" id="image-size-slider" type="range" min="25" max="150" step="5" value="100" />
           <span class="gm-image-size-value" id="image-size-value">100%</span>
         </div>
-        <button class="btn gm-clear-hint-btn" id="btn-clear-image" type="button">Clear</button>
+        <button class="btn gm-clear-hint-btn" id="btn-clear-image" type="button">مسح</button>
       </div>
     </div>
 
   </main>
   </div>
 
-  <script src="js/app.js"></script>
-  <script src="js/session-adapter.js"></script>
+  <script src="js/app.js?v=full-delivery-2"></script>
+  <script src="js/session-adapter.js?v=full-delivery-3"></script>
   <script>document.body.dataset.protectedPage = 'gm';</script>
-  <script type="module" src="js/auth/guard.mjs"></script>
+  <script type="module" src="js/auth/guard.mjs?v=full-delivery-3"></script>
 </body>
 </html>

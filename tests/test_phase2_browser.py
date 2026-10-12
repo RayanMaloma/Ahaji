@@ -78,7 +78,7 @@ class Phase2BrowserTests(unittest.TestCase):
         cast = popup_info.value
         cast.on("pageerror", lambda error: self.errors.append(str(error)))
         self.assertEqual(parse_qs(urlparse(cast.url).query)["session"][0], session)
-        expect(cast.locator("#cast-idle-name")).to_contain_text("Prison")
+        expect(cast.locator("#cast-idle-name")).to_contain_text("السجن")
         expect(cast.locator("#cast-bg")).to_have_attribute("src", "source/prison/background.jpg")
 
         gm.locator("#btn-start").click()
@@ -140,7 +140,7 @@ class Phase2BrowserTests(unittest.TestCase):
 
         # Messages bearing the right channel name but the wrong room are ignored.
         gm_a.evaluate("""(id) => {
-          const channel = new BroadcastChannel('ahaji-session-' + id);
+          const channel = new BroadcastChannel('ahaji-session-anbar-' + id);
           channel.postMessage({ type: 'state', roomId: 'haram', sessionId: id,
             state: { roomId: 'haram', sessionId: id, status: 'paused',
               remainingSeconds: 1, endsAt: null, hintText: 'WRONG ROOM',
@@ -150,16 +150,16 @@ class Phase2BrowserTests(unittest.TestCase):
         expect(cast_a.locator("#cast-hint-text")).to_have_text("Only prison")
 
         wrong_room = self.cast("haram", session_a)
-        expect(wrong_room.locator("#cast-invalid-session")).to_contain_text("Invalid session")
+        expect(wrong_room.locator("#cast-invalid-session")).to_contain_text("Session unavailable")
         gm_collision, fresh_id = self.gm("haram", session_a)
-        self.assertNotEqual(fresh_id, session_a)
+        self.assertEqual(fresh_id, session_a)
         expect(cast_a.locator("#cast-hint-text")).to_have_text("Only prison")
 
         missing = self.page()
         missing.goto(f"{self.base}/cast.html?room=anbar")
-        expect(missing.locator("#cast-invalid-session")).to_contain_text("Missing session")
+        expect(missing.locator("#cast-invalid-session")).to_contain_text("الجلسة مفقودة")
         invalid = self.cast("anbar", "bad%20id")
-        expect(invalid.locator("#cast-invalid-session")).to_contain_text("Invalid session")
+        expect(invalid.locator("#cast-invalid-session")).to_contain_text("رابط جلسة غير صالح")
 
         late_id = "late-session-123"
         late_cast = self.cast("saleh", late_id)
@@ -177,7 +177,7 @@ class Phase2BrowserTests(unittest.TestCase):
 
         # With the saved snapshot removed, a newly opened Cast gets a snapshot
         # from the live GM via the explicit reconnect request.
-        gm_a.evaluate("(id) => localStorage.removeItem('ahaji-state-' + id)", session_a)
+        gm_a.evaluate("(id) => localStorage.removeItem('ahaji-state-anbar-' + id)", session_a)
         recovered_cast = self.cast("anbar", session_a)
         expect(recovered_cast.locator("#cast-invalid-session")).to_have_count(0)
         expect(recovered_cast.locator("#cast-hint-text")).to_have_text("Only prison")
@@ -187,7 +187,7 @@ class Phase2BrowserTests(unittest.TestCase):
         try:
             other_cast = other_context.new_page()
             other_cast.goto(f"{self.base}/cast.html?room=anbar&session={session_a}")
-            expect(other_cast.locator("#cast-invalid-session")).to_contain_text("Session unavailable")
+            expect(other_cast.locator("#cast-invalid-session")).to_contain_text("رابط العرض غير مكتمل")
         finally:
             other_context.close()
 
@@ -207,7 +207,7 @@ class Phase2BrowserTests(unittest.TestCase):
           close() {}
         };""")
         cast.goto(f"{self.base}/cast.html?room=haram&session={session}")
-        expect(cast.locator("#cast-idle-name")).to_contain_text("Pyramid")
+        expect(cast.locator("#cast-idle-name")).to_contain_text("الهرم")
         gm.locator("#btn-start").click()
         expect(cast.locator("#cast-content")).to_have_class(re.compile(r"\bvisible\b"))
         gm.locator("#hint-input").fill("Storage fallback")

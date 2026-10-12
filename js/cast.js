@@ -3,7 +3,7 @@
 (function () {
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('room');
-  const room = getRoom(roomId);
+  let room = getRoom(roomId);
   const sessionId = params.get('session');
 
   // Cast must be opened from a specific GM session. Refuse to attach to any
@@ -11,13 +11,17 @@
   // the same roomId would silently share the same Cast screen.
   if (!sessionId) {
     showInvalidSession(
-      'Missing session',
-      'Open this Cast screen from its Game Master page.'
+      'الجلسة مفقودة',
+      'افتح شاشة العرض من صفحة مدير اللعبة.'
     );
     return;
   }
-  if (!room || !isValidSessionId(sessionId)) {
-    showInvalidSession('Invalid session', 'Check the room and session link with the Game Master.');
+  if (!window.ahajiUseLocalSession && !params.get('key')) {
+    showInvalidSession('رابط العرض غير مكتمل','افتح رابط الشاشة من مدير اللعبة.');
+    return;
+  }
+  if (!/^[a-z][a-z0-9_-]{0,63}$/.test(roomId || '') || !isValidSessionId(sessionId)) {
+    showInvalidSession('رابط جلسة غير صالح', 'تحقّق من رابط الغرفة والجلسة مع مدير اللعبة.');
     return;
   }
 
@@ -74,6 +78,7 @@
       pendingSound = null;
       fn();
     }
+    if (currentState?.activeVideoSrc) document.getElementById('cast-room-video')?.play().catch(()=>{});
 
     console.info(`[cast] Audio unlocked via ${source}.`);
   }
@@ -175,10 +180,23 @@
 
   function applyState(nextState) {
     if (!nextState) return;
+    if (nextState.roomConfig && nextState.roomConfig.id === roomId) {
+      setRoomCatalog([nextState.roomConfig]);
+      room = getRoom(roomId);
+    }
     const invalidOverlay = document.getElementById('cast-invalid-session');
     if (invalidOverlay) invalidOverlay.remove();
+    const previous=currentState;
     currentState = nextState;
     renderCastView(nextState, els, { updateDocumentTitle: true });
+    const roomVideo=document.getElementById('cast-room-video');
+    if(roomVideo){
+      if(nextState.activeVideoSrc){
+        const src=resolveRoomAsset(nextState.activeVideoSrc);
+        if(src && roomVideo.getAttribute('src')!==src){roomVideo.src=src;roomVideo.play().catch(()=>{});}
+        roomVideo.hidden=false;
+      }else{roomVideo.hidden=true;roomVideo.pause();roomVideo.removeAttribute('src');}
+    }
 
     if (nextState.status === 'running' && typeof nextState.endsAt === 'number') {
       startRenderLoop();
@@ -191,7 +209,7 @@
     if (!overlayEl || !imgEl) return;
 
     if (nextState.activeImageSrc) {
-      imgEl.src = nextState.activeImageSrc;
+      imgEl.src = resolveRoomAsset(nextState.activeImageSrc) || '';
       const scale =
         typeof nextState.activeImageScale === 'number' ? nextState.activeImageScale : 100;
       imgEl.style.maxWidth = scale + '%';
@@ -201,6 +219,16 @@
       overlayEl.style.display = 'none';
       imgEl.src = '';
     }
+    if(nextState.signal && nextState.signal.revision!==previous?.signal?.revision){
+      if(nextState.signal.type==='alert')playRoomNotificationSound(nextState.signal.volume);
+      if(nextState.signal.type==='hint-sound')playRoomNotificationSound(1);
+      if(nextState.signal.type==='gm-sound'){
+        const src=resolveRoomAsset(nextState.signal.asset_ref);
+        if(src && audioUnlocked)new Audio(src).play().catch(()=>{});
+      }
+    }
+    if(nextState.viewMode==='lose' && room?.media?.loseVideo)nextState.loseMode='video';
+    if(nextState.viewMode==='lose' && previous?.viewMode!=='lose')triggerLoseMedia();
 
     // Hide and stop the lose video whenever we're not in an active lose+video state.
     const videoEl = document.getElementById('cast-lose-video');
@@ -296,6 +324,13 @@
     if (message.type === 'lose-media') {
       triggerLoseMedia();
     }
+    if(message.type==='connection'){
+      const status=document.getElementById('cast-connection');
+      if(status){status.textContent=message.status==='connected'?'متصل':'جارٍ إعادة الاتصال…';
+        status.classList.toggle('offline',message.status!=='connected');}
+    }
+    if(message.type==='error' && /access denied|expired/i.test(message.error?.message||''))
+      showInvalidSession('انتهت صلاحية العرض','اطلب رابطاً جديداً من مدير اللعبة.');
   });
 
   const loaded = session.loadSessionState();

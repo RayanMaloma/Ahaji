@@ -1,24 +1,24 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ahaji — Select Room</title>
-  <link rel="stylesheet" href="css/style.css?v=phase5-font-1" />
+  <title>اختيار الغرفة · أحاجي</title>
+  <link rel="stylesheet" href="css/style.css?v=full-delivery-2" />
 </head>
 <body class="index-page">
-  <div id="auth-loading" class="auth-status" role="status">Checking staff access…</div>
+  <div id="auth-loading" class="auth-status" role="status">جارٍ التحقق من صلاحية الفريق…</div>
   <div id="auth-failure" class="auth-status" role="alert" hidden></div>
   <div id="protected-content" class="index-protected" hidden>
-  <div class="auth-topbar"><span id="auth-role"></span><span id="auth-email"></span><a id="admin-dashboard-link" href="admin.html?view=rooms" hidden>لوحة الإدارة</a><a href="staff.html">Staff home</a><button type="button" data-logout>Log out</button></div>
+  <div class="auth-topbar"><span id="auth-role"></span><span id="auth-email"></span><a id="admin-dashboard-link" href="admin.html?view=rooms" hidden>لوحة الإدارة</a><a href="staff.html">حسابي</a><button type="button" data-logout>تسجيل الخروج</button></div>
   <img src="images/ahajilogo.svg" alt="Ahaji" class="index-logo" />
-  <p class="index-title">Select a Room</p>
+  <p class="index-title">اختر الغرفة</p>
 
   <div class="room-grid" id="room-grid"></div>
-  <p id="no-rooms" hidden>No rooms are assigned to your account yet.</p>
+  <p id="no-rooms" hidden>لا توجد غرف مسندة إلى حسابك حاليًا.</p>
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=full-delivery-2"></script>
   <script>
     // Supabase's configured Site URL points here. Keep the one-time
     // Auth fragment on the recovery page so the SDK can consume it there.
@@ -27,6 +27,6 @@
     }
   </script>
   <script>document.body.dataset.protectedPage = 'index';</script>
-  <script type="module" src="js/auth/guard.mjs"></script>
+  <script type="module" src="js/auth/guard.mjs?v=full-delivery-3"></script>
 </body>
 </html>

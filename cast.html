@@ -1,24 +1,26 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ahaji - Cast</title>
-  <link rel="stylesheet" href="css/style.css?v=phase5-font-1" />
+  <meta name="referrer" content="no-referrer" />
+  <title>شاشة العرض · أحاجي</title>
+  <link rel="stylesheet" href="css/style.css?v=full-delivery-2" />
 </head>
 <body class="cast-page">
+  <div id="cast-connection" class="cast-connection offline" role="status">جارٍ الاتصال…</div>
 
-  <div class="cast-audio-unlock" id="cast-audio-unlock" role="button" tabindex="0" aria-label="Enable audio">
+  <div class="cast-audio-unlock" id="cast-audio-unlock" role="button" tabindex="0" aria-label="تفعيل الصوت">
     <div class="cast-audio-unlock-inner">
-      <div class="cast-audio-unlock-title">Enable Audio</div>
-      <div class="cast-audio-unlock-text">Click to enable sound</div>
+      <div class="cast-audio-unlock-title">تفعيل الصوت</div>
+      <div class="cast-audio-unlock-text">اضغط لتشغيل الصوت</div>
     </div>
   </div>
 
   <!-- Re-enter fullscreen button — shown only when fullscreen was exited -->
-  <button class="cast-fullscreen-btn" id="cast-fullscreen-btn" aria-label="Enter fullscreen">&#x26F6;</button>
+  <button class="cast-fullscreen-btn" id="cast-fullscreen-btn" aria-label="ملء الشاشة">&#x26F6;</button>
 
-  <img class="cast-bg" id="cast-bg" src="" alt="Room" />
+  <img class="cast-bg" id="cast-bg" src="" alt="خلفية الغرفة" />
   <div class="cast-overlay" id="cast-overlay"></div>
   <img class="cast-logo" src="images/ahajilogo.svg" alt="Ahaji" />
 
@@ -55,14 +57,15 @@
   <video id="cast-lose-video"
          style="display:none; position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:500; background:#000;"
          playsinline></video>
+  <video id="cast-room-video" class="cast-room-video" playsinline hidden></video>
 
   <!-- Image overlay — shown when GM sends a room image to cast -->
   <div id="cast-image-overlay" style="display:none;">
     <img id="cast-image-overlay-img" alt="" />
   </div>
 
-  <script src="js/app.js"></script>
-  <script src="js/session-adapter.js"></script>
-  <script src="js/cast.js"></script>
+  <script src="js/app.js?v=full-delivery-2"></script>
+  <script src="js/session-adapter.js?v=full-delivery-3"></script>
+  <script src="js/cast.js?v=full-delivery-2"></script>
 </body>
 </html>
