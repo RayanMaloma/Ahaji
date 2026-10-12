@@ -101,7 +101,7 @@ class Phase5BrowserTests(unittest.TestCase):
         page = context.new_page()
         page.goto(self.base + "/admin.html?view=staff")
         self.assert_page_title(page, "فريق العمل")
-        expect(page.locator(".page-heading")).to_have_count(0)
+        expect(page.locator(".page-heading")).to_have_count(1)
         expect(page.locator(".staff-table tbody tr")).to_have_count(2)
         expect(page.get_by_text("gm@test.invalid")).to_be_visible()
         expect(page.get_by_text("جميع الغرف")).to_be_visible()

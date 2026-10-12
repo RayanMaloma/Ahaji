@@ -72,7 +72,7 @@ class Phase4BrowserTests(unittest.TestCase):
         gm = gm_context.new_page()
         gm.goto(self.base + "/index.html")
         expect(gm.locator(".room-card")).to_have_count(1)
-        expect(gm.locator("#auth-role")).to_have_text("Game Master")
+        expect(gm.locator("#auth-role")).to_have_text("مدير لعبة")
         gm.goto(self.base + "/gm.html?room=haram")
         expect(gm).to_have_url(self.base + "/unauthorized.html?reason=room")
 

@@ -136,3 +136,15 @@ body{direction:rtl;background:var(--paper)}
 .admin-dialog-head h2{margin:0;font-size:22px}
 .admin-dialog-form .button-dark{justify-self:start}
 @media(max-width:650px){.room-editor{grid-template-columns:1fr;padding:18px}.room-add-tile{min-height:180px}}
+.staff-pending{display:block;color:#ffe173;margin-top:5px}
+.status-pill.pending{background:rgba(245,200,0,.15);color:#ffe173}
+.staff-room-choices{display:grid;gap:10px;border:1px solid var(--line);border-radius:8px;padding:14px;max-height:230px;overflow:auto}
+.staff-room-choices legend{padding:0 7px;color:var(--yellow);font-weight:700}
+.staff-room-choices .form-field{display:flex;flex-direction:row-reverse;justify-content:flex-end;align-items:center;gap:8px}
+.staff-room-choices input{width:17px;height:17px;accent-color:var(--yellow)}
+.staff-room-choices[hidden]{display:none}
+.staff-table td:last-child{white-space:nowrap}
+.staff-table td:last-child .mini-action{margin-inline-end:5px}
+.icon-history{mask-image:url('../images/icons/history.svg')}
+.history-table td{vertical-align:top}
+.history-outcome{font-weight:700;color:var(--yellow)}

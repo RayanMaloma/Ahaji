@@ -1,4 +1,5 @@
 import { supabase, currentAccess, safeNext } from './client.mjs';
+import { createRoomRepository } from '../data/room-repository.mjs';
 
 const page = document.body.dataset.protectedPage;
 const loading = document.getElementById('auth-loading');
@@ -21,20 +22,40 @@ async function checkAccess() {
       window.location.replace('unauthorized.html');
       return;
     }
-    if (page === 'gm') {
-      const roomId = new URLSearchParams(window.location.search).get('room');
-      if (!roomId) { window.location.replace('index.html'); return; }
-      const { data, error } = await supabase.from('rooms').select('id').eq('id', roomId).maybeSingle();
-      if (error) throw error;
-      if (!data) { window.location.replace('unauthorized.html?reason=room'); return; }
-    }
-    if (page === 'index') {
-      const { data, error } = await supabase.from('rooms').select('id').order('display_order');
-      if (error) throw error;
-      window.ahajiAuthorizedRoomIds = new Set((data || []).map(room => room.id));
+    if (page === 'gm' || page === 'index') {
+      const rooms = await createRoomRepository(supabase).listRooms();
+      setRoomCatalog(rooms);
+      window.ahajiAuthorizedRoomIds = new Set(rooms.map(room => room.id));
+      if (page === 'gm') {
+        const roomId = new URLSearchParams(window.location.search).get('room');
+        if (!roomId) { window.location.replace('index.html'); return; }
+        if (!window.ahajiAuthorizedRoomIds.has(roomId)) {
+          window.location.replace('unauthorized.html?reason=room'); return;
+        }
+        if (!window.ahajiUseLocalSession) {
+          const params=new URLSearchParams(window.location.search);
+          let sessionId=params.get('session');let bootstrap;
+          if(sessionId && /^[0-9a-f-]{36}$/i.test(sessionId)) {
+            const response=await supabase.rpc('get_game_session',
+              {p_room_id:roomId,p_session_id:sessionId});
+            if(response.error) throw response.error;
+            bootstrap=response.data;
+          } else {
+            const response=await supabase.rpc('create_game_session',{p_room_id:roomId});
+            if(response.error) throw response.error;
+            bootstrap=response.data;sessionId=bootstrap.sessionId;
+            params.set('session',sessionId);
+            history.replaceState(null,'',`${location.pathname}?${params}`);
+            localStorage.setItem(`ahaji-cast-${roomId}-${sessionId}`,bootstrap.castToken);
+          }
+          window.ahajiSupabase=supabase;
+          window.ahajiSessionBootstrap={...bootstrap,revision:bootstrap.revision||1};
+          window.ahajiClockOffset=bootstrap.serverNow-Date.now();
+        }
+      }
     }
     const roleLabel = document.getElementById('auth-role');
-    if (roleLabel) roleLabel.textContent = page === 'staff' ? (access.role === 'admin' ? 'مدير' : 'مدير لعبة') : (access.role === 'admin' ? 'Admin' : 'Game Master');
+    if (roleLabel) roleLabel.textContent = access.role === 'admin' ? 'مدير' : 'مدير لعبة';
     const emailLabel = document.getElementById('auth-email');
     if (emailLabel) emailLabel.textContent = access.user.email || '';
     const adminLink = document.getElementById('admin-dashboard-link');
@@ -43,12 +64,12 @@ async function checkAccess() {
     panel.hidden = false;
     if (!window.ahajiPageLoaded) {
       window.ahajiPageLoaded = true;
-      await import(page === 'gm' ? '../gm.js' : page === 'index' ? '../index.js' : './staff.mjs');
+      await import(page === 'gm' ? '../gm.js?v=full-delivery-3' : page === 'index' ? '../index.js' : './staff.mjs');
     }
   } catch (error) {
     loading.hidden = true;
     failure.hidden = false;
-    failure.textContent = page === 'staff' ? 'تعذّر التحقق من صلاحية الدخول. تحقّق من اتصالك وأعد المحاولة.' : 'Could not verify access. Check your connection and retry.';
+    failure.textContent = 'تعذّر التحقق من صلاحية الدخول. تحقّق من اتصالك وأعد المحاولة.';
     console.error('Access verification failed:', error);
   }
 }

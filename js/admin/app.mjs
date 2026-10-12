@@ -1,5 +1,5 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=full-delivery-3';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
 
@@ -14,8 +14,7 @@ const menuButton = document.getElementById('admin-menu-button');
 const scrim = document.getElementById('admin-scrim');
 const state = { access: null, data: null, loading: false, error: false };
 let accessRequestId = 0;
-const arabicRoomNames = { anbar: 'السجن', haram: 'الهرم', saleh: 'العم صالح' };
-const roomName = room => arabicRoomNames[room.id] || room.name;
+const roomName = room => room.name;
 const mediaKinds = {
   hint_sound: 'صوت التلميح', lose_sound: 'صوت الخسارة',
   lose_video: 'فيديو الخسارة', gm_image: 'صورة', gm_sound: 'مؤثر صوتي', gm_video: 'فيديو'
@@ -100,6 +99,14 @@ function fmtDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'غير متاح' : new Intl.DateTimeFormat('ar-SA',{dateStyle:'medium',numberingSystem:'latn'}).format(date);
 }
+function fmtDateTime(value){if(!value)return '—';const date=new Date(value);
+  return Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('ar-SA',
+    {dateStyle:'medium',timeStyle:'short',numberingSystem:'latn'}).format(date);}
+function sessionOutcome(session){return session.status!=='ended'?(
+  session.status==='running'?'جارية':session.status==='paused'?'متوقفة مؤقتاً':'جاهزة'):
+  session.result==='win'?'فوز':session.result==='lose'?'خسارة':'انتهت الصلاحية';}
+function sessionDuration(session){if(!session.started_at||!session.ended_at)return '—';
+  return `${Math.max(0,Math.round((new Date(session.ended_at)-new Date(session.started_at))/60000))} دقيقة`;}
 function roomUrl(room) { return `admin.html?view=room&id=${encodeURIComponent(room.id)}`; }
 function metricTags(room) {
   const metrics = roomMetrics(room);
@@ -329,13 +336,14 @@ function renderRoomForm(roomId){
 function renderStaff() {
   const staff = state.data.staff;
   const rooms = new Map(state.data.rooms.map(room => [room.id,roomName(room)]));
-  content.append(node('h1','sr-only','فريق العمل'));
+  const invite=button('＋ دعوة عضو','button-dark');invite.addEventListener('click',()=>showStaffEditor());
+  content.append(heading('إدارة الفريق','فريق العمل','الدعوات والأدوار وصلاحيات الغرف.',invite));
   const panelData = panel('حسابات الفريق',`${staff.length} حساب`);
   if (!staff.length) panelData.wrap.append(node('p','panel-empty','لا توجد حسابات فريق عمل حالياً.'));
   else {
     const wrap = node('div','table-wrap'); const table = node('table','staff-table');
     const thead = node('thead'); const header = node('tr');
-    for (const label of ['الحساب','الدور','الغرف المسموح بها','الحالة']) header.append(node('th','',label));
+    for (const label of ['الحساب','الدور','الغرف المسموح بها','الحالة','الإجراءات']) header.append(node('th','',label));
     thead.append(header); table.append(thead);
     const tbody = node('tbody');
     for (const person of staff) {
@@ -351,12 +359,117 @@ function renderStaff() {
       else if(!person.room_ids?.length) chips.append(node('span','','لا توجد غرف معيّنة'));
       else for(const id of person.room_ids) chips.append(node('span','assignment-chip',rooms.get(id)||id));
       assignments.append(chips);row.append(assignments);
-      const statusCell=node('td');statusCell.append(statusPill(person.active));row.append(statusCell);
+      const statusCell=node('td');
+      statusCell.append(!person.active?statusPill(false):person.email_confirmed?statusPill(true):
+        node('span','status-pill pending','بانتظار توثيق البريد'));
+      row.append(statusCell);
+      const actionCell=node('td');const edit=button('إدارة','mini-action');
+      edit.addEventListener('click',()=>showStaffEditor(person));actionCell.append(edit);
+      if(!person.email_confirmed){const resend=button('إعادة الدعوة','mini-action');
+        resend.addEventListener('click',()=>resendInvite(person));actionCell.append(resend);}
+      row.append(actionCell);
       tbody.append(row);
     }
     table.append(tbody);wrap.append(table);panelData.wrap.append(wrap);
   }
   content.append(panelData.wrap);
+}
+function renderHistory(){
+  const sessions=state.data.sessions||[];
+  content.append(heading('العمليات','سجل الجلسات','الجلسات الفعلية المحفوظة في قاعدة البيانات.'));
+  const data=panel('الجلسات',`${sessions.length} جلسة`);
+  if(!sessions.length)data.wrap.append(node('p','panel-empty','لا توجد جلسات محفوظة بعد.'));
+  else{
+    const wrap=node('div','table-wrap');const table=node('table','staff-table history-table');
+    const header=node('tr');for(const label of ['الغرفة','مدير اللعبة','البدء','النهاية','النتيجة','المدة',''])header.append(node('th','',label));
+    const thead=node('thead');thead.append(header);table.append(thead);
+    const tbody=node('tbody');
+    for(const item of sessions){
+      const row=node('tr');const room=state.data.rooms.find(r=>r.id===item.room_id);
+      const staff=state.data.staff.find(s=>s.user_id===item.gm_user_id);
+      for(const value of [room?roomName(room):item.room_id,staff?.email||'غير متاح',
+        fmtDateTime(item.started_at),fmtDateTime(item.ended_at),sessionOutcome(item),sessionDuration(item)]){
+        const cell=node('td','',value);if(value===sessionOutcome(item))cell.classList.add('history-outcome');row.append(cell);}
+      const action=node('td');action.append(link(`admin.html?view=session&id=${encodeURIComponent(item.id)}`,'mini-action','التفاصيل'));row.append(action);
+      tbody.append(row);
+    }
+    table.append(tbody);wrap.append(table);data.wrap.append(wrap);
+  }
+  content.append(data.wrap);
+}
+function renderSessionDetail(id){
+  const session=(state.data.sessions||[]).find(s=>s.id===id);
+  if(!session){renderNotFound('لا توجد جلسة بهذا المعرّف ضمن السجل المتاح.');return;}
+  const room=state.data.rooms.find(r=>r.id===session.room_id);
+  const staff=state.data.staff.find(s=>s.user_id===session.gm_user_id);
+  content.append(link('admin.html?view=history','subtle-button room-back','→ سجل الجلسات'),
+    heading('تفاصيل الجلسة',room?roomName(room):session.room_id,sessionOutcome(session)));
+  const summary=panel('ملخص الجلسة');const info=node('div','detail-meta');
+  for(const [label,value] of [['مدير اللعبة',staff?.email||'غير متاح'],['البدء',fmtDateTime(session.started_at)],
+    ['النهاية',fmtDateTime(session.ended_at)],['المدة',sessionDuration(session)]])info.append(detailField(label,value));
+  summary.wrap.append(info);content.append(summary.wrap);
+  const events=panel('سجل الأحداث','الأحداث المسجلة أثناء اللعب');
+  const holder=node('div','panel-body loading-panel','جارٍ تحميل الأحداث…');events.wrap.append(holder);content.append(events.wrap);
+  repository.listEvents(id).then(rows=>{
+    if(!holder.isConnected)return;holder.replaceChildren();holder.classList.remove('loading-panel');
+    if(!rows.length){holder.append(node('p','panel-empty','لا توجد أحداث مسجلة.'));return;}
+    const labels={created:'إنشاء الجلسة',start:'بدء المؤقت',pause:'إيقاف مؤقت',resume:'استئناف',
+      adjust:'تعديل الوقت',hint:'تلميح',image:'صورة',video:'فيديو',scale:'حجم الصورة',
+      signal:'إشارة صوتية',win:'فوز',lose:'خسارة',timeout:'انتهاء الوقت',expired:'انتهاء الصلاحية'};
+    const list=node('ol','detail-list');for(const event of rows){const item=node('li');
+      item.append(node('span','',fmtDateTime(event.created_at)),
+        node('strong','',labels[event.event_type]||event.event_type));
+      if(event.event_type==='hint'&&event.payload?.text)item.append(node('span','detail-text',event.payload.text));
+      list.append(item);}holder.append(list);
+  }).catch(()=>{if(holder.isConnected)holder.textContent='تعذّر تحميل سجل الأحداث.';});
+}
+
+function staffRoomChoices(form,selected=[]){
+  const list=node('fieldset','staff-room-choices');list.append(node('legend','','الغرف المسموح بها'));
+  for(const room of state.data.rooms.filter(r=>r.isActive)){
+    const input=node('input');input.type='checkbox';input.value=room.id;input.checked=selected.includes(room.id);
+    list.append(field(roomName(room),input));
+  }
+  form.append(list);return list;
+}
+function showStaffEditor(person=null){
+  showDialog(person?'إدارة عضو الفريق':'دعوة عضو جديد',(form,dialog)=>{
+    let email=null;
+    if(!person){email=node('input','admin-input');email.type='email';email.dir='ltr';email.required=true;
+      form.append(field('البريد الإلكتروني',email));}
+    else form.append(node('p','staff-email',person.email));
+    const role=node('select','admin-select');
+    for(const [value,label] of [['game_master','مدير لعبة'],['admin','مدير']]){
+      const option=node('option','',label);option.value=value;role.append(option);}
+    role.value=person?.role||'game_master';form.append(field('الدور',role));
+    const active=node('input');active.type='checkbox';active.checked=person?.active??true;
+    if(person)form.append(field('الحساب نشط',active));
+    const rooms=staffRoomChoices(form,person?.room_ids||[]);
+    const syncRooms=()=>{rooms.hidden=role.value==='admin';};role.addEventListener('change',syncRooms);syncRooms();
+    const save=button(person?'حفظ الصلاحيات':'إرسال الدعوة','button-dark');save.type='submit';form.append(save);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();save.disabled=true;
+      const roomIds=role.value==='admin'?[]:[...rooms.querySelectorAll('input:checked')].map(x=>x.value);
+      try{
+        if(person){const {error}=await supabase.rpc('admin_manage_staff',{
+          p_user_id:person.user_id,p_role:role.value,p_active:active.checked,p_room_ids:roomIds});
+          if(error)throw error;
+        }else{
+          const {data,error}=await supabase.functions.invoke('staff-invite',{
+            body:{email:email.value.trim(),role:role.value,room_ids:roomIds}});
+          if(error)throw error;if(data?.error)throw new Error(data.error);
+        }
+        dialog.close();await refresh();
+      }catch(error){formStatus(form,error.message||'تعذّر حفظ بيانات الفريق.');save.disabled=false;}
+    });
+  });
+}
+async function resendInvite(person){
+  if(!confirm(`إعادة إرسال دعوة إلى ${person.email}؟`))return;
+  const {data,error}=await supabase.functions.invoke('staff-invite',{
+    body:{email:person.email,role:person.role,room_ids:person.room_ids||[]}});
+  if(error||data?.error)alert(data?.error||error?.message||'تعذّرت إعادة الدعوة. يمكن للعضو استخدام استعادة كلمة المرور.');
+  else{alert('أُرسلت الدعوة مجدداً.');await refresh();}
 }
 
 function renderAccount() {
@@ -418,14 +531,14 @@ function route(){
   return {view:requested,id:params.get('id')||''};
 }
 function setNavigation(view,id){
-  const section=['room','new-room','edit-room'].includes(view)?'rooms':view;
+  const section=['room','new-room','edit-room'].includes(view)?'rooms':view==='session'?'history':view;
   document.querySelectorAll('[data-nav]').forEach(item=>{
     if(item.dataset.nav===section)item.setAttribute('aria-current','page');
     else item.removeAttribute('aria-current');
   });
   breadcrumbs.replaceChildren();
   const titles={rooms:'الغرف',staff:'فريق العمل',account:'حسابي',room:'تفاصيل الغرفة',
-    'new-room':'إضافة غرفة','edit-room':'تعديل الغرفة'};
+    'new-room':'إضافة غرفة','edit-room':'تعديل الغرفة',history:'سجل الجلسات',session:'تفاصيل الجلسة'};
   let title=titles[view]||'صفحة غير موجودة';
   if(view==='room'){
     const room=state.data?.rooms.find(r=>r.id===id);
@@ -454,6 +567,8 @@ function render(){
   else if(view==='new-room')renderRoomForm(null);
   else if(view==='edit-room')renderRoomForm(id);
   else if(view==='staff')renderStaff();
+  else if(view==='history')renderHistory();
+  else if(view==='session')renderSessionDetail(id);
   else renderNotFound('هذا الرابط لا يشير إلى صفحة في لوحة الإدارة.');
 }
 function navigate(href){

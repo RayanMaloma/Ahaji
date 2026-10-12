@@ -1,7 +1,6 @@
 import { supabase } from './client.mjs';
 
 const list = document.getElementById('staff-rooms');
-const arabicRoomNames = { anbar: 'السجن', haram: 'الهرم', saleh: 'العم صالح' };
 const { data, error } = await supabase.from('rooms').select('id,name').order('display_order');
 if (error) {
   list.textContent = 'تعذّر تحميل الغرف المسموح بها.';
@@ -10,7 +9,7 @@ if (error) {
     const item = document.createElement('li');
     const link = document.createElement('a');
     link.href = `gm.html?room=${encodeURIComponent(room.id)}`;
-    link.textContent = arabicRoomNames[room.id] || room.name;
+    link.textContent = room.name;
     item.appendChild(link);
     list.appendChild(item);
   }

@@ -3,6 +3,7 @@
 import base64
 import json
 import time
+import uuid
 from urllib.parse import parse_qs, urlparse
 
 
@@ -10,9 +11,9 @@ PROJECT = "gbhleqizxcmxmutgcjon"
 USER_ID = "00000000-0000-4000-8000-000000000001"
 ROOMS = ["anbar", "haram", "saleh"]
 DASHBOARD_ROOMS = [
-    {"id": "anbar", "name": "Prison", "thumbnail_ref": "images/prison.jpg", "background_ref": "source/prison/background.jpg", "default_duration_seconds": 3600, "display_order": 0, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
-    {"id": "haram", "name": "Pyramid", "thumbnail_ref": "images/pyramid.png", "background_ref": "source/pyramid/background.jpg", "default_duration_seconds": 2700, "display_order": 1, "is_active": False, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
-    {"id": "saleh", "name": "Uncle Saleh", "thumbnail_ref": "images/unclesaleh.png", "background_ref": "source/unclesaleh/background.jpg", "default_duration_seconds": 3600, "display_order": 2, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
+    {"id": "anbar", "name": "السجن", "thumbnail_ref": "images/prison.jpg", "background_ref": "source/prison/background.jpg", "default_duration_seconds": 3600, "display_order": 0, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
+    {"id": "haram", "name": "الهرم", "thumbnail_ref": "images/pyramid.png", "background_ref": "source/pyramid/background.jpg", "default_duration_seconds": 2700, "display_order": 1, "is_active": False, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
+    {"id": "saleh", "name": "العم صالح", "thumbnail_ref": "images/unclesaleh.png", "background_ref": "source/unclesaleh/background.jpg", "default_duration_seconds": 3600, "display_order": 2, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
 ]
 DASHBOARD_HINTS = [
     {"id": "hint-1", "room_id": "anbar", "body": "Look behind the door", "display_order": 0},
@@ -47,16 +48,19 @@ def session():
             "expires_in": 3600, "expires_at": exp, "user": user}
 
 
-def install_auth_mock(context, role="admin", rooms=None, authenticated=True, dashboard=False, fail_dashboard=False, fail_dashboard_once=False, user_override=None):
+def install_auth_mock(context, role="admin", rooms=None, authenticated=True, dashboard=False, fail_dashboard=False, fail_dashboard_once=False, user_override=None, local_session=True, session_store=None):
     allowed = ROOMS if rooms is None else rooms
     failures_left = 1 if fail_dashboard_once else 0
     if authenticated:
         payload = json.dumps(session())
         context.add_init_script(
+            ("window.ahajiUseLocalSession = true;" if local_session else "") +
             "if (location.hostname === '127.0.0.1' && !sessionStorage.getItem('ahaji-fixture-ready')) {"
             f"localStorage.setItem('sb-gbhleqizxcmxmutgcjon-auth-token', {json.dumps(payload)});"
             "sessionStorage.setItem('ahaji-fixture-ready', '1');}"
         )
+    elif local_session:
+        context.add_init_script("window.ahajiUseLocalSession = true;")
 
     def reply(route):
         nonlocal failures_left
@@ -85,7 +89,7 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
                 route.fulfill(status=200, headers=headers, body=json.dumps([data] if data else []))
         elif path.endswith("/rest/v1/rooms"):
             wanted = query.get("id", [None])[0]
-            data = DASHBOARD_ROOMS if dashboard else [{"id": room, "name": room.title()} for room in allowed]
+            data = DASHBOARD_ROOMS if dashboard else [room for room in DASHBOARD_ROOMS if room['id'] in allowed]
             data = [room for room in data if not wanted or wanted == f"eq.{room['id']}"]
             if "application/vnd.pgrst.object+json" in request.headers.get("accept", ""):
                 route.fulfill(status=200 if data else 406, headers=headers, body=json.dumps(data[0] if data else {}))
@@ -96,11 +100,68 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
             if failures_left > 0:
                 failures_left -= 1
             route.fulfill(status=400 if failed else 200, headers=headers,
-                          body=json.dumps({"message": "Unavailable"} if failed else DASHBOARD_HINTS if dashboard else []))
+                          body=json.dumps({"message": "Unavailable"} if failed else DASHBOARD_HINTS))
         elif path.endswith("/rest/v1/room_media"):
-            route.fulfill(status=200, headers=headers, body=json.dumps(DASHBOARD_MEDIA if dashboard else []))
+            route.fulfill(status=200, headers=headers, body=json.dumps(DASHBOARD_MEDIA))
+        elif path.endswith("/rest/v1/game_sessions"):
+            route.fulfill(status=200, headers=headers, body="[]")
+        elif path.endswith("/rest/v1/session_events"):
+            route.fulfill(status=200, headers=headers, body="[]")
+        elif path.endswith("/rest/v1/rpc/admin_settle_sessions"):
+            route.fulfill(status=200, headers=headers, body="0")
         elif path.endswith("/rest/v1/rpc/admin_staff_directory"):
             route.fulfill(status=200, headers=headers, body=json.dumps(DASHBOARD_STAFF if dashboard and role == "admin" else []))
+        elif session_store is not None and path.endswith("/rest/v1/rpc/create_game_session"):
+            room_id = (request.post_data_json or {}).get("p_room_id")
+            room = next((r for r in DASHBOARD_ROOMS if r["id"] == room_id), None)
+            sid = str(uuid.uuid4())
+            config = {"id": room_id, "name": room["name"], "thumbnail": room["thumbnail_ref"],
+                      "backgroundImage": room["background_ref"], "defaultDuration": room["default_duration_seconds"],
+                      "media": {"hintSound": None, "loseSound": None, "loseVideo": None,
+                                "gmImages": [], "gmSounds": [], "gmVideos": []}, "hints": {"items": []}}
+            state = {"roomId": room_id, "sessionId": sid, "roomName": room["name"],
+                     "image": room["background_ref"], "status": "idle", "remainingSeconds": 3600,
+                     "endsAt": None, "hintText": "", "activeImageSrc": None, "activeVideoSrc": None,
+                     "activeImageScale": 100, "viewMode": "normal", "roomConfig": config,
+                     "lastUpdatedAt": int(time.time()*1000)}
+            session_store[sid] = {"state": state, "revision": 1, "token": "a"*48}
+            route.fulfill(status=200, headers=headers, body=json.dumps({"sessionId": sid, "castToken": "a"*48,
+                          "state": state, "serverNow": int(time.time()*1000), "revision": 1}))
+        elif session_store is not None and path.endswith("/rest/v1/rpc/get_game_session"):
+            sid = (request.post_data_json or {}).get("p_session_id")
+            item = session_store.get(sid)
+            route.fulfill(status=200 if item else 403, headers=headers,
+                          body=json.dumps({"state": item["state"], "revision": item["revision"],
+                                           "serverNow": int(time.time()*1000)} if item else {"message": "denied"}))
+        elif session_store is not None and path.endswith("/rest/v1/rpc/game_session_command"):
+            body = request.post_data_json or {}
+            item = session_store.get(body.get("p_session_id"))
+            if not item:
+                route.fulfill(status=403, headers=headers, body='{"message":"denied"}')
+            else:
+                state = item["state"].copy()
+                command = body.get("p_command")
+                value = body.get("p_value") or {}
+                if command == "start":
+                    state.update(status="running", endsAt=int(time.time()*1000)+state["remainingSeconds"]*1000)
+                elif command == "pause": state.update(status="paused", endsAt=None)
+                elif command == "resume": state.update(status="running", endsAt=int(time.time()*1000)+state["remainingSeconds"]*1000)
+                elif command == "hint": state["hintText"] = value.get("text", "")
+                elif command == "win": state.update(status="ended", viewMode="win", endsAt=None)
+                elif command == "image": state["activeImageSrc"] = None
+                item["revision"] += 1
+                state["lastUpdatedAt"] = int(time.time()*1000)
+                item["state"] = state
+                route.fulfill(status=200, headers=headers, body=json.dumps({"state": state,
+                              "revision": item["revision"], "serverNow": int(time.time()*1000)}))
+        elif session_store is not None and path.endswith("/rest/v1/rpc/cast_session_state"):
+            body = request.post_data_json or {}
+            item = session_store.get(body.get("p_session_id"))
+            if not item or body.get("p_token") != item["token"] or body.get("p_room_id") != item["state"]["roomId"]:
+                route.fulfill(status=403, headers=headers, body='{"message":"denied"}')
+            else:
+                route.fulfill(status=200, headers=headers, body=json.dumps({"state": item["state"],
+                              "revision": item["revision"], "serverNow": int(time.time()*1000)}))
         else:
             route.fulfill(status=404, headers=headers, body="{}")
 
