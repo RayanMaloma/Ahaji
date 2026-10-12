@@ -1,5 +1,7 @@
 # Ahaji full product delivery tracker
 
+**Historical baseline:** This file records the previous full-product delivery. The current Product Owner refinement, live QA room/operator status, applied migrations, test results, and latest recovery snapshot are tracked in [AHAJI_REFINEMENT_STATUS.md](AHAJI_REFINEMENT_STATUS.md) and [AHAJI_OPERATIONS.md](AHAJI_OPERATIONS.md). Its counts and "three original rooms are the only active rooms" statement describe the earlier checkpoint, not the current live project.
+
 Updated: 2026-10-12 (Asia/Riyadh). Branch: `codex/full-product-delivery`, based on reviewed Phase 5 commit `a9901d8`. Only Supabase project `gbhleqizxcmxmutgcjon` was changed. No production-branch merge or site deployment was performed.
 
 ## Milestones

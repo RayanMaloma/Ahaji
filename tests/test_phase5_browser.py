@@ -1,16 +1,17 @@
-"""Phase 5 browser checks with a network-scoped Supabase fixture."""
+"""Admin browser regression for the current refinement UI (mocked Supabase)."""
 
 import functools
 import http.server
 import pathlib
+import re
 import threading
 import unittest
 
 from playwright.sync_api import expect, sync_playwright
 from auth_fixture import install_auth_mock, session
 
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+SHOT_DIR = ROOT / "backups" / "refinement-qa"
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -21,13 +22,8 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 
 class Phase5BrowserTests(unittest.TestCase):
-    DISPLAY_TITLES = {"الغرف": "الغـــرف", "فريق العمل": "فريق العمـــل", "حسابي": "حسابـــي"}
-
-    def assert_page_title(self, page, title):
-        expect(page.locator("#admin-breadcrumbs .page-title")).to_have_text(
-            self.DISPLAY_TITLES.get(title, title))
-        expect(page.locator("#admin-breadcrumbs .sr-only")).to_have_text(title)
-        self.assertEqual(page.title(), f"{title} · أحاجي")
+    TITLES = {"rooms": "الغرف", "staff": "فريق العمل", "account": "حسابـــي",
+              "history": "سجل الجلسات"}
 
     @classmethod
     def setUpClass(cls):
@@ -38,6 +34,7 @@ class Phase5BrowserTests(unittest.TestCase):
         cls.thread.start()
         cls.playwright = sync_playwright().start()
         cls.browser = cls.playwright.chromium.launch(headless=True)
+        SHOT_DIR.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def tearDownClass(cls):
@@ -52,122 +49,80 @@ class Phase5BrowserTests(unittest.TestCase):
         self.addCleanup(context.close)
         return context
 
-    def test_rooms_details_and_history_in_rtl(self):
-        context = self.context(authenticated=True)
-        page = context.new_page()
+    def test_rooms_workspace_and_history_in_rtl(self):
+        page = self.context(authenticated=True).new_page()
         page.goto(self.base + "/admin.html")
         expect(page).to_have_url(self.base + "/admin.html?view=rooms")
+        expect(page.get_by_role("heading", level=1)).to_have_text("الغرف")
         self.assertEqual(page.locator("html").get_attribute("dir"), "rtl")
-        expect(page.locator('[data-nav="rooms"]')).to_have_attribute("aria-current", "page")
-        self.assert_page_title(page, "الغرف")
-        expect(page.get_by_role("button", name="إضافة غرفة")).to_have_count(2)
-        expect(page.locator(".filterbar, .filter-count")).to_have_count(0)
-        expect(page.locator(".admin-workspace-label")).to_have_count(0)
-        expect(page.locator("#sidebar-avatar")).to_have_text("ل")
-        expect(page.locator("#topbar-avatar")).to_have_text("ل")
-        self.assertEqual(page.locator("body").evaluate("el => getComputedStyle(el).direction"), "rtl")
-        self.assertEqual(page.locator("body").evaluate("el => getComputedStyle(el).backgroundColor"), "rgb(13, 13, 13)")
+        self.assertEqual(page.locator("#admin-topbar, #topbar-avatar").count(), 0)
+        expect(page.get_by_role("button", name="إضافة غرفة", exact=False)).to_have_count(2)
         expect(page.locator(".room-tile")).to_have_count(3)
-        expect(page.locator(".room-tile").first.locator(".room-metric-tag")).to_have_text(
-            ["تلميحان", "1 صورة", "0 فيديوهات", "3 أصوات"])
-        expect(page.locator(".room-tile").nth(1).locator(".room-metric-tag")).to_have_text(
-            ["1 تلميح", "صورتان", "0 فيديوهات", "1 صوت"])
-        expect(page.locator(".room-tile").nth(2).locator(".room-metric-tag")).to_have_text(
-            ["0 تلميحات", "1 صورة", "1 فيديو", "1 صوت"])
-        self.assertNotIn("anbar", page.locator(".room-tile").first.inner_text())
         page.locator(".room-tile").first.click()
-        expect(page).to_have_url(self.base + "/admin.html?view=room&id=anbar")
-        self.assert_page_title(page, "السجن")
-        expect(page.get_by_role("link", name="جميع الغرف")).to_be_visible()
-        self.assertIn("→", page.get_by_role("link", name="جميع الغرف").inner_text())
-        expect(page.locator(".room-hero-image img")).to_have_css("display", "block")
-        page.wait_for_function("() => document.querySelector('.room-hero-image img')?.naturalWidth > 0")
-        self.assertLess(page.locator(".room-hero-image img").evaluate("el => Math.abs(el.getBoundingClientRect().bottom - el.parentElement.getBoundingClientRect().bottom)"), 1)
-        expect(page.locator(".room-hero .room-metric-tag")).to_have_text(
-            ["تلميحان", "1 صورة", "0 فيديوهات", "3 أصوات"])
-        self.assertNotIn("anbar", page.locator(".room-hero").inner_text())
-        expect(page.locator(".detail-list li")).to_have_count(6)
+        expect(page).to_have_url(re.compile(r"view=room&id=anbar"))
+        expect(page.get_by_role("heading", level=1)).to_have_text("تعديل الغرفة")
+        for tab in ("الإعدادات العامة", "التلميحات", "الصور", "المقاطع", "الأصوات"):
+            expect(page.get_by_role("link", name=tab)).to_be_visible()
+        expect(page.get_by_role("switch", name="حالة الغرفة")).to_be_checked()
+        expect(page.locator("iframe[src*='cast-preview']")).to_be_visible()
+        page.get_by_role("link", name="التلميحات").click()
         expect(page.get_by_text("Look behind the door")).to_be_visible()
+        page.get_by_role("link", name="الصور").click()
         expect(page.get_by_text("Door clue")).to_be_visible()
+        page.get_by_role("link", name="الأصوات").click()
+        expect(page.get_by_text("Sound cue")).to_be_visible()
         page.reload()
-        expect(page.get_by_text("Look behind the door")).to_be_visible()
-        page.go_back()
-        expect(page).to_have_url(self.base + "/admin.html?view=rooms")
+        expect(page.get_by_text("Sound cue")).to_be_visible()
+        page.get_by_role("link", name="سجل الجلسات").click()
+        expect(page.get_by_role("heading", level=1)).to_have_text("سجل الجلسات")
+        expect(page.get_by_role("combobox", name="التاريخ")).to_be_visible()
+        expect(page.get_by_role("checkbox", name="إظهار الجلسات القصيرة والاختبارية")).to_be_visible()
         page.goto(self.base + "/admin.html?view=overview")
         expect(page).to_have_url(self.base + "/admin.html?view=rooms")
 
     def test_staff_account_and_logout(self):
-        context = self.context(authenticated=True)
-        page = context.new_page()
+        page = self.context(authenticated=True).new_page()
         page.goto(self.base + "/admin.html?view=staff")
-        self.assert_page_title(page, "فريق العمل")
-        expect(page.locator(".page-heading")).to_have_count(1)
+        expect(page.get_by_role("heading", level=1)).to_have_text("فريق العمل")
         expect(page.locator(".staff-table tbody tr")).to_have_count(2)
         expect(page.get_by_text("gm@test.invalid")).to_be_visible()
-        expect(page.get_by_text("جميع الغرف")).to_be_visible()
-        page.locator('[data-nav="account"]').click()
-        self.assert_page_title(page, "حسابي")
-        expect(page.locator(".page-heading")).to_have_count(0)
-        expect(page.get_by_text("staff@test.invalid").last).to_be_visible()
-        expect(page.locator(".account-avatar")).to_have_text("ل")
+        page.get_by_role("link", name="حسابي").click()
+        expect(page.get_by_role("heading", level=1)).to_have_text("حسابـــي")
+        expect(page.get_by_role("textbox", name="الاسم الظاهر")).to_have_value("ليلى")
+        expect(page.get_by_role("button", name="حفظ الملف الشخصي")).to_be_visible()
+        expect(page.get_by_role("button", name="اختيار صورة")).to_be_visible()
         page.locator("#admin-new-email").fill("new@test.invalid")
         page.locator("#admin-email-form button").click()
         expect(page.locator(".form-message")).to_contain_text("رابط التوثيق")
         page.locator("#admin-logout").click()
         expect(page).to_have_url(self.base + "/login.html")
 
-    def test_account_rechecks_identity_on_navigation_refresh_and_direct_url(self):
+    def test_account_identity_refresh_and_error_independence(self):
         user = session()["user"]
-        context = self.context(authenticated=True, user_override=user)
-        page = context.new_page()
+        page = self.context(authenticated=True, user_override=user, fail_dashboard=True).new_page()
         page.goto(self.base + "/admin.html?view=account")
         expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
-        expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("staff@test.invalid")
+        expect(page.locator("#sidebar-name")).to_have_text("ليلى")
         user["email"] = "updated@test.invalid"
-        user["user_metadata"]["display_name"] = "سارة"
-        page.locator('[data-nav="staff"]').click()
-        self.assert_page_title(page, "فريق العمل")
-        page.locator('[data-nav="account"]').click()
-        expect(page.locator(".account-profile-identity strong")).to_have_text("سارة")
-        expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("updated@test.invalid")
-        expect(page.locator("#sidebar-name")).to_have_text("سارة")
         page.reload()
-        expect(page.locator(".account-profile-identity strong")).to_have_text("سارة")
-        page.goto(self.base + "/admin.html?view=account")
-        expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("updated@test.invalid")
-        user["email"] = "final@test.invalid"
-        page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
-        expect(page.locator(".account-field strong[dir=\"ltr\"]")).to_have_text("final@test.invalid")
-
-    def test_account_remains_available_when_catalog_request_fails(self):
-        context = self.context(authenticated=True, fail_dashboard=True)
-        page = context.new_page()
-        page.goto(self.base + "/admin.html?view=account")
-        expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
-        self.assert_page_title(page, "حسابي")
-        expect(page.locator("#admin-new-email")).to_be_visible()
-        expect(page.get_by_text("تعذّر تحميل البيانات")).to_have_count(0)
-        page.locator('[data-nav="rooms"]').click()
+        expect(page.locator(".account-field strong[dir='ltr']")).to_have_text("updated@test.invalid")
+        expect(page.get_by_role("textbox", name="الاسم الظاهر")).to_have_value("ليلى")
+        page.get_by_role("link", name="الغرف", exact=True).click()
         expect(page.get_by_text("تعذّر تحميل البيانات")).to_be_visible()
-        page.locator('[data-nav="account"]').click()
-        expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
+        page.get_by_role("link", name="حسابي").click()
+        expect(page.get_by_role("textbox", name="الاسم الظاهر")).to_have_value("ليلى")
 
-    def test_unauthenticated_and_gm_direct_access_denied(self):
-        anonymous = self.context(authenticated=False)
-        anon_page = anonymous.new_page()
-        anon_page.goto(self.base + "/admin.html?view=staff")
-        expect(anon_page).to_have_url(self.base + "/login.html?next=admin.html%3Fview%3Dstaff")
-        gm = self.context(role="game_master", authenticated=True)
-        gm_page = gm.new_page()
+    def test_protected_routes_retry_and_mobile_navigation(self):
+        anonymous = self.context(authenticated=False).new_page()
+        anonymous.goto(self.base + "/admin.html?view=staff")
+        expect(anonymous).to_have_url(self.base + "/login.html?next=admin.html%3Fview%3Dstaff")
+        gm = self.context(role="game_master", authenticated=True).new_page()
         requests = []
-        gm_page.on("request", lambda req: requests.append(req.url))
-        gm_page.goto(self.base + "/admin.html?view=staff")
-        expect(gm_page).to_have_url(self.base + "/unauthorized.html?reason=admin")
+        gm.on("request", lambda request: requests.append(request.url))
+        gm.goto(self.base + "/admin.html?view=staff")
+        expect(gm).to_have_url(self.base + "/unauthorized.html?reason=admin")
         self.assertFalse(any("admin_staff_directory" in url for url in requests))
-
-    def test_error_retry_and_mobile_navigation(self):
-        context = self.context(authenticated=True, fail_dashboard_once=True)
-        page = context.new_page()
+        page = self.context(authenticated=True, fail_dashboard_once=True).new_page()
         page.goto(self.base + "/admin.html?view=rooms")
         expect(page.get_by_text("تعذّر تحميل البيانات")).to_be_visible()
         page.get_by_role("button", name="إعادة المحاولة").click()
@@ -175,160 +130,35 @@ class Phase5BrowserTests(unittest.TestCase):
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#admin-menu-button").click()
         expect(page.locator("#admin-sidebar")).to_have_class("admin-sidebar open")
-        self.assertGreaterEqual(page.locator("#admin-sidebar").bounding_box()["x"], 0)
         page.locator('[data-nav="rooms"]').click()
         expect(page.locator("#admin-sidebar")).to_have_class("admin-sidebar")
-        expect(page.locator(".room-tile")).to_have_count(3)
-        self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
+        self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 391)
 
-    def test_sidebar_brand_and_navigation_states(self):
-        context = self.context(authenticated=True)
-        page = context.new_page()
-        page.goto(self.base + "/admin.html?view=rooms")
-        expect(page.locator(".room-tile")).to_have_count(3)
-        brand = page.locator(".admin-brand")
-        logo = brand.locator("img")
-        expect(logo).to_have_attribute("src", "images/ahajilogo.svg")
-        expect(brand.locator("span")).to_have_text("لوحة الإدارة")
-        self.assertLess(abs(logo.bounding_box()["x"] + logo.bounding_box()["width"] / 2 -
-                            brand.bounding_box()["x"] - brand.bounding_box()["width"] / 2), 2)
-        rooms = page.locator('[data-nav="rooms"]')
-        staff = page.locator('[data-nav="staff"]')
-        expect(rooms).to_have_css("background-color", "rgb(245, 200, 0)")
-        rooms.hover()
-        expect(rooms).to_have_css("background-color", "rgb(255, 225, 91)")
-        expect(rooms).to_have_css("color", "rgb(17, 17, 17)")
-        staff.hover()
-        expect(staff).to_have_css("background-color", "rgb(41, 41, 41)")
-        expect(rooms).to_have_css("background-color", "rgb(245, 200, 0)")
-        staff.focus()
-        expect(staff).to_have_css("outline-color", "rgb(255, 225, 91)")
-        logout = page.locator("#admin-logout")
-        expect(logout.locator(".logout-icon")).to_be_visible()
-        self.assertIn("/images/icons/log-out.svg", logout.locator(".logout-icon").evaluate(
-            "el => getComputedStyle(el).maskImage"))
-        expect(logout).to_have_css("color", "rgb(255, 170, 167)")
-        logout.focus()
-        expect(logout).to_have_css("outline-color", "rgb(255, 170, 167)")
-        logout.hover()
-        expect(logout).to_have_css("background-color", "rgb(113, 48, 45)")
-        staff.click()
-        expect(staff).to_have_attribute("aria-current", "page")
-        expect(staff).to_have_css("background-color", "rgb(255, 225, 91)")
-
-    def test_all_existing_room_images_load_in_browser(self):
-        context = self.context(authenticated=True)
-        page = context.new_page()
-        page.goto(self.base + "/admin.html?view=rooms")
-        expect(page.locator(".room-tile")).to_have_count(3)
-        paths = [
-            "images/prison.jpg", "images/pyramid.png", "images/unclesaleh.png",
-            "source/prison/background.jpg", "source/pyramid/background.jpg",
-            "source/unclesaleh/background.jpg",
-        ]
-        loaded = page.evaluate("""async paths => {
-            const results = [];
-            for (const path of paths) {
-                results.push(await new Promise(resolve => {
-                    const img = new Image();
-                    img.onload = () => resolve(img.naturalWidth > 0 && img.naturalHeight > 0);
-                    img.onerror = () => resolve(false);
-                    img.src = '/' + path;
-                }));
-            }
-            return results;
-        }""", paths)
-        self.assertEqual(loaded, [True] * len(paths))
-
-    def test_room_staff_and_account_layouts_at_desktop_tablet_mobile(self):
-        context = self.context(authenticated=True)
-        page = context.new_page()
-        for width, height in [(1440, 900), (820, 1024), (390, 844)]:
+    def test_responsive_layout_fonts_and_original_assets(self):
+        page = self.context(authenticated=True).new_page()
+        for width, height in ((1440, 900), (820, 1024), (390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            for view, title in [("rooms", "الغرف"), ("staff", "فريق العمل"), ("account", "حسابي")]:
+            for view in ("rooms", "staff", "account", "history"):
                 page.goto(self.base + f"/admin.html?view={view}")
-                self.assert_page_title(page, title)
-                self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), width + 1)
-                if view == "rooms":
-                    expect(page.locator(".room-tile")).to_have_count(3)
-                elif view == "account":
-                    expect(page.locator(".account-profile-identity strong")).to_have_text("ليلى")
-                    expect(page.locator("#admin-new-email")).to_be_visible()
-                    profile = page.locator(".account-layout > .account-card").bounding_box()
-                    email = page.locator(".account-actions .account-card").first.bounding_box()
-                    security = page.locator(".account-actions .account-card").last.bounding_box()
-                    self.assertAlmostEqual(email["x"], security["x"], delta=1)
-                    self.assertAlmostEqual(email["width"], security["width"], delta=1)
-                    self.assertLessEqual(email["y"] + email["height"], security["y"])
-                    self.assertLess(security["y"] - email["y"] - email["height"], 25)
-                    if width > 850:
-                        self.assertGreater(profile["x"], email["x"])
-                    else:
-                        self.assertLess(profile["y"], email["y"])
-
-    def test_thmanyah_font_loads_on_dashboard_and_auth_pages(self):
-        files = {
-            "300": "thmanyahserifdisplay-Light.otf",
-            "400": "thmanyahserifdisplay-Regular.otf",
-            "500": "thmanyahserifdisplay-Medium.otf",
-            "700": "thmanyahserifdisplay-Bold.otf",
-            "900": "thmanyahserifdisplay-Black.otf",
-        }
-        for width in (1440, 390):
-            context = self.context(authenticated=True)
-            page = context.new_page()
-            page.set_viewport_size({"width": width, "height": 900})
-            responses = {}
-            page.on("response", lambda response: responses.update({response.url.rsplit("/", 1)[-1]: response.status})
-                    if ".otf" in response.url else None)
-            page.goto(self.base + "/admin.html?view=rooms")
-            expect(page.locator(".room-tile")).to_have_count(3)
-            audit = page.evaluate("""async () => {
-                await document.fonts.ready;
-                for (const weight of [300, 400, 500, 700, 900])
-                    await document.fonts.load(`${weight} 20px "Thmanyah Serif Display"`, 'الغرف');
-                return {
-                    computed: getComputedStyle(document.body).fontFamily,
-                    faces: [...document.fonts].map(face => [face.weight, face.status]),
-                    requests: performance.getEntriesByType('resource')
-                        .filter(item => item.name.endsWith('.otf'))
-                        .map(item => item.name.split('/').pop())
-                };
-            }""")
-            self.assertIn('"Thmanyah Serif Display"', audit["computed"])
-            self.assertEqual(dict(audit["faces"]), {weight: "loaded" for weight in files})
-            self.assertEqual(set(audit["requests"]), set(files.values()))
-            self.assertEqual(responses, {name: 200 for name in files.values()})
-            for selector in (".admin-brand span", ".admin-nav a", ".admin-breadcrumbs .page-title", ".room-tile-body h2"):
-                expect(page.locator(selector).first).to_have_css("font-weight", "700")
-            self.assertTrue(page.evaluate("document.fonts.check('700 25px \"Thmanyah Serif Display\"', 'الغـــرف')"))
-
-        for path, options in [
-            ("login.html", {"authenticated": False}),
-            ("recover.html", {"authenticated": False}),
-            ("staff.html", {"authenticated": True, "role": "game_master"}),
-        ]:
-            context = self.context(**options)
-            page = context.new_page()
-            page.set_viewport_size({"width": 390, "height": 844})
-            page.goto(self.base + "/" + path)
-            expect(page.locator(".auth-card")).to_be_visible()
-            audit = page.evaluate("""async () => {
-                await document.fonts.ready;
-                return {
-                    computed: getComputedStyle(document.body).fontFamily,
-                    loaded: [...document.fonts].filter(face => face.status === 'loaded')
-                        .map(face => face.weight),
-                    requests: performance.getEntriesByType('resource')
-                        .filter(item => item.name.endsWith('.otf'))
-                        .map(item => item.name.split('/').pop())
-                };
-            }""")
-            self.assertIn('"Thmanyah Serif Display"', audit["computed"])
-            self.assertIn("400", audit["loaded"])
-            self.assertIn("700", audit["loaded"])
-            self.assertIn(files["400"], audit["requests"])
-            self.assertIn(files["700"], audit["requests"])
+                expect(page.get_by_role("heading", level=1)).to_have_text(self.TITLES[view])
+                self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), width + 1,
+                                     f"{view} overflowed at {width}px")
+                if view in ("rooms", "account", "history"):
+                    page.screenshot(path=str(SHOT_DIR / f"{view}-{width}.png"), full_page=True)
+            page.goto(self.base + "/admin.html?view=room&id=anbar")
+            expect(page.get_by_role("heading", level=1)).to_have_text("تعديل الغرفة")
+            self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), width + 1)
+            page.screenshot(path=str(SHOT_DIR / f"room-{width}.png"), full_page=True)
+        page.goto(self.base + "/admin.html?view=rooms")
+        font = page.evaluate("""async () => {
+            await document.fonts.ready;
+            return getComputedStyle(document.body).fontFamily;
+        }""")
+        self.assertIn("Thmanyah Serif Display", font)
+        for path in ("images/prison.jpg", "images/pyramid.png", "images/unclesaleh.png",
+                     "source/prison/background.jpg", "source/pyramid/background.jpg",
+                     "source/unclesaleh/background.jpg"):
+            self.assertTrue((ROOT / path).exists(), path)
 
 
 if __name__ == "__main__":

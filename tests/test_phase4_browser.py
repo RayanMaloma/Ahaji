@@ -2,13 +2,14 @@
 
 import functools
 import http.server
+import json
 import pathlib
 import secrets
 import threading
 import unittest
 
 from playwright.sync_api import expect, sync_playwright
-from auth_fixture import install_auth_mock
+from auth_fixture import install_auth_mock, session
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -104,6 +105,27 @@ class Phase4BrowserTests(unittest.TestCase):
         page.locator("#new-email").fill("new-staff@test.invalid")
         page.locator("#change-email-form button").click()
         expect(page.locator("#change-email-message")).to_contain_text("رابط التوثيق")
+
+    def test_operator_username_login_uses_trusted_endpoint(self):
+        context=self.context(role="game_master",rooms=["anbar"])
+        calls=[]
+        def operator_login(route):
+            calls.append(route.request.post_data_json)
+            credential=session()
+            route.fulfill(status=200,headers={"content-type":"application/json",
+                "access-control-allow-origin":"*"},body=json.dumps({
+                "access_token":credential["access_token"],
+                "refresh_token":credential["refresh_token"],
+                "expires_in":credential["expires_in"]}))
+        context.route("https://gbhleqizxcmxmutgcjon.supabase.co/functions/v1/operator-login",operator_login)
+        page=context.new_page()
+        page.goto(self.base+"/login.html")
+        page.locator("#email").fill("qaoperator@ahaji.com")
+        page.locator("#password").fill("fixture-password")
+        page.locator("#login-submit").click()
+        expect(page).to_have_url(self.base+"/index.html")
+        expect(page.locator(".room-card")).to_have_count(1)
+        self.assertEqual(calls,[{"username":"qaoperator@ahaji.com","password":"fixture-password"}])
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import pathlib
 import threading
 import unittest
 import uuid
+import re
 from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import expect, sync_playwright
@@ -76,6 +77,10 @@ class RoomManagementBrowserTests(unittest.TestCase):
                 row = {**request.post_data_json, "id": str(uuid.uuid4())}
                 hints.append(row)
                 route.fulfill(status=201, headers=headers, body=json.dumps(row))
+            elif request.method == "PATCH":
+                row = next(h for h in hints if wanted == "eq." + h["id"])
+                row.update(request.post_data_json)
+                route.fulfill(status=200, headers=headers, body=json.dumps(row))
             elif request.method == "DELETE":
                 hints[:] = [h for h in hints if wanted != "eq." + h["id"]]
                 route.fulfill(status=204, headers=headers, body="")
@@ -89,6 +94,10 @@ class RoomManagementBrowserTests(unittest.TestCase):
                 row={**request.post_data_json,"id":str(uuid.uuid4())}
                 media.append(row)
                 route.fulfill(status=201,headers=headers,body=json.dumps(row))
+            elif request.method == "PATCH":
+                row=next(m for m in media if wanted=="eq."+m["id"])
+                row.update(request.post_data_json)
+                route.fulfill(status=200,headers=headers,body=json.dumps(row))
             elif request.method == "DELETE":
                 media[:]=[m for m in media if wanted!="eq."+m["id"]]
                 route.fulfill(status=204,headers=headers,body="")
@@ -98,6 +107,12 @@ class RoomManagementBrowserTests(unittest.TestCase):
         context.route("https://gbhleqizxcmxmutgcjon.supabase.co/rest/v1/rooms**", room_route)
         context.route("https://gbhleqizxcmxmutgcjon.supabase.co/rest/v1/room_hints**", hint_route)
         context.route("https://gbhleqizxcmxmutgcjon.supabase.co/rest/v1/room_media**", media_route)
+        def reorder_route(route):
+            ids=route.request.post_data_json["p_ids"]
+            for index,id in enumerate(ids):
+                next(h for h in hints if h["id"]==id)["display_order"]=index
+            route.fulfill(status=200,headers=headers,body="null")
+        context.route("https://gbhleqizxcmxmutgcjon.supabase.co/rest/v1/rpc/admin_reorder_hints",reorder_route)
         context.route("https://gbhleqizxcmxmutgcjon.supabase.co/storage/v1/object/room-assets/**",
                       lambda route: route.fulfill(status=200,headers=headers,body='{"Key":"uploaded"}'))
 
@@ -105,31 +120,52 @@ class RoomManagementBrowserTests(unittest.TestCase):
         page.goto(self.base + "/admin.html?view=rooms")
         page.locator(".room-add-tile").click()
         expect(page).to_have_url(self.base + "/admin.html?view=new-room")
-        page.get_by_label("معرّف الغرفة").fill("testroom")
+        page.get_by_role("textbox",name=re.compile("المعرّف الداخلي")).fill("testroom")
         page.get_by_label("اسم الغرفة").fill("غرفة التجربة")
         page.get_by_label("الوصف").fill("وصف الغرفة")
-        page.get_by_label("مدة اللعبة بالدقائق").fill("45")
+        page.get_by_label("مدة اللعبة الافتراضية بالدقائق").fill("45")
         page.get_by_role("button", name="إنشاء الغرفة").click()
-        expect(page).to_have_url(self.base + "/admin.html?view=room&id=testroom")
-        expect(page.locator(".room-hero h2")).to_have_text("غرفة التجربة")
+        expect(page).to_have_url(self.base + "/admin.html?view=room&id=testroom&tab=settings")
+        expect(page.get_by_role("textbox",name="اسم الغرفة")).to_have_value("غرفة التجربة")
         self.assertEqual(next(r for r in rooms if r["id"] == "testroom")["default_duration_seconds"], 2700)
 
-        page.get_by_role("button", name="تلميح", exact=False).first.click()
+        page.get_by_role("link",name="التلميحات").click()
+        page.get_by_role("button", name="إضافة تلميح", exact=False).click()
         page.locator(".admin-dialog textarea").fill("اختبر المفتاح")
         page.get_by_role("button", name="حفظ التلميح").click()
         expect(page.get_by_text("اختبر المفتاح")).to_be_visible()
+        page.locator(".workspace-row").filter(has_text="اختبر المفتاح").get_by_role("button",name="تعديل").click()
+        page.locator(".admin-dialog textarea").fill("اختبر المفتاح الجديد")
+        page.get_by_role("button",name="حفظ التلميح").click()
+        expect(page.get_by_text("اختبر المفتاح الجديد")).to_be_visible()
+        page.get_by_role("button",name="إضافة تلميح",exact=False).click()
+        page.locator(".admin-dialog textarea").fill("تلميح ثانٍ")
+        page.get_by_role("button",name="حفظ التلميح").click()
+        page.locator(".workspace-row").filter(has_text="تلميح ثانٍ").get_by_role("button",name="رفع التلميح").click()
+        expect(page.locator(".workspace-row").first).to_contain_text("تلميح ثانٍ")
+        page.on("dialog",lambda dialog:dialog.accept())
+        page.locator(".workspace-row").filter(has_text="تلميح ثانٍ").get_by_role("button",name="حذف").click()
+        expect(page.get_by_text("تلميح ثانٍ")).to_have_count(0)
 
-        page.get_by_role("button",name="ملف",exact=False).first.click()
-        page.locator(".admin-dialog input:not([type=file])").fill("اختبار الصورة")
+        page.get_by_role("link",name="الصور").click()
+        page.get_by_role("button",name="إضافة صورة",exact=False).click()
+        page.get_by_role("textbox",name="اسم الملف").fill("اختبار الصورة")
         page.locator(".admin-dialog input[type=file]").set_input_files(str(ROOT / "images" / "prison.jpg"))
         page.get_by_role("button",name="رفع وحفظ").click()
         expect(page.get_by_text("اختبار الصورة")).to_be_visible()
         self.assertEqual(len([m for m in media if m["room_id"]=="testroom"]),1)
+        page.locator(".workspace-media-card").filter(has_text="اختبار الصورة").get_by_role("button",name="استبدال").click()
+        page.get_by_role("textbox",name="اسم الملف").fill("صورة محدثة")
+        page.locator(".admin-dialog input[type=file]").set_input_files(str(ROOT / "images" / "pyramid.png"))
+        page.get_by_role("button",name="استبدال وحفظ").click()
+        expect(page.get_by_text("صورة محدثة")).to_be_visible()
+        self.assertEqual(next(m for m in media if m["room_id"]=="testroom")["label"],"صورة محدثة")
 
-        page.get_by_role("button", name="تعديل الغرفة").click()
+        page.get_by_role("link",name="الإعدادات العامة").click()
         page.get_by_label("اسم الغرفة").fill("غرفة جديدة")
         page.get_by_role("button", name="حفظ التغييرات").click()
-        expect(page.locator(".room-hero h2")).to_have_text("غرفة جديدة")
+        expect(page.get_by_label("اسم الغرفة")).to_have_value("غرفة جديدة")
+        self.assertEqual(next(r for r in rooms if r["id"] == "testroom")["name"], "غرفة جديدة")
 
         gm = context.new_page()
         gm.goto(self.base + "/index.html")
@@ -138,9 +174,14 @@ class RoomManagementBrowserTests(unittest.TestCase):
         expect(gm.locator("#gm-room-name")).to_have_text("غرفة جديدة")
 
         page.bring_to_front()
-        page.on("dialog", lambda dialog: dialog.accept())
-        page.get_by_role("button", name="أرشفة الغرفة").click()
-        expect(page.locator(".room-hero .status-pill")).to_contain_text("غير نشطة")
+        page.get_by_role("link",name="الصور").click()
+        page.locator(".workspace-media-card").filter(has_text="صورة محدثة").get_by_role("button",name="حذف").click()
+        expect(page.get_by_text("صورة محدثة")).to_have_count(0)
+        self.assertEqual(len([m for m in media if m["room_id"]=="testroom"]),0)
+        page.get_by_role("link",name="الإعدادات العامة").click()
+        page.get_by_role("switch",name="حالة الغرفة").uncheck()
+        page.get_by_role("button",name="حفظ التغييرات").click()
+        expect(page.get_by_role("switch",name="حالة الغرفة")).not_to_be_checked()
         after_archive = context.new_page()
         after_archive.goto(self.base + "/index.html")
         expect(after_archive.locator(".room-card[data-room='testroom']")).to_have_count(0)

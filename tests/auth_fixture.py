@@ -33,8 +33,8 @@ DASHBOARD_MEDIA = [
     {"id": "media-10", "room_id": "saleh", "kind": "lose_video", "label": None, "asset_ref": "source/unclesaleh/loose-video.mp4", "display_order": 0},
 ]
 DASHBOARD_STAFF = [
-    {"user_id": USER_ID, "email": "staff@test.invalid", "email_confirmed": True, "role": "admin", "active": True, "created_at": "2026-01-01T00:00:00Z", "room_ids": []},
-    {"user_id": "00000000-0000-4000-8000-000000000002", "email": "gm@test.invalid", "email_confirmed": True, "role": "game_master", "active": False, "created_at": "2026-01-01T00:00:00Z", "room_ids": ["anbar"]},
+    {"user_id": USER_ID, "email": "staff@test.invalid", "email_confirmed": True, "role": "admin", "active": True, "account_type": "email", "login_name": None, "display_name": "ليلى", "avatar_ref": None, "created_at": "2026-01-01T00:00:00Z", "room_ids": []},
+    {"user_id": "00000000-0000-4000-8000-000000000002", "email": "gm@test.invalid", "email_confirmed": True, "role": "game_master", "active": False, "account_type": "email", "login_name": None, "display_name": None, "avatar_ref": None, "created_at": "2026-01-01T00:00:00Z", "room_ids": ["anbar"]},
 ]
 
 
@@ -82,11 +82,17 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
         elif path.endswith("/auth/v1/recover"):
             route.fulfill(status=200, headers=headers, body="{}")
         elif path.endswith("/rest/v1/staff_accounts"):
-            data = {"role": role, "active": True} if role else None
+            data = {"role": role, "active": True, "account_type": "email", "login_name": None} if role else None
             if "application/vnd.pgrst.object+json" in request.headers.get("accept", ""):
                 route.fulfill(status=200 if data else 406, headers=headers, body=json.dumps(data if data else {}))
             else:
                 route.fulfill(status=200, headers=headers, body=json.dumps([data] if data else []))
+        elif path.endswith("/rest/v1/staff_profiles"):
+            data = {"user_id": USER_ID, "display_name": "ليلى", "avatar_ref": None}
+            if "application/vnd.pgrst.object+json" in request.headers.get("accept", ""):
+                route.fulfill(status=200, headers=headers, body=json.dumps(data))
+            else:
+                route.fulfill(status=200, headers=headers, body=json.dumps([data]))
         elif path.endswith("/rest/v1/rooms"):
             wanted = query.get("id", [None])[0]
             data = DASHBOARD_ROOMS if dashboard else [room for room in DASHBOARD_ROOMS if room['id'] in allowed]
