@@ -148,3 +148,98 @@ body{direction:rtl;background:var(--paper)}
 .icon-history{mask-image:url('../images/icons/history.svg')}
 .history-table td{vertical-align:top}
 .history-outcome{font-weight:700;color:var(--yellow)}
+
+/* Final review: content titles lead; the sidebar is the only persistent nav. */
+.admin-content{padding-top:clamp(36px,4vw,60px)}
+.admin-content.compact-content{padding-top:clamp(36px,4vw,60px)}
+.page-heading{align-items:center;margin-bottom:26px}
+.page-heading h1{font-size:clamp(32px,3.4vw,44px);font-weight:700;line-height:1.25}
+.admin-menu-button{position:fixed;inset-inline-start:16px;bottom:18px;z-index:18;display:none;align-items:center;gap:8px;padding:12px 17px;border:1px solid var(--yellow);border-radius:999px;background:var(--yellow);color:#111;font-size:16px;font-weight:700;box-shadow:0 12px 35px #0009}
+@media(max-width:950px){.admin-menu-button{display:inline-flex}.admin-content,.admin-content.compact-content{padding-top:32px;padding-bottom:100px}}
+@media(max-width:540px){.page-heading h1{font-size:34px}.admin-content,.admin-content.compact-content{padding-top:26px}}
+@media(max-width:540px){.admin-menu-button{width:48px;height:48px;padding:0;justify-content:center;font-size:22px}.admin-menu-button span{display:none}}
+
+/* Room workspace */
+.room-workspace-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin:14px 0 24px}
+.room-workspace-head h1{margin:0;font:700 clamp(32px,3.4vw,44px)/1.25 "Thmanyah Serif Display",Tahoma,sans-serif}
+.room-workspace-name{color:var(--muted);font-size:16px}
+.room-workspace-tabs{display:flex;gap:5px;overflow:auto;border-bottom:1px solid var(--line);margin-bottom:24px;scrollbar-width:thin}
+.room-workspace-tab{flex:none;padding:13px 17px;color:#d1d0ca;text-decoration:none;font-weight:700;border-bottom:3px solid transparent}
+.room-workspace-tab:hover,.room-workspace-tab:focus-visible{color:var(--yellow)}
+.room-workspace-tab[aria-current=page]{color:var(--yellow);border-bottom-color:var(--yellow)}
+.room-settings-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,.9fr);gap:18px;align-items:start}
+.room-settings-form>.settings-section:first-child{grid-column:1}
+.room-settings-form>.settings-section:nth-child(2){grid-column:1}
+.room-settings-form>.settings-section:nth-child(3){grid-column:1}
+.room-settings-form>.cast-preview-panel{grid-column:2;grid-row:1/span 3;position:sticky;top:24px}
+.settings-section{padding:24px;min-width:0}
+.settings-section-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:19px}
+.settings-section-head h2{margin:0;font-size:21px;font-weight:700}
+.settings-section-head .button-dark{margin-inline-start:auto}
+.settings-section-head p{width:100%;margin:0;color:var(--muted);font-size:13px}
+.settings-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.settings-fields .form-field:has(textarea){grid-column:1/-1}
+.field-note{color:var(--muted);font-size:12px;font-weight:400;line-height:1.6}
+.status-toggle-row{display:flex;align-items:center;gap:12px;min-height:49px;font-size:14px;font-weight:700;cursor:pointer}
+.status-toggle-input{position:absolute;opacity:0;width:1px;height:1px}
+.status-toggle-track{position:relative;width:48px;height:27px;border-radius:20px;background:#555;transition:background .2s;flex:none}
+.status-toggle-track:after{content:"";position:absolute;top:4px;right:4px;width:19px;height:19px;border-radius:50%;background:white;transition:transform .2s}
+.status-toggle-input:checked+.status-toggle-track{background:#af8f00}
+.status-toggle-input:checked+.status-toggle-track:after{transform:translateX(-21px)}
+.status-toggle-input:focus-visible+.status-toggle-track{outline:3px solid var(--yellow);outline-offset:3px}
+.status-toggle-text{color:var(--yellow)}
+.upload-control{display:grid;gap:8px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#1b1b1b;margin-bottom:12px;min-width:0}
+.upload-heading{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.upload-heading small{color:var(--muted)}
+.upload-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.upload-native{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.upload-choose{border:1px solid var(--yellow);border-radius:8px;background:#2a250e;color:var(--yellow);padding:9px 15px;font:700 14px inherit;cursor:pointer}
+.upload-choose:hover,.upload-choose:focus-visible{background:#413713;outline:2px solid var(--yellow)}
+.upload-filename{font-size:13px;color:#d7d6d0;overflow-wrap:anywhere}
+.upload-preview:empty{display:none}
+.upload-preview img{display:block;width:min(100%,260px);max-height:135px;object-fit:contain;border-radius:7px}
+.upload-preview video{display:block;width:min(100%,280px);max-height:150px}
+.upload-preview audio{width:min(100%,300px)}
+.upload-progress{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--yellow)}
+.upload-progress[hidden]{display:none}
+.upload-progress progress{width:110px;accent-color:var(--yellow)}
+.cast-preview-panel{padding:20px;border:1px solid var(--line);border-radius:12px;background:#171717;min-width:0}
+.cast-preview-heading h2{margin:0;font-size:21px}
+.cast-preview-heading p{margin:7px 0 15px;color:var(--muted);font-size:12px;line-height:1.5}
+.preview-modes{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap}
+.preview-mode{border:1px solid var(--line);border-radius:6px;background:#222;color:#ddd;padding:6px 11px;font:inherit;cursor:pointer}
+.preview-mode[aria-pressed=true]{border-color:var(--yellow);color:var(--yellow)}
+.cast-preview-frame{display:block;width:100%;aspect-ratio:16/9;border:1px solid #3d3d3d;border-radius:5px;background:#000}
+.room-settings-form>.form-buttons{grid-column:1/-1}
+.workspace-list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.workspace-row{display:flex;align-items:center;gap:15px;padding:15px;border:1px solid var(--line);border-radius:8px;background:#1c1c1c}
+.workspace-row-text{flex:1;margin:0;line-height:1.7;overflow-wrap:anywhere}
+.workspace-media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.workspace-media-card{display:grid;align-content:start;gap:12px;min-width:0;padding:12px;border:1px solid var(--line);border-radius:9px;background:#1c1c1c}
+.workspace-media-card img,.workspace-media-card video{width:100%;aspect-ratio:16/9;object-fit:contain;background:#111;border-radius:5px}
+.workspace-media-card audio{width:100%}
+.workspace-media-card strong{overflow-wrap:anywhere}
+.system-media-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding:15px 0}
+.system-media-row audio,.system-media-row video{max-width:220px;max-height:90px}
+@media(max-width:1150px){.room-settings-form{grid-template-columns:1fr}.room-settings-form>.cast-preview-panel{grid-column:1;grid-row:auto;position:static}}
+@media(max-width:650px){.settings-section{padding:17px}.settings-fields{grid-template-columns:1fr}.workspace-row{flex-wrap:wrap}.workspace-row .item-actions{width:100%}.room-workspace-tabs{flex-wrap:wrap;overflow:visible;border:0;gap:7px}.room-workspace-tab{padding:8px 10px;border:1px solid var(--line);border-radius:8px}.room-workspace-tab[aria-current=page]{border-color:var(--yellow);background:rgba(245,200,0,.1)}}
+.admin-avatar,.staff-identity-icon{background-position:center;background-size:cover}
+.profile-edit-form{display:grid;gap:16px;margin:20px 0}
+.profile-edit-form .button-dark{justify-self:start}
+.operator-credentials{display:grid;gap:10px;border:1px solid var(--yellow);border-radius:9px;padding:14px;background:#2b2717}
+.operator-credentials .account-field strong{font-family:monospace;user-select:all}
+.upload-choose{font-family:inherit;font-size:14px;font-weight:700}
+.history-filters{display:flex;align-items:end;gap:12px;flex-wrap:wrap;padding:18px;border:1px solid var(--line);border-radius:10px;background:#181818}
+.history-filters .form-field{min-width:140px;flex:1}
+.history-filters .admin-select,.history-filters .admin-input{min-height:43px}
+.history-short-toggle{display:flex;align-items:center;gap:8px;padding:11px 0;color:#ddd;cursor:pointer;font-size:13px}
+.history-short-toggle input{width:18px;height:18px;accent-color:var(--yellow)}
+.history-summary{color:var(--muted);font-size:13px;margin:18px 0 25px}
+.history-group{margin:0 0 32px}
+.history-group h2{font:700 24px "Thmanyah Serif Display",Tahoma,sans-serif;margin:0 0 13px}
+.history-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:17px 20px;margin-bottom:9px;border:1px solid var(--line);border-radius:10px;background:#191919}
+.history-card-main{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.history-card-main h3{margin:0;font-size:18px}
+.history-card-meta{grid-column:1;display:flex;gap:8px 20px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.history-card>.mini-action{grid-column:2;grid-row:1/span 2;align-self:center}
+@media(max-width:650px){.history-card{grid-template-columns:1fr}.history-card>.mini-action{grid-column:1;grid-row:auto;justify-self:start}}
