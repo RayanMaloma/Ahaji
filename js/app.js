@@ -12,94 +12,61 @@ const EMPTY_ROOM_MEDIA = Object.freeze({
   loseSound: null,
   loseVideo: null,
   gmImages: Object.freeze([]),
-  gmSounds: Object.freeze([])
+  gmSounds: Object.freeze([]),
+  gmVideos: Object.freeze([])
 });
 
-const ROOM_CONFIGS = [
-  {
-    id: 'anbar',
-    name: 'Prison',
-    thumbnail: 'images/prison.jpg',
-    backgroundImage: 'source/prison/background.jpg',
-    defaultDuration: 3600,
-    media: {
-      hintSound: 'source/prison/hint-sound.mp3',
-      loseSound: 'source/prison/loose-sound.mp3',
-      gmImages: [
-        { label: 'مكان فك الزنزانة', src: 'source/prison/images/مكان فك الزنزانة.png' }
-      ],
-      gmSounds: [
-        { label: 'صوت باب العنبر', src: 'source/prison/sounds/صوت باب العنبر.mp3' }
-      ]
-    },
-    hints: {
-      source: 'hints/prison.txt'
-    }
-  },
-  {
-    id: 'haram',
-    name: 'Pyramid',
-    thumbnail: 'images/pyramid.png',
-    backgroundImage: 'source/pyramid/background.jpg',
-    defaultDuration: 3600,
-    media: {
-      hintSound: 'source/pyramid/hint-sound.mp3',
-      gmImages: [
-        { label: 'تلميح لغز العصا', src: 'source/pyramid/imghint1.png' },
-        { label: 'تلميح لغز الدرج', src: 'source/pyramid/imghint2.png' }
-      ]
-    },
-    hints: {
-      source: 'hints/pyramid.txt'
-    }
-  },
-  {
-    id: 'saleh',
-    name: 'Uncle Saleh',
-    thumbnail: 'images/unclesaleh.png',
-    backgroundImage: 'source/unclesaleh/background.jpg',
-    defaultDuration: 3600,
-    media: {
-      hintSound: 'source/unclesaleh/hint-sound.mp3',
-      loseVideo: 'source/unclesaleh/loose-video.mp4',
-      gmImages: [
-        { label: 'تلميح لغز التركيبة', src: 'source/unclesaleh/imghint1.png' }
-      ]
-    },
-    hints: {
-      source: 'hints/uncle-saleh.txt'
-    }
+const ROOM_CONFIGS = [];
+
+function resolveRoomAsset(ref) {
+  if (typeof ref !== 'string') return null;
+  if (/^(images|source)\//.test(ref) && !ref.includes('..')) return ref;
+  if (ref.startsWith('storage://room-assets/')) {
+    const path = ref.slice('storage://room-assets/'.length);
+    if (/^[a-z][a-z0-9_-]{0,63}\/[A-Za-z0-9._-]+$/.test(path))
+      return `https://gbhleqizxcmxmutgcjon.supabase.co/storage/v1/object/public/room-assets/${path}`;
   }
-];
+  return null;
+}
 
 function normalizeRoom(room) {
   const media = room.media || {};
   return Object.freeze({
     id: room.id,
     name: room.name,
-    thumbnail: room.thumbnail,
-    backgroundImage: room.backgroundImage,
-    image: room.backgroundImage,
+    thumbnail: resolveRoomAsset(room.thumbnail),
+    backgroundImage: resolveRoomAsset(room.backgroundImage),
+    image: resolveRoomAsset(room.backgroundImage),
     defaultDuration: typeof room.defaultDuration === 'number' ? room.defaultDuration : 3600,
     media: Object.freeze({
-      hintSound: media.hintSound || null,
-      loseSound: media.loseSound || null,
-      loseVideo: media.loseVideo || null,
-      gmImages: Object.freeze((media.gmImages || []).map(item => Object.freeze({ ...item }))),
-      gmSounds: Object.freeze((media.gmSounds || []).map(item => Object.freeze({ ...item })))
+      hintSound: resolveRoomAsset(media.hintSound),
+      loseSound: resolveRoomAsset(media.loseSound),
+      loseVideo: resolveRoomAsset(media.loseVideo),
+      gmImages: Object.freeze((media.gmImages || []).map(item => Object.freeze({ ...item, src: resolveRoomAsset(item.src) }))),
+      gmSounds: Object.freeze((media.gmSounds || []).map(item => Object.freeze({ ...item, src: resolveRoomAsset(item.src) }))),
+      gmVideos: Object.freeze((media.gmVideos || []).map(item => Object.freeze({ ...item, src: resolveRoomAsset(item.src) })))
     }),
     hints: Object.freeze({
-      source: room.hints && room.hints.source ? room.hints.source : null
+      items: Object.freeze(Array.isArray(room.hints) ? room.hints.map(item => item.text) : (room.hints?.items || [])),
+      source: null
     })
   });
 }
 
-const ROOM_LIST = Object.freeze(ROOM_CONFIGS.map(normalizeRoom));
+let ROOM_LIST = Object.freeze(ROOM_CONFIGS.map(normalizeRoom));
 
-const ROOMS = Object.freeze(ROOM_LIST.reduce((rooms, room) => {
+let ROOMS = Object.freeze(ROOM_LIST.reduce((rooms, room) => {
   rooms[room.id] = room;
   return rooms;
 }, {}));
+
+function setRoomCatalog(rows) {
+  ROOM_LIST = Object.freeze(rows.map(normalizeRoom));
+  ROOMS = Object.freeze(ROOM_LIST.reduce((rooms, room) => {
+    rooms[room.id] = room;
+    return rooms;
+  }, {}));
+}
 
 function getRooms() {
   return ROOM_LIST;
@@ -134,7 +101,9 @@ function createInitialState(roomId, sessionId) {
     endsAt: null,
     hintText: '',
     activeImageSrc: null,
+    activeVideoSrc: null,
     activeImageScale: 100,
+    roomConfig: room,
     lastUpdatedAt: Date.now()
   };
 }
@@ -145,7 +114,7 @@ function createInitialState(roomId, sessionId) {
 function getRemainingMs(state) {
   if (!state) return 0;
   if (state.status === 'running' && typeof state.endsAt === 'number') {
-    return Math.max(0, state.endsAt - Date.now());
+    return Math.max(0, state.endsAt - (Date.now() + (window.ahajiClockOffset || 0)));
   }
   const secs = typeof state.remainingSeconds === 'number' ? state.remainingSeconds : 0;
   return Math.max(0, secs * 1000);
@@ -157,7 +126,7 @@ function getDisplaySeconds(state) {
 
 function freezeRunningTimer(state) {
   if (state && state.status === 'running' && typeof state.endsAt === 'number') {
-    state.remainingSeconds = Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000));
+    state.remainingSeconds = Math.max(0, Math.ceil((state.endsAt - (Date.now() + (window.ahajiClockOffset || 0))) / 1000));
     state.endsAt = null;
   }
   return state;
@@ -175,6 +144,7 @@ function resetGameState(currentState) {
     isLose: false,
     hintText: '',
     activeImageSrc: null,
+    activeVideoSrc: null,
     activeImageScale: 100
   };
 }
@@ -224,7 +194,7 @@ function renderCastView(state, els, options = {}) {
     rawResultMode === 'win' || rawResultMode === 'lose' ? rawResultMode : 'normal';
 
   if (els.bg && state.image) {
-    els.bg.src = state.image;
+    els.bg.src = resolveRoomAsset(state.image) || '';
   }
 
   const active =
@@ -255,7 +225,7 @@ function renderCastView(state, els, options = {}) {
 
   if (els.resultKicker) {
     els.resultKicker.textContent =
-      resultMode === 'win' ? 'Victory' :
+      resultMode === 'win' ? 'الفوز' :
       resultMode === 'lose' ? '' :
       '';
   }
@@ -273,8 +243,8 @@ function renderCastView(state, els, options = {}) {
 
   if (els.resultMessageEn) {
     els.resultMessageEn.textContent =
-      resultMode === 'win'  ? 'Winners!' :
-      resultMode === 'lose' ? (state.loseMode === 'video' ? 'Playing video' : 'Game Over') :
+      resultMode === 'win'  ? '' :
+      resultMode === 'lose' ? '' :
       '';
   }
 

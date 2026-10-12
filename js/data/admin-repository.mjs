@@ -19,12 +19,20 @@ export function createAdminRepository(client) {
   }
 
   async function load() {
-    const [roomRows, directory] = await Promise.all([
+    await checked(client.rpc('admin_settle_sessions'));
+    const [roomRows, directory, sessions] = await Promise.all([
       rooms.listRooms({ includeInactive: true }),
-      client.rpc('admin_staff_directory')
+      client.rpc('admin_staff_directory'),
+      client.from('game_sessions').select('id,room_id,gm_user_id,status,result,started_at,ended_at,created_at,updated_at,remaining_seconds,revision')
+        .order('created_at',{ascending:false}).limit(100)
     ]);
     if (directory.error) throw new Error(directory.error.message || 'Staff directory request failed.');
-    return { rooms: roomRows, staff: directory.data || [] };
+    if (sessions.error) throw new Error(sessions.error.message || 'Session history request failed.');
+    return { rooms: roomRows, staff: directory.data || [], sessions:sessions.data||[] };
+  }
+  async function listEvents(sessionId){
+    return checked(client.from('session_events').select('id,event_type,payload,created_at,actor_user_id')
+      .eq('session_id',sessionId).order('id'));
   }
 
   async function createRoom(values) {
@@ -74,6 +82,6 @@ export function createAdminRepository(client) {
     if(error) throw error;
   }
 
-  return Object.freeze({ load,createRoom,updateRoom,deleteNewRoom,saveHint,
+  return Object.freeze({ load,listEvents,createRoom,updateRoom,deleteNewRoom,saveHint,
     deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
 }
