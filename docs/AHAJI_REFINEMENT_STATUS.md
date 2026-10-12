@@ -41,7 +41,7 @@ Updated 2026-10-13, Asia/Riyadh, after final live account and disposable recover
 - [ ] Operator credential reset: the Admin reset action was reached, but browser control stopped at its JavaScript confirmation. No new password was issued. The source path has mocked browser coverage, including the close control after a one-time password appears; a live reset remains unverified. The original temporary password should be treated as spent and the account remains inactive.
 - [x] Regression and responsive QA: 7 Node tests and 17 mocked Playwright browser tests passed at the latest full run. Desktop live screens and 1440/820/390-pixel screenshots were visually inspected; the mobile tab wrapping issue was fixed. Re-run the suite after final edits.
 - [x] Latest backup package, nine Storage object hashes, disposable restore and rolled-back RLS test verified after QA provisioning, deactivation and cover upload.
-- [ ] Final documentation, source commits, clean working tree, localhost review handoff.
+- [x] Documentation and source committed as `c53d9cb`, `7fae24a`, and `5c1ae64`; the integration branch had a clean working tree and localhost port 8765 returned HTTP 200 at handoff. Live operator reset remains the one incomplete verification above.
 
 ## Resume
 
