@@ -1,8 +1,8 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=full-delivery-3';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=room-ux-1';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
-import { renderRoomWorkspace } from './room-workspace.mjs?v=refinement-2';
+import { renderRoomWorkspace } from './room-workspace.mjs?v=room-ux-1';
 import {activeDuration,dateKey,groupLabel} from './history-model.mjs?v=refinement-2';
 
 const repository = createAdminRepository(supabase);
@@ -10,6 +10,7 @@ const shell = document.getElementById('admin-shell');
 const gate = document.getElementById('admin-auth-loading');
 const gateError = document.getElementById('admin-auth-error');
 const content = document.getElementById('admin-content');
+const adminMain=document.querySelector('.admin-main');
 const sidebar = document.getElementById('admin-sidebar');
 const menuButton = document.getElementById('admin-menu-button');
 const scrim = document.getElementById('admin-scrim');
@@ -545,6 +546,7 @@ function setNavigation(view,id){
 }
 function render(){
   const {view,id}=route();setNavigation(view,id);content.replaceChildren();
+  adminMain.classList.toggle('rooms-scroll',['rooms','room','edit-room','new-room'].includes(view));
   content.classList.toggle('compact-content',view==='rooms'||view==='staff'||view==='account');
   if(view==='account' && state.access){renderAccount();return;}
   if(state.error){
@@ -570,7 +572,7 @@ function render(){
 function navigate(href){
   const url=new URL(href,location.href);
   history.pushState(null,'',url.pathname+url.search);closeMenu();render();
-  content.focus({preventScroll:true});window.scrollTo(0,0);
+  content.focus({preventScroll:true});adminMain.scrollTo(0,0);
 }
 function closeMenu(){sidebar.classList.remove('open');scrim.hidden=true;menuButton.setAttribute('aria-expanded','false');}
 function openMenu(){sidebar.classList.add('open');scrim.hidden=false;menuButton.setAttribute('aria-expanded','true');}

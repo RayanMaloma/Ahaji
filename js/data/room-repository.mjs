@@ -28,7 +28,7 @@ function normalizeRoom(row, hints, media) {
     name: row.name,
     description: row.description || '',
     displayOrder: row.display_order,
-    thumbnail: row.thumbnail_ref,
+    thumbnail: row.background_ref,
     backgroundImage: row.background_ref,
     defaultDuration: row.default_duration_seconds,
     presentation: row.presentation_settings,

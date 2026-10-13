@@ -59,6 +59,7 @@ test('normalizes active rooms, ordered hints, and media', async () => {
   assert.deepEqual(rooms.map(room => room.id), ['anbar', 'aaa']);
   assert.deepEqual(rooms[0].hints.map(hint => hint.text), ['First', 'Second']);
   assert.equal(rooms[0].media.hintSound, 'hint.mp3');
+  assert.equal(rooms[0].thumbnail,rooms[0].backgroundImage);
   assert.deepEqual(rooms[0].media.gmImages.map(image => image.src), ['map.png']);
   assert.equal((await repository.getRoom('hidden')), null);
   assert.equal((await repository.getRoom('hidden', { includeInactive: true })).name, 'Hidden');

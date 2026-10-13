@@ -1,4 +1,5 @@
 import { createRoomRepository } from './room-repository.mjs';
+import { roomIdBase,roomIdCandidate } from './room-id.mjs';
 
 // The database remains the authority. This module has no credentials and
 // never substitutes static room configuration for a failed network read.
@@ -59,6 +60,15 @@ export function createAdminRepository(client) {
   async function createRoom(values) {
     return checked(client.from('rooms').insert(values).select('id').single());
   }
+  async function createRoomForName(values) {
+    const base=roomIdBase(values.name);
+    for(let attempt=0;attempt<100;attempt++){
+      const id=roomIdCandidate(base,attempt);
+      try{await createRoom({...values,id});return id;}
+      catch(error){if(error.code!=='23505')throw error;}
+    }
+    throw new Error('تعذّر إنشاء معرّف فريد للغرفة. حاول اسماً آخر.');
+  }
   async function updateRoom(id, values) {
     return checked(client.from('rooms').update(values).eq('id', id).select('id').single());
   }
@@ -103,6 +113,6 @@ export function createAdminRepository(client) {
     if(error) throw error;
   }
 
-  return Object.freeze({ load,loadHistory,listEvents,createRoom,updateRoom,deleteNewRoom,saveHint,
+  return Object.freeze({ load,loadHistory,listEvents,createRoom,createRoomForName,updateRoom,deleteNewRoom,saveHint,
     deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
 }

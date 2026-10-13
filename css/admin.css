@@ -238,6 +238,60 @@ body{direction:rtl;background:var(--paper)}
 .history-group{margin:0 0 32px}
 .history-group h2{font:700 24px "Thmanyah Serif Display",Tahoma,sans-serif;margin:0 0 13px}
 .history-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:17px 20px;margin-bottom:9px;border:1px solid var(--line);border-radius:10px;background:#191919}
+
+/* One viewport-sized scroll area keeps the sidebar fixed on every route. */
+.admin-shell:not([hidden]){height:100dvh;min-height:0;overflow:hidden}
+.admin-sidebar{height:100dvh;min-height:0;position:relative;top:auto;overflow-y:auto}
+.admin-main{height:100dvh;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.admin-main.rooms-scroll{scrollbar-width:none}
+.admin-main.rooms-scroll::-webkit-scrollbar{display:none}
+.admin-main:focus-visible{outline:2px solid var(--yellow);outline-offset:-2px}
+
+/* The settings grid gives paired controls the same rhythm and height. */
+.settings-fields{column-gap:20px;row-gap:20px;align-items:start}
+.settings-fields>.form-field{grid-template-rows:22px minmax(46px,auto) auto;align-content:start;gap:7px}
+.settings-fields>.form-field>span:first-child{line-height:22px}
+.settings-fields .admin-input,.settings-fields .admin-select{min-height:46px}
+.settings-fields input[type=range]{height:46px;padding:0;accent-color:var(--yellow)}
+.settings-fields input[type=color]{height:46px;padding:5px;cursor:pointer}
+.settings-fields .admin-select{appearance:none;padding-inline-start:13px;padding-inline-end:39px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23f5c800' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:left 14px center}
+.settings-fields .status-toggle-row{align-self:start;margin-top:28px}
+.settings-fields .field-note{min-height:0}
+.settings-fields>.wide-field{grid-column:1/-1}
+.room-settings-form>.settings-section:first-child .settings-fields>.form-field:first-child{grid-column:1/-1}
+
+/* Handles announce both pointer and keyboard sorting without extra row height. */
+.hint-sort-instructions{color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 14px}
+.hint-drag-handle{flex:none;width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);
+  border-radius:7px;background:#292929;color:var(--yellow);font-size:24px;line-height:1;cursor:grab;touch-action:none}
+.hint-drag-handle:hover,.hint-drag-handle:focus-visible{border-color:var(--yellow);outline:2px solid var(--yellow);outline-offset:2px}
+.workspace-row.is-dragging{background:#3a3218;border-color:var(--yellow);box-shadow:inset 0 0 0 2px var(--yellow);opacity:.85}
+.workspace-row.is-dragging .hint-drag-handle{cursor:grabbing}
+.workspace-list.is-saving{opacity:.65;pointer-events:none}
+
+/* Compact accessible audio transport; the media element stays native internally. */
+.workspace-media-grid:has(.ahaji-audio-player){grid-template-columns:repeat(auto-fill,minmax(285px,1fr))}
+.ahaji-audio-player{display:grid;gap:7px;min-width:0;width:100%;padding:10px;border:1px solid var(--line);
+  border-radius:8px;background:#161616;color:var(--ink)}
+.audio-name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.audio-controls{display:flex;align-items:center;gap:7px;min-width:0;direction:ltr}
+.audio-play,.audio-mute{flex:none;display:grid;place-items:center;width:27px;height:27px;border:1px solid var(--line);
+  border-radius:6px;background:#292929;color:var(--yellow);font-size:13px;cursor:pointer}
+.audio-play:focus-visible,.audio-mute:focus-visible,.audio-seek:focus-visible,.audio-volume:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.audio-play:disabled,.audio-mute:disabled{opacity:.5;cursor:not-allowed}
+.audio-time{flex:none;color:var(--muted);font:11px 'Segoe UI',sans-serif;font-variant-numeric:tabular-nums}
+.audio-seek{min-width:35px;flex:1;accent-color:var(--yellow);cursor:pointer}
+.audio-volume{width:47px;flex:none;accent-color:var(--yellow);cursor:pointer}
+.audio-message{font-size:11px;color:var(--muted);line-height:1.35}
+.audio-message:empty{display:none}
+.system-media-row .ahaji-audio-player{max-width:360px}
+.upload-preview .ahaji-audio-player{max-width:380px}
+@media(max-width:950px){.admin-sidebar{position:fixed;top:0;height:100dvh}}
+@media(max-width:950px){.admin-menu-button{left:16px;right:auto;inset-inline-start:auto}}
+@media(max-width:650px){.settings-fields{grid-template-columns:1fr}.settings-fields .status-toggle-row{margin-top:0}
+  .workspace-row{gap:10px}.workspace-row .item-actions{margin-inline-start:auto}}
 .history-card-main{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .history-card-main h3{margin:0;font-size:18px}
 .history-card-meta{grid-column:1;display:flex;gap:8px 20px;flex-wrap:wrap;color:var(--muted);font-size:13px}

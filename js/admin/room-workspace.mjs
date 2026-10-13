@@ -1,4 +1,6 @@
 import { supabase } from '../auth/client.mjs';
+import { installHintSorting } from './hint-sort.mjs';
+import { createAudioPlayer } from './audio-player.mjs';
 
 const roomTabs = [
   ['settings','الإعدادات العامة'], ['hints','التلميحات'],
@@ -8,7 +10,7 @@ const mime = {
   image:'image/jpeg,image/png,image/webp,image/gif',
   video:'video/mp4,video/webm', audio:'audio/mpeg,audio/ogg,audio/wav,audio/mp4'
 };
-const defaults = { cover:'images/ahajilogo.svg', background:'images/ahajilogo.svg' };
+const defaultRoomImage='images/ahajilogo.svg';
 const $ = (tag, className='', text) => {
   const element=document.createElement(tag);
   if(className)element.className=className;
@@ -81,8 +83,10 @@ function uploadControl({label,kind,currentRef='',required=false}){
     preview.replaceChildren();
     const source=inputFile.files?.[0] ? localUrl : removed ? '' : assetUrl(currentRef);
     if(!source)return;
-    const media=$(kind==='image'?'img':kind==='video'?'video':'audio');media.src=source;
-    if(kind!=='image'){media.controls=true;media.preload='metadata';}
+    const media=kind==='audio'?createAudioPlayer({src:source,label:`معاينة ${label}`}):
+      $(kind==='image'?'img':'video');
+    if(kind!=='audio')media.src=source;
+    if(kind==='video'){media.controls=true;media.preload='metadata';}
     if(kind==='image')media.alt=`معاينة ${label}`;
     preview.append(media);
   }
@@ -106,7 +110,7 @@ function uploadControl({label,kind,currentRef='',required=false}){
     dispose(){if(localUrl)URL.revokeObjectURL(localUrl);}}
 }
 
-function makePreview(form,room,backgroundUpload,controls){
+function makePreview(form,room,imageUpload,controls){
   const wrap=$('section','cast-preview-panel');
   const title=$('div','cast-preview-heading');title.append($('h2','','معاينة شاشة العرض'),
     $('p','','تظهر التعديلات هنا قبل الحفظ دون تغيير الجلسات الجارية.'));
@@ -117,11 +121,11 @@ function makePreview(form,room,backgroundUpload,controls){
     if(!iframe.contentWindow)return;
     const presentation=readPresentation(controls);
     const name=form.querySelector('[name=room-name]')?.value.trim()||room?.name||'غرفة أحاجي';
-    const file=backgroundUpload.file;
+    const file=imageUpload.file;
     let backgroundPreview='';
-    if(file){const img=backgroundUpload.element.querySelector('.upload-preview img');backgroundPreview=img?.src||'';}
+    if(file){const img=imageUpload.element.querySelector('.upload-preview img');backgroundPreview=img?.src||'';}
     iframe.contentWindow.postMessage({type:'ahaji-cast-preview',name,
-      background:backgroundUpload.removed?defaults.background:room?.backgroundImage||defaults.background,
+      background:imageUpload.removed?defaultRoomImage:room?.backgroundImage||defaultRoomImage,
       backgroundPreview,presentation,mode},location.origin);
   }
   for(const [value,label] of [['timer','المؤقت'],['hint','التلميح'],['win','الفوز'],['lose','الخسارة']]){
@@ -134,8 +138,8 @@ function makePreview(form,room,backgroundUpload,controls){
   addEventListener('message',event=>{if(event.origin===location.origin&&
     event.source===iframe.contentWindow&&event.data?.type==='ahaji-cast-preview-ready')update();});
   form.addEventListener('input',update);form.addEventListener('change',update);
-  backgroundUpload.element.addEventListener('change',update);
-  backgroundUpload.element.addEventListener('click',()=>setTimeout(update,100));
+  imageUpload.element.addEventListener('change',update);
+  imageUpload.element.addEventListener('click',()=>setTimeout(update,100));
   wrap.append(title,modes,iframe);return wrap;
 }
 
@@ -181,8 +185,6 @@ function renderSettings({room,container,repository,navigate,refresh}){
   const name=input('text',room?.name||'',120);name.required=true;name.name='room-name';
   const description=$('textarea','admin-textarea');description.maxLength=2000;
   description.rows=3;description.value=room?.description||'';
-  const id=input('text',room?.id||'',64);id.required=true;id.pattern='[a-z][a-z0-9_-]{0,63}';
-  id.dir='ltr';id.disabled=!creating;
   const duration=input('number',String(Math.round((room?.defaultDuration||3600)/60)));
   duration.min='1';duration.max='99';duration.required=true;
   const active=input('checkbox');active.checked=room?.isActive??true;active.className='status-toggle-input';
@@ -192,12 +194,10 @@ function renderSettings({room,container,repository,navigate,refresh}){
   active.addEventListener('change',syncActive);syncActive();
   const status=$('label','status-toggle-row');status.append($('span','','حالة الغرفة'),active,$('span','status-toggle-track'),activeText);
   const base=$('div','settings-fields');base.append(labelled('اسم الغرفة',name),labelled('الوصف',description),
-    labelled('المعرّف الداخلي',id,'معرّف تقني ثابت لا يتغير بعد إنشاء الغرفة.'),
     labelled('مدة اللعبة الافتراضية بالدقائق',duration),status);main.append(base);
   const appearance=settingsGroup('الهوية والخلفية');
-  const cover=uploadControl({label:'صورة الغلاف',kind:'image',currentRef:room?.thumbnail});
-  const background=uploadControl({label:'خلفية شاشة العرض',kind:'image',currentRef:room?.backgroundImage});
-  appearance.append(cover.element,background.element);
+  const roomImage=uploadControl({label:'صورة الغرفة',kind:'image',currentRef:room?.backgroundImage});
+  appearance.append(roomImage.element);
   const display=settingsGroup('العرض أثناء اللعب');
   const timerScale=range(p.timerScale,0.7,1.3,0.05);
   const timerPosition=select([['top','أعلى الشاشة'],['center','وسط الشاشة'],['bottom','أسفل الشاشة']],p.timerPosition);
@@ -212,15 +212,18 @@ function renderSettings({room,container,repository,navigate,refresh}){
   winMessage.required=true;loseMessage.required=true;
   const controls={timerScale,timerPosition,timerColor,timerFont,hintScale,hintPosition,
     hintDuration,imageFit,videoFit,winMessage,loseMessage};
+  const hintDurationField=labelled('مدة ظهور التلميح بالثواني',hintDuration,
+    'صفر يعني إبقاء التلميح حتى الحدث التالي.');
+  hintDurationField.classList.add('wide-field');
   const fields=$('div','settings-fields');fields.append(
     labelled('حجم المؤقت',timerScale),labelled('موضع المؤقت',timerPosition),
     labelled('لون المؤقت',timerColor),labelled('خط المؤقت',timerFont),
     labelled('حجم التلميح',hintScale),labelled('موضع التلميح',hintPosition),
-    labelled('مدة ظهور التلميح بالثواني',hintDuration,'صفر يعني إبقاء التلميح حتى الحدث التالي.'),
+    hintDurationField,
     labelled('طريقة عرض الصور',imageFit),labelled('طريقة عرض المقاطع',videoFit),
     labelled('رسالة الفوز',winMessage),labelled('رسالة الخسارة',loseMessage));
   display.append(fields);
-  const preview=makePreview(form,room,background,controls);
+  const preview=makePreview(form,room,roomImage,controls);
   form.append(main,appearance,display,preview);
   if(room){
     const systems=settingsGroup('وسائط النظام');
@@ -230,31 +233,28 @@ function renderSettings({room,container,repository,navigate,refresh}){
   const actions=$('div','form-buttons');const save=btn(creating?'إنشاء الغرفة':'حفظ التغييرات','button-dark');save.type='submit';
   actions.append(save);form.append(actions);container.append(form);
   form.addEventListener('submit',async event=>{
-    event.preventDefault();save.disabled=true;cover.setBusy(true);background.setBusy(true);
-    const roomId=id.value.trim(), uploaded=[];let created=false;
+    event.preventDefault();save.disabled=true;roomImage.setBusy(true);
+    let roomId=room?.id, uploaded=null,created=false;
     try{
-      cover.validate();background.validate();
+      roomImage.validate();
       const values={name:name.value.trim(),description:description.value.trim(),
         default_duration_seconds:Number(duration.value)*60,is_active:active.checked,
         presentation_settings:readPresentation(controls)};
       if(!values.name)throw new Error('اكتب اسم الغرفة.');
-      if(creating){await repository.createRoom({id:roomId,...values,is_active:false,
-        thumbnail_ref:defaults.cover,background_ref:defaults.background});created=true;}
-      if(cover.file){values.thumbnail_ref=await repository.uploadAsset(roomId,cover.file);uploaded.push(values.thumbnail_ref);}
-      else if(cover.removed)values.thumbnail_ref=defaults.cover;
-      if(background.file){values.background_ref=await repository.uploadAsset(roomId,background.file);uploaded.push(values.background_ref);}
-      else if(background.removed)values.background_ref=defaults.background;
+      if(creating){roomId=await repository.createRoomForName({...values,is_active:false,
+        thumbnail_ref:defaultRoomImage,background_ref:defaultRoomImage});created=true;}
+      if(roomImage.file)uploaded=await repository.uploadAsset(roomId,roomImage.file);
+      const imageRef=uploaded||(roomImage.removed?defaultRoomImage:room?.backgroundImage||defaultRoomImage);
+      values.thumbnail_ref=imageRef;values.background_ref=imageRef;
       await repository.updateRoom(roomId,values);
-      for(const ref of [values.thumbnail_ref&&room?.thumbnail,values.background_ref&&room?.backgroundImage])
-        if(ref)await repository.removeAsset(ref).catch(()=>{});
-      cover.dispose();background.dispose();
+      roomImage.dispose();
       navigate(`admin.html?view=room&id=${encodeURIComponent(roomId)}&tab=settings`);
       await refresh();
     }catch(error){
-      for(const ref of uploaded)await repository.removeAsset(ref).catch(()=>{});
+      if(uploaded)await repository.removeAsset(uploaded).catch(()=>{});
       if(created)await repository.deleteNewRoom(roomId).catch(()=>{});
       formMessage(form,error.message||'تعذّر حفظ الغرفة.');
-      save.disabled=false;cover.setBusy(false);background.setBusy(false);
+      save.disabled=false;roomImage.setBusy(false);
     }
   });
 }
@@ -266,7 +266,11 @@ function renderHints({room,container,repository,refresh}){
   const list=$('ol','workspace-list');
   if(!room.hints.length)panel.append($('p','panel-empty','لا توجد تلميحات لهذه الغرفة.'));
   room.hints.forEach((hint,index)=>{
-    const item=$('li','workspace-row');item.append($('span','item-index',String(index+1).padStart(2,'0')));
+    const item=$('li','workspace-row');item.dataset.hintId=hint.id;
+    const handle=btn('⠿','hint-drag-handle');handle.dataset.dragHandle='';
+    handle.setAttribute('aria-describedby','hint-sort-instructions');
+    handle.setAttribute('aria-pressed','false');
+    item.append(handle,$('span','item-index',String(index+1).padStart(2,'0')));
     const copy=$('p','workspace-row-text',hint.text);copy.dir='auto';item.append(copy);
     const actions=$('div','item-actions');
     const edit=btn('تعديل','mini-action');edit.addEventListener('click',()=>editHint(hint));
@@ -275,15 +279,10 @@ function renderHints({room,container,repository,refresh}){
       try{await repository.deleteHint(room.id,hint.id);await refresh();}
       catch(error){alert(error.message||'تعذّر حذف التلميح.');}
     });actions.append(edit,remove);
-    for(const [direction,label,allowed] of [[-1,'رفع',index>0],[1,'خفض',index<room.hints.length-1]]){
-      if(!allowed)continue;const move=btn(direction<0?'↑':'↓','mini-action');move.setAttribute('aria-label',`${label} التلميح`);
-      move.addEventListener('click',async()=>{const ids=room.hints.map(x=>x.id);
-        [ids[index],ids[index+direction]]=[ids[index+direction],ids[index]];
-        try{await repository.reorderHints(room.id,ids);await refresh();}
-        catch(error){alert(error.message||'تعذّر ترتيب التلميحات.');}});actions.append(move);
-    }
     item.append(actions);list.append(item);
   });panel.append(list);container.append(panel);
+  if(room.hints.length)installHintSorting({list,roomId:room.id,repository,onSaved:refresh,
+    onError:message=>formMessage(panel,message)});
   function editHint(hint){makeDialog(hint?'تعديل التلميح':'إضافة تلميح',(form,dialog)=>{
     const content=$('textarea','admin-textarea');content.rows=5;content.maxLength=2000;
     content.required=true;content.value=hint?.text||'';form.append(labelled('نص التلميح',content));
@@ -309,10 +308,11 @@ function renderMediaTab({room,container,repository,refresh,tab}){
   for(const record of records){
     const card=$('article','workspace-media-card');
     const url=assetUrl(record.assetRef);
-    if(url){const media=$(config.type==='image'?'img':config.type==='video'?'video':'audio');
+    if(config.type==='audio')card.append(createAudioPlayer({src:url,label:record.label||fileName(record.assetRef)}));
+    else{if(url){const media=$(config.type==='image'?'img':'video');
       media.src=url;if(config.type==='image')media.alt=record.label||'صورة الغرفة';
       else{media.controls=true;media.preload='metadata';}card.append(media);}
-    card.append($('strong','',record.label||fileName(record.assetRef)));
+      card.append($('strong','',record.label||fileName(record.assetRef)));}
     const actions=$('div','item-actions');
     const replace=btn('استبدال','mini-action');replace.addEventListener('click',()=>editMedia(record,record.kind,config.type));
     const remove=btn('حذف','mini-action danger');remove.addEventListener('click',async()=>{
@@ -332,8 +332,9 @@ function renderMediaTab({room,container,repository,refresh,tab}){
   function systemMedia(kind,title,type){
     const existing=room.mediaRecords.find(x=>x.kind===kind);
     const row=$('div','system-media-row');row.append($('div','',title));
-    if(existing){const url=assetUrl(existing.assetRef),media=$(type);media.src=url;
-      media.controls=true;media.preload='metadata';row.append(media);}
+    if(existing){const url=assetUrl(existing.assetRef);
+      if(type==='audio')row.append(createAudioPlayer({src:url,label:title}));
+      else{const media=$(type);media.src=url;media.controls=true;media.preload='metadata';row.append(media);}}
     const manage=btn(existing?'استبدال':'تعيين','mini-action');
     manage.addEventListener('click',()=>editMedia(existing||null,kind,type));row.append(manage);
     if(existing){const clear=btn('إزالة','mini-action danger');clear.addEventListener('click',async()=>{

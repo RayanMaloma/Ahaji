@@ -70,7 +70,7 @@ class Phase2BrowserTests(unittest.TestCase):
         home = self.page()
         home.goto(self.base)
         expect(home.locator(".room-card")).to_have_count(3)
-        expect(home.locator(".room-card[data-room='anbar'] img")).to_have_attribute("src", "images/prison.jpg")
+        expect(home.locator(".room-card[data-room='anbar'] img")).to_have_attribute("src", "source/prison/background.jpg")
 
         gm, session = self.gm()
         with gm.expect_popup() as popup_info:
