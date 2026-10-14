@@ -1,0 +1,2 @@
+# Approved loader assets must stay byte-identical to the studio package.
+images/loader/*.svg -text

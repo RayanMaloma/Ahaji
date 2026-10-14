@@ -1,4 +1,5 @@
 @import url("./fonts.css?v=phase5-font-1");
+@import url("./loader.css?v=loader-1");
 *{box-sizing:border-box}html,body{margin:0;min-height:100%}button,input,select{font:inherit}[hidden]{display:none!important}
 :root{font-family:"Thmanyah Serif Display",Tahoma,"Segoe UI",Arial,sans-serif;color:#22221f;background:#f6f4ef;--paper:#f6f4ef;--white:#fff;--ink:#22221f;--muted:#6e6c65;--line:#e5e1d8;--yellow:#f5c800;--sidebar:#171717;--good:#33644b;--bad:#9a5637}
 a{color:inherit;text-decoration:none}button{cursor:pointer}button:disabled{cursor:wait;opacity:.6}:focus-visible{outline:3px solid #d5a900;outline-offset:3px}
@@ -365,3 +366,5 @@ body{direction:rtl;background:var(--paper)}
   .automatic-media-head{flex-wrap:wrap}
   .media-grid-video,.media-grid-audio{grid-template-columns:1fr}
 }
+.media-image-frame{border-radius:5px;overflow:hidden;background:#111}.media-image-frame img{display:block}
+.upload-preview.image-skeleton{width:min(100%,260px);height:135px;border-radius:7px}

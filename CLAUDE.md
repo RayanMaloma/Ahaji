@@ -46,6 +46,7 @@ Treat code and verified documentation as the source of truth. Record what was te
 - Arabic-first, RTL interfaces using the bundled Thmanyah Serif Display fonts in `css/fonts/`.
 - The Cast screen is immersive, not a dashboard. The room image stays visible, and the timer and hint box should feel integrated with it on large displays.
 - Dark, clean, professional, minimal clutter. Avoid gimmicks and excess animation. Respect `prefers-reduced-motion`.
+- Use the branded loader (`js/loader.mjs`, `docs/AHAJI_LOADER.md`) for page and section loading. Never edit, optimize, or regenerate `images/loader/*.svg`; changes come from the approved studio package.
 - Keep three verified viewport sizes in mind: 1440, 820, and 390 pixels.
 
 ## Local checks

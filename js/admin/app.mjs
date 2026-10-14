@@ -1,10 +1,11 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=room-draft-1';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=loader-1';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
-import { renderRoomWorkspace } from './room-workspace.mjs?v=room-draft-1';
+import { renderRoomWorkspace } from './room-workspace.mjs?v=loader-1';
 import { createRoomDraft } from './room-draft.mjs';
 import {activeDuration,dateKey,groupLabel} from './history-model.mjs?v=refinement-2';
+import {createLoader,withImageSkeleton} from '../loader.mjs?v=loader-1';
 
 const repository = createAdminRepository(supabase);
 const shell = document.getElementById('admin-shell');
@@ -19,7 +20,9 @@ const state = { access: null, data: null, loading: false, error: false,
   history:null,historyLoading:false,historyError:false,
   historyView:{timeZone:localStorage.getItem('ahaji-history-timezone')||'Asia/Riyadh',
     mode:'all',day:'',start:'',end:'',showShort:false} };
-let accessRequestId = 0;
+let accessRequestId = 0,lastVerifiedAt = 0;
+// UI re-checks are throttled for routine navigation; RLS still authorizes every request.
+const ACCESS_RECHECK_MS = 15000;
 let workspaceDraft=null,workspaceCleanup=null,lastRenderedUrl=location.pathname+location.search;
 const roomName = room => room.name;
 
@@ -54,13 +57,15 @@ function profileAvatarUrl(ref){
   if(typeof ref!=='string'||!/^storage:\/\/profile-assets\/[0-9a-f-]{36}\/[A-Za-z0-9._-]+$/i.test(ref))return '';
   return supabase.storage.from('profile-assets').getPublicUrl(ref.slice('storage://profile-assets/'.length)).data.publicUrl;
 }
-function image(ref, alt, className) {
+function image(ref, alt, className, eager = false) {
   const src = assetUrl(ref);
   if (!src) return node('span', `${className} mini-thumb-fallback`, '◇');
   const item = node('img', className);
   item.src = src;
   item.alt = alt;
-  item.loading = className === 'room-background' ? 'eager' : 'lazy';
+  item.decoding = 'async';
+  item.loading = eager || className === 'room-background' ? 'eager' : 'lazy';
+  if (eager) item.fetchPriority = 'high';
   let retry = false;
   item.onerror = () => {
     if (!retry) {
@@ -116,10 +121,12 @@ function metricTags(room) {
   return list;
 }
 
-function roomTile(room) {
+function roomTile(room, index = 0) {
   const tile = link(roomUrl(room), 'room-tile', '');
   const cover = node('div', 'room-tile-image');
-  cover.append(image(room.thumbnail, `صورة غرفة ${roomName(room)}`, 'room-cover'), statusPill(room.isActive));
+  const coverImage = image(room.thumbnail, `صورة غرفة ${roomName(room)}`, 'room-cover', index < 6);
+  cover.append(coverImage, statusPill(room.isActive));
+  withImageSkeleton(coverImage, cover);
   const body = node('div', 'room-tile-body');
   body.append(node('h2', '', roomName(room)), metricTags(room));
   tile.append(cover, body);
@@ -135,7 +142,7 @@ function renderRooms() {
     const empty = node('div','empty-box');
     empty.append(node('strong','','لا توجد غرف بعد'),node('span','','ستظهر الغرف هنا عند إعدادها.'));
     grid.append(empty);
-  } else rooms.forEach(room => grid.append(roomTile(room)));
+  } else rooms.forEach((room, index) => grid.append(roomTile(room, index)));
   const addTile=button('＋  إضافة غرفة','room-add-tile');
   addTile.addEventListener('click',()=>navigate('admin.html?view=new-room'));
   grid.append(addTile);
@@ -220,7 +227,7 @@ function renderHistory(){
     }).catch(()=>{state.historyLoading=false;state.historyError=true;
       if(route().view==='history'){content.replaceChildren();renderHistory();}});
   }
-  if(state.historyLoading){content.append(node('div','loading-panel','جارٍ تحميل سجل الجلسات…'));return;}
+  if(state.historyLoading){content.append(createLoader({label:'جارٍ تحميل سجل الجلسات…'}));return;}
   if(state.historyError){const error=node('div','error-panel');error.append(node('p','','تعذّر تحميل السجل.'));
     const retry=button('إعادة المحاولة','button-dark');retry.addEventListener('click',()=>{
       state.historyError=false;content.replaceChildren();renderHistory();});error.append(retry);content.append(error);return;}
@@ -291,7 +298,7 @@ function renderSessionDetail(id){
       .catch(()=>{state.historyError=true;state.historyLoading=false;
         if(route().view==='session'){content.replaceChildren();renderSessionDetail(id);}});
   }
-  if(state.historyLoading){content.append(node('div','loading-panel','جارٍ تحميل تفاصيل الجلسة…'));return;}
+  if(state.historyLoading){content.append(createLoader({label:'جارٍ تحميل تفاصيل الجلسة…'}));return;}
   if(state.historyError){content.append(node('div','error-panel','تعذّر تحميل تفاصيل الجلسة.'));return;}
   const session=state.history?.sessions.find(s=>s.id===id)||
     (state.data.sessions||[]).find(s=>s.id===id);
@@ -310,9 +317,10 @@ function renderSessionDetail(id){
     info.append(detailField(label,value));
   summary.wrap.append(info);content.append(summary.wrap);
   const events=panel('سجل الأحداث','الأحداث المسجلة أثناء اللعب');
-  const holder=node('div','panel-body loading-panel','جارٍ تحميل الأحداث…');events.wrap.append(holder);content.append(events.wrap);
+  const holder=node('div','panel-body');holder.append(createLoader({label:'جارٍ تحميل الأحداث…',size:56}));
+  events.wrap.append(holder);content.append(events.wrap);
   repository.listEvents(id).then(rows=>{
-    if(!holder.isConnected)return;holder.replaceChildren();holder.classList.remove('loading-panel');
+    if(!holder.isConnected)return;holder.replaceChildren();
     if(!rows.length){holder.append(node('p','panel-empty','لا توجد أحداث مسجلة.'));return;}
     const labels={created:'إنشاء الجلسة',start:'بدء المؤقت',pause:'إيقاف مؤقت',resume:'استئناف',
       adjust:'تعديل الوقت',hint:'تلميح',image:'صورة',video:'فيديو',scale:'حجم الصورة',
@@ -477,7 +485,7 @@ function renderAccount() {
         await supabase.storage.from('profile-assets').remove([path]).catch(()=>{});
       }
       if(previewUrl)URL.revokeObjectURL(previewUrl);
-      await verifyAccess();render();await loadData();
+      await verifyAccess({force:true});render();await loadData();
     }catch(error){
       if(newRef)await supabase.storage.from('profile-assets')
         .remove([newRef.slice('storage://profile-assets/'.length)]).catch(()=>{});
@@ -563,7 +571,12 @@ function render(){
     const retry=button('إعادة المحاولة','button-dark');retry.addEventListener('click',loadData);box.append(retry);content.append(box);
     return;
   }
-  if(!state.data){content.append(node('div','loading-panel','جارٍ تحميل بيانات الغرف…'));return;}
+  if(!state.data){
+    const labels={rooms:'جارٍ تحميل الغرف…',room:'جارٍ تحميل مساحة الغرفة…','edit-room':'جارٍ تحميل مساحة الغرفة…',
+      'new-room':'جارٍ تجهيز غرفة جديدة…',staff:'جارٍ تحميل فريق العمل…',history:'جارٍ تحميل سجل الجلسات…',
+      session:'جارٍ تحميل تفاصيل الجلسة…'};
+    content.append(createLoader({label:labels[view]||'جارٍ تحميل لوحة الإدارة…'}));return;
+  }
   if(view==='rooms')renderRooms();
   else if(view==='room'||view==='edit-room'){
     const room=state.data.rooms.find(item=>item.id===id);
@@ -739,11 +752,7 @@ window.addEventListener('popstate',()=>{
   }
   if(!sameWorkspace(targetUrl))workspaceDraft=null;
   closeMenu();
-  if(route().view==='account') {
-    const {view,id}=route();setNavigation(view,id);
-    content.replaceChildren(node('div','loading-panel','جارٍ تحديث بيانات الحساب…'));
-    verifyAccess();
-  } else {render();verifyAccess();}
+  render();verifyAccess();
 });
 window.addEventListener('beforeunload',event=>{
   if(workspaceDraft?.isDirty()){
@@ -754,14 +763,16 @@ window.addEventListener('beforeunload',event=>{
 
 async function loadData(){
   if(state.loading)return;
-  state.loading=true;state.error=false;state.data=null;
-  if(route().view!=='account')render();
-  try{state.data=await repository.load();if(route().view!=='account')render();}
+  state.loading=true;
+  // Keep showing current data during a refresh; the loader covers only first load or retry.
+  if(!state.data||state.error){state.error=false;state.data=null;if(route().view!=='account')render();}
+  try{state.data=await repository.load();state.error=false;if(route().view!=='account')render();}
   catch{
     state.error=true;if(route().view!=='account')render();
   } finally{state.loading=false;}
 }
-async function verifyAccess(){
+async function verifyAccess({force=false}={}){
+  if(!force&&state.access&&Date.now()-lastVerifiedAt<ACCESS_RECHECK_MS)return true;
   const requestId=++accessRequestId;
   try{
     const previous=state.access;
@@ -769,7 +780,7 @@ async function verifyAccess(){
     if(requestId!==accessRequestId)return false;
     if(!access){location.replace(`login.html?next=${encodeURIComponent(location.pathname.slice(1)+location.search)}`);return false;}
     if(access.role!=='admin'){state.data=null;location.replace('unauthorized.html?reason=admin');return false;}
-    state.access=access;
+    state.access=access;lastVerifiedAt=Date.now();
     const avatar=profileAvatarUrl(access.profile?.avatar_ref);
     const sidebarAvatar=document.getElementById('sidebar-avatar');
     sidebarAvatar.textContent=avatar?'':profileInitial(access.user,access.profile);
@@ -783,7 +794,7 @@ async function verifyAccess(){
       previous.user.email_confirmed_at!==access.user.email_confirmed_at ||
       profileName(previous.user,previous.profile)!==profileName(access.user,access.profile) ||
       previous.profile?.avatar_ref!==access.profile?.avatar_ref);
-    if(route().view==='account' && (identityChanged || content.querySelector('.loading-panel') || !content.hasChildNodes()))render();
+    if(route().view==='account' && (identityChanged || content.querySelector('[data-loader]') || !content.hasChildNodes()))render();
     return true;
   }catch(error){
     console.error('Admin access verification failed',error);
@@ -794,7 +805,7 @@ async function verifyAccess(){
   }
 }
 document.getElementById('admin-auth-retry').addEventListener('click',async()=>{
-  gateError.hidden=true;gate.hidden=false;if(await verifyAccess())await loadData();
+  gateError.hidden=true;gate.hidden=false;if(await verifyAccess({force:true}))await loadData();
 });
 document.getElementById('admin-logout').addEventListener('click',async event=>{
   if(workspaceDraft?.saving||workspaceDraft?.locked){
@@ -810,9 +821,9 @@ document.getElementById('admin-logout').addEventListener('click',async event=>{
 });
 supabase.auth.onAuthStateChange(event=>{
   if(event==='SIGNED_OUT')location.replace('login.html');
-  if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED')setTimeout(verifyAccess,0);
+  if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED')setTimeout(()=>verifyAccess({force:true}),0);
 });
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)verifyAccess();});
 const initialRoute=route();
 setNavigation(initialRoute.view,initialRoute.id);
-if(await verifyAccess())await loadData();
+if(await verifyAccess({force:true}))await loadData();

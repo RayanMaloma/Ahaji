@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>مدير اللعبة · أحاجي</title>
-  <link rel="stylesheet" href="css/style.css?v=refinement-2" />
+  <link rel="preconnect" href="https://gbhleqizxcmxmutgcjon.supabase.co" crossorigin><link rel="preconnect" href="https://gbhleqizxcmxmutgcjon.supabase.co"><link rel="stylesheet" href="css/style.css?v=loader-1" />
 </head>
 <body class="gm-page">
   <div id="gm-connection" class="gm-connection" role="status">جارٍ الاتصال…</div>
-  <div id="auth-loading" class="auth-status" role="status">جارٍ التحقق من صلاحية مدير اللعبة…</div>
+  <div id="auth-loading" class="ahaji-loader ahaji-loader--page" role="status" data-loader><picture class="ahaji-loader__mark" aria-hidden="true"><source srcset="images/loader/ahaji-loader-reduced.svg" media="(prefers-reduced-motion: reduce)"><img src="images/loader/ahaji-loader.svg" alt="" width="96" height="86" decoding="async"></picture><span class="ahaji-loader__label">جارٍ التحقق من صلاحية مدير اللعبة…</span></div>
   <div id="auth-failure" class="auth-status" role="alert" hidden></div>
   <div id="protected-content" class="gm-protected-content" hidden>
   <header class="gm-header">
@@ -161,6 +161,6 @@
   <script src="js/app.js?v=refinement-2"></script>
   <script src="js/session-adapter.js?v=full-delivery-3"></script>
   <script>document.body.dataset.protectedPage = 'gm';</script>
-  <script type="module" src="js/auth/guard.mjs?v=room-draft-2"></script>
+  <script type="module" src="js/auth/guard.mjs?v=loader-1"></script>
 </body>
 </html>

@@ -20,12 +20,13 @@ export function createAdminRepository(client) {
   }
 
   async function load() {
-    await checked(client.rpc('admin_settle_sessions'));
+    // Only the session list depends on settlement; rooms and staff load meanwhile.
     const [roomRows, directory, sessions] = await Promise.all([
       rooms.listRooms({ includeInactive: true }),
       client.rpc('admin_staff_directory'),
-      client.from('game_sessions').select('id,room_id,gm_user_id,status,result,started_at,ended_at,created_at,updated_at,remaining_seconds,revision')
-        .order('created_at',{ascending:false}).limit(100)
+      checked(client.rpc('admin_settle_sessions')).then(() => client.from('game_sessions')
+        .select('id,room_id,gm_user_id,status,result,started_at,ended_at,created_at,updated_at,remaining_seconds,revision')
+        .order('created_at',{ascending:false}).limit(100))
     ]);
     if (directory.error) throw new Error(directory.error.message || 'Staff directory request failed.');
     if (sessions.error) throw new Error(sessions.error.message || 'Session history request failed.');

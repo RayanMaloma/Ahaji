@@ -2,6 +2,16 @@
 
 Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Product Owner decision: **request changes; not approved**. Work is on `codex/final-review-refinements`. Do not merge or deploy the application.
 
+## Branded loader integration (2026-10-14)
+
+Product Owner authorized loader integration only. See `docs/AHAJI_LOADER.md`.
+
+- [x] Approved SVGs copied unchanged to `images/loader/` (SHA-256 verified against studio commit `763ddc4`; `.gitattributes` keeps them byte-exact).
+- [x] Reusable loader (`css/loader.css`, `js/loader.mjs`) in page and section variants with Arabic labels, `role="status"`, a reduced-motion static source, and no layout shift. Used for the Admin access gate; the rooms, workspace, staff, history, and session loads; the GM selection and session start; and the staff page. Skeletons are used for room and library images. Button progress and connection badges stay compact.
+- [x] Perceived performance: parallel staff and profile access reads, settlement in parallel with room and staff reads, a GM room read alongside the access check, Supabase preconnect, eager high-priority first room images, refreshes that keep current content, and a 15-second throttle on routine Admin re-checks. Admin data is still not requested before the Admin role is confirmed.
+- [x] Tests: 11 Node, plus 32 mocked Playwright browser tests including the new `test_loader_browser.py` (8). Visual QA at 1440, 820, and 390 px in headless Chromium with mocked data (ignored `backups/loader-qa/`). The image-tag animation was verified with Chromium's forced motion flags. This machine has Windows animation effects off, so the static fallback is what a default browser shows here.
+- [ ] Live Supabase timing improvement not measured, because no live session was used. Product Owner visual approval pending.
+
 ## Media and shared room draft review (2026-10-14)
 
 - [x] Videos and Sounds now separate manually operated GM libraries from automatic event media. The Arabic cards explain each trigger, show assigned/optional state, preview files, and provide named add/change/remove controls. Desktop, tablet, and mobile screenshots were inspected after the final spacing revision.

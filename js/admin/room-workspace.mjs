@@ -1,6 +1,7 @@
 import { supabase } from '../auth/client.mjs';
 import { installHintSorting } from './hint-sort.mjs';
 import { createAudioPlayer } from './audio-player.mjs';
+import { withImageSkeleton } from '../loader.mjs?v=loader-1';
 
 const roomTabs = [
   ['settings','الإعدادات العامة'], ['hints','التلميحات'],
@@ -92,8 +93,9 @@ function uploadControl({label,kind,currentRef='',staged=null,required=false,onCh
       $(kind==='image'?'img':'video');
     if(kind!=='audio')media.src=source;
     if(kind==='video'){media.controls=true;media.preload='metadata';}
-    if(kind==='image')media.alt=`معاينة ${label}`;
+    if(kind==='image'){media.alt=`معاينة ${label}`;media.decoding='async';}
     preview.append(media);
+    if(kind==='image')withImageSkeleton(media,preview);
   }
   inputFile.addEventListener('change',()=>{
     if(ownsUrl&&localUrl)URL.revokeObjectURL(localUrl);
@@ -346,9 +348,11 @@ function renderMediaTab({draft,container,tab,rerender}){
     if(config.type==='audio')card.append(createAudioPlayer({src:url,label:record.label||fileName(record.assetRef)}));
     else if(url){
       const media=$(config.type==='image'?'img':'video');media.src=url;
-      if(config.type==='image')media.alt=record.label||'صورة الغرفة';
-      else{media.controls=true;media.preload='metadata';}
-      card.append(media);
+      if(config.type==='image'){
+        media.alt=record.label||'صورة الغرفة';media.decoding='async';
+        const frame=$('div','media-image-frame');frame.append(media);card.append(frame);
+        withImageSkeleton(media,frame);
+      }else{media.controls=true;media.preload='metadata';card.append(media);}
     }
     const text=$('div','media-card-copy');
     text.append($('strong','',record.label||'ملف بلا اسم'),

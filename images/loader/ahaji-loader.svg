@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="1 1 317 284" width="317" height="284">
+  <title>Loading</title>
+  <desc>The Ahaji logo: the Arabic word أحاجي traced letter by letter in black maze lettering on a yellow square.</desc>
+  <style>
+    @keyframes ahaji-alef-hamza-1{0%,5.017%{stroke-dashoffset:121px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}8.819%,100%{stroke-dashoffset:0}}
+    .ahaji-alef-hamza-1{stroke-dasharray:119px 123px;stroke-dashoffset:0;animation:ahaji-alef-hamza-1 5.98s linear infinite}
+    @keyframes ahaji-alef-hamza-2{0%,9.655%{stroke-dashoffset:197px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}15.886%,100%{stroke-dashoffset:0}}
+    .ahaji-alef-hamza-2{stroke-dasharray:195px 199px;stroke-dashoffset:0;animation:ahaji-alef-hamza-2 5.98s linear infinite}
+    @keyframes ahaji-hah-1{0%,17.224%{stroke-dashoffset:416px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}30.602%,100%{stroke-dashoffset:0}}
+    .ahaji-hah-1{stroke-dasharray:414px 418px;stroke-dashoffset:0;animation:ahaji-hah-1 5.98s linear infinite}
+    @keyframes ahaji-alef-1{0%,31.940%{stroke-dashoffset:121px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}37.291%,100%{stroke-dashoffset:0}}
+    .ahaji-alef-1{stroke-dasharray:119px 123px;stroke-dashoffset:0;animation:ahaji-alef-1 5.98s linear infinite}
+    @keyframes ahaji-jeem-1{0%,38.629%{stroke-dashoffset:281px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}47.599%,100%{stroke-dashoffset:0}}
+    .ahaji-jeem-1{stroke-dasharray:279px 283px;stroke-dashoffset:0;animation:ahaji-jeem-1 5.98s linear infinite}
+    @keyframes ahaji-jeem-2{0%,48.435%{stroke-dashoffset:35px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}49.498%,100%{stroke-dashoffset:0}}
+    .ahaji-jeem-2{stroke-dasharray:33px 37px;stroke-dashoffset:0;animation:ahaji-jeem-2 5.98s linear infinite}
+    @keyframes ahaji-yeh-1{0%,50.836%{stroke-dashoffset:340px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}61.744%,100%{stroke-dashoffset:0}}
+    .ahaji-yeh-1{stroke-dasharray:338px 342px;stroke-dashoffset:0;animation:ahaji-yeh-1 5.98s linear infinite}
+    @keyframes ahaji-yeh-2{0%,62.580%{stroke-dashoffset:114px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}66.194%,100%{stroke-dashoffset:0}}
+    .ahaji-yeh-2{stroke-dasharray:112px 116px;stroke-dashoffset:0;animation:ahaji-yeh-2 5.98s linear infinite}
+    @keyframes ahaji-yeh-3{0%,67.030%{stroke-dashoffset:65px;animation-timing-function:cubic-bezier(0.45,0,0.4,1)}69.064%,100%{stroke-dashoffset:0}}
+    .ahaji-yeh-3{stroke-dasharray:63px 67px;stroke-dashoffset:0;animation:ahaji-yeh-3 5.98s linear infinite}
+    @keyframes ahaji-vanish{0%,87.458%{opacity:1}94.983%,100%{opacity:0}}
+    .ahaji-vanish{animation:ahaji-vanish 5.98s linear infinite}
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+    }
+  </style>
+  <defs>
+    <clipPath id="ahaji-clip-alef-hamza"><path d="M269 21H298V136H269ZM64 21H255V35H64Z"/></clipPath>
+    <clipPath id="ahaji-clip-hah"><path d="M64 64H255V93H64ZM226 92H255V108H226ZM49 107H255V136H49Z"/></clipPath>
+    <clipPath id="ahaji-clip-alef"><path d="M21 21H50V136H21Z"/></clipPath>
+    <clipPath id="ahaji-clip-jeem"><path d="M189 152H298V180H189ZM269 179H298V195H269ZM146 194H298V223H146ZM269 237H298V266H269Z"/></clipPath>
+    <clipPath id="ahaji-clip-yeh"><path d="M146 179H175V195H146ZM21 152H175V180H21ZM21 179H50V195H21ZM21 194H131V223H21ZM102 222H131V266H102ZM146 252H254V266H146ZM21 237H80V266H21Z"/></clipPath>
+  </defs>
+<rect x="1" y="1" width="317" height="284" rx="0" fill="#FEDD14"/>
+  <path d="M1 1H50V7H1ZM64 1H318V7H64ZM1 279H254V285H1ZM269 279H318V285H269ZM1 1H7V285H1ZM312 1H318V285H312Z" fill="#231F20"/>
+  <g class="ahaji-vanish" fill="none" stroke="#231F20" stroke-width="34" stroke-linejoin="miter"><g clip-path="url(#ahaji-clip-alef-hamza)"><path class="ahaji-alef-hamza-1" d="M283.5 19L283.5 138"/><path class="ahaji-alef-hamza-2" d="M257 28L62 28"/></g><g clip-path="url(#ahaji-clip-hah)"><path class="ahaji-hah-1" d="M62 78.5L240 78.5L240 121L47 121"/></g><g clip-path="url(#ahaji-clip-alef)"><path class="ahaji-alef-1" d="M35.5 19L35.5 138"/></g><g clip-path="url(#ahaji-clip-jeem)"><path class="ahaji-jeem-1" d="M187 166L283.5 166L283.5 208.5L144 208.5"/><path class="ahaji-jeem-2" d="M283.5 235L283.5 268"/></g><g clip-path="url(#ahaji-clip-yeh)"><path class="ahaji-yeh-1" d="M160.5 196L160.5 166L35.5 166L35.5 208.5L116.5 208.5L116.5 268"/><path class="ahaji-yeh-2" d="M144 259L256 259"/><path class="ahaji-yeh-3" d="M19 251.5L82 251.5"/></g></g>
+</svg>

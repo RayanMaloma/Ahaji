@@ -11,7 +11,20 @@ function loginUrl() {
   return `login.html?next=${encodeURIComponent(safeNext(next))}`;
 }
 
+// The room read starts alongside the access check to save round trips. RLS
+// scopes it server-side, and nothing is rendered until access is confirmed.
+function startRoomRead() {
+  if (page !== 'gm' && page !== 'index') return null;
+  const restoring=page==='gm' && new URLSearchParams(location.search).has('session');
+  const read=createRoomRepository(supabase).listRooms({includeInactive:restoring});
+  read.catch(() => {});
+  return read;
+}
+let prefetchedRooms = startRoomRead();
+
 async function checkAccess() {
+  const roomRead = prefetchedRooms;
+  prefetchedRooms = null;
   try {
     const access = await currentAccess();
     if (!access) {
@@ -23,8 +36,7 @@ async function checkAccess() {
       return;
     }
     if (page === 'gm' || page === 'index') {
-      const restoring=page==='gm' && new URLSearchParams(location.search).has('session');
-      const rooms = await createRoomRepository(supabase).listRooms({includeInactive:restoring});
+      const rooms = await (roomRead || startRoomRead());
       setRoomCatalog(rooms);
       window.ahajiAuthorizedRoomIds = new Set(rooms.map(room => room.id));
       if (page === 'gm') {
@@ -73,7 +85,7 @@ async function checkAccess() {
     panel.hidden = false;
     if (!window.ahajiPageLoaded) {
       window.ahajiPageLoaded = true;
-      await import(page === 'gm' ? '../gm.js?v=room-draft-2' : page === 'index' ? '../index.js' : './staff.mjs');
+      await import(page === 'gm' ? '../gm.js?v=room-draft-2' : page === 'index' ? '../index.js?v=loader-1' : './staff.mjs');
     }
   } catch (error) {
     loading.hidden = true;
