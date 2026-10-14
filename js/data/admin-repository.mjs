@@ -19,10 +19,12 @@ export function createAdminRepository(client) {
     return data;
   }
 
-  async function load() {
+  function listRooms() { return rooms.listRooms({ includeInactive: true }); }
+  // `roomRead` lets the caller reuse a room read already in flight.
+  async function load({ roomRead } = {}) {
     // Only the session list depends on settlement; rooms and staff load meanwhile.
     const [roomRows, directory, sessions] = await Promise.all([
-      rooms.listRooms({ includeInactive: true }),
+      roomRead || listRooms(),
       client.rpc('admin_staff_directory'),
       checked(client.rpc('admin_settle_sessions')).then(() => client.from('game_sessions')
         .select('id,room_id,gm_user_id,status,result,started_at,ended_at,created_at,updated_at,remaining_seconds,revision')
@@ -121,7 +123,7 @@ export function createAdminRepository(client) {
     if(error) throw error;
   }
 
-  return Object.freeze({ load,loadHistory,listEvents,createRoom,createRoomForName,updateRoom,
+  return Object.freeze({ load,listRooms,loadHistory,listEvents,createRoom,createRoomForName,updateRoom,
     getRoom,saveRoomDraft,deleteNewRoom,saveHint,
     deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
 }

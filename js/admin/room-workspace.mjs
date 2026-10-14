@@ -1,7 +1,7 @@
 import { supabase } from '../auth/client.mjs';
 import { installHintSorting } from './hint-sort.mjs';
 import { createAudioPlayer } from './audio-player.mjs';
-import { withImageSkeleton } from '../loader.mjs?v=loader-1';
+import { withImageSkeleton } from '../loader.mjs?v=loader-2';
 
 const roomTabs = [
   ['settings','الإعدادات العامة'], ['hints','التلميحات'],

@@ -1,11 +1,11 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=loader-1';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=loader-2';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
-import { renderRoomWorkspace } from './room-workspace.mjs?v=loader-1';
+import { renderRoomWorkspace } from './room-workspace.mjs?v=loader-2';
 import { createRoomDraft } from './room-draft.mjs';
 import {activeDuration,dateKey,groupLabel} from './history-model.mjs?v=refinement-2';
-import {createLoader,withImageSkeleton} from '../loader.mjs?v=loader-1';
+import {createLoader,withImageSkeleton,preloadImages,waitForImages,visibleImages,revealPage} from '../loader.mjs?v=loader-2';
 
 const repository = createAdminRepository(supabase);
 const shell = document.getElementById('admin-shell');
@@ -23,6 +23,10 @@ const state = { access: null, data: null, loading: false, error: false,
 let accessRequestId = 0,lastVerifiedAt = 0;
 // UI re-checks are throttled for routine navigation; RLS still authorizes every request.
 const ACCESS_RECHECK_MS = 15000;
+// First load keeps the page gate up until the first view is complete. Images
+// that are slow or broken stop holding the gate after this budget.
+const BOOT_IMAGE_BUDGET_MS = 2500;
+let booting = true;
 let workspaceDraft=null,workspaceCleanup=null,lastRenderedUrl=location.pathname+location.search;
 const roomName = room => room.name;
 
@@ -761,15 +765,16 @@ window.addEventListener('beforeunload',event=>{
   }
 });
 
-async function loadData(){
+async function loadData({roomRead}={}){
   if(state.loading)return;
   state.loading=true;
-  // Keep showing current data during a refresh; the loader covers only first load or retry.
-  if(!state.data||state.error){state.error=false;state.data=null;if(route().view!=='account')render();}
-  try{state.data=await repository.load();state.error=false;if(route().view!=='account')render();}
-  catch{
-    state.error=true;if(route().view!=='account')render();
-  } finally{state.loading=false;}
+  // During boot the page gate covers loading and boot renders once; afterwards
+  // current data stays visible during a refresh and the loader covers only a retry.
+  const show=()=>{if(!booting&&route().view!=='account')render();};
+  if(!state.data||state.error){state.error=false;state.data=null;show();}
+  try{state.data=await repository.load({roomRead});state.error=false;show();}
+  catch{state.error=true;show();}
+  finally{state.loading=false;}
 }
 async function verifyAccess({force=false}={}){
   if(!force&&state.access&&Date.now()-lastVerifiedAt<ACCESS_RECHECK_MS)return true;
@@ -788,7 +793,7 @@ async function verifyAccess({force=false}={}){
     const name=profileName(access.user,access.profile);
     document.getElementById('sidebar-name').textContent=name===access.user.email?'مدير':name||'مدير';
     document.getElementById('sidebar-email').textContent=access.user.email||'';
-    gate.hidden=true;gateError.hidden=true;shell.hidden=false;
+    gateError.hidden=true;shell.hidden=false;if(!booting)gate.hidden=true;
     const identityChanged=previous && (
       previous.user.id!==access.user.id || previous.user.email!==access.user.email ||
       previous.user.email_confirmed_at!==access.user.email_confirmed_at ||
@@ -804,8 +809,8 @@ async function verifyAccess({force=false}={}){
     return false;
   }
 }
-document.getElementById('admin-auth-retry').addEventListener('click',async()=>{
-  gateError.hidden=true;gate.hidden=false;if(await verifyAccess({force:true}))await loadData();
+document.getElementById('admin-auth-retry').addEventListener('click',()=>{
+  gateError.hidden=true;gate.hidden=false;boot();
 });
 document.getElementById('admin-logout').addEventListener('click',async event=>{
   if(workspaceDraft?.saving||workspaceDraft?.locked){
@@ -826,4 +831,25 @@ supabase.auth.onAuthStateChange(event=>{
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)verifyAccess();});
 const initialRoute=route();
 setNavigation(initialRoute.view,initialRoute.id);
-if(await verifyAccess({force:true}))await loadData();
+// One loading boundary for the first view: authorize, fetch, render under the
+// gate, wait for the visible images, then reveal once. Only the RLS-scoped room
+// read and public cover images start before the Admin role is confirmed;
+// Admin-only requests wait for it.
+async function boot(){
+  booting=true;shell.inert=true;shell.setAttribute('aria-busy','true');
+  const roomRead=repository.listRooms();roomRead.catch(()=>{});
+  roomRead.then(rooms=>preloadImages(rooms.slice(0,6).map(room=>assetUrl(room.thumbnail)))).catch(()=>{});
+  if(!await verifyAccess({force:true}))return;
+  performance.mark('ahaji:auth-ready');
+  await loadData({roomRead});
+  if(['history','session'].includes(route().view)&&!state.error){
+    try{state.history=await repository.loadHistory();}catch{state.historyError=true;}
+  }
+  performance.mark('ahaji:data-ready');
+  render();
+  await waitForImages(visibleImages(content),BOOT_IMAGE_BUDGET_MS);
+  performance.mark('ahaji:view-ready');
+  booting=false;
+  revealPage(gate,shell);
+}
+await boot();

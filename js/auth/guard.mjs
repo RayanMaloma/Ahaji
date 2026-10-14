@@ -1,5 +1,8 @@
 import { supabase, currentAccess, safeNext } from './client.mjs';
 import { createRoomRepository } from '../data/room-repository.mjs';
+import { revealPage, visibleImages, waitForImages } from '../loader.mjs?v=loader-2';
+
+const BOOT_IMAGE_BUDGET_MS = 2500;
 
 const page = document.body.dataset.protectedPage;
 const loading = document.getElementById('auth-loading');
@@ -81,12 +84,15 @@ async function checkAccess() {
     if(emailForm)emailForm.hidden=access.accountType==='operator';
     const adminLink = document.getElementById('admin-dashboard-link');
     if (adminLink) adminLink.hidden = access.role !== 'admin';
-    loading.hidden = true;
+    // The page renders under the gate; room cards are revealed with their
+    // visible images ready (bounded), in one transition.
     panel.hidden = false;
     if (!window.ahajiPageLoaded) {
       window.ahajiPageLoaded = true;
-      await import(page === 'gm' ? '../gm.js?v=room-draft-2' : page === 'index' ? '../index.js?v=loader-1' : './staff.mjs');
+      await import(page === 'gm' ? '../gm.js?v=room-draft-2' : page === 'index' ? '../index.js?v=loader-2' : './staff.mjs');
+      if (page === 'index') await waitForImages(visibleImages(panel), BOOT_IMAGE_BUDGET_MS);
     }
+    revealPage(loading, panel);
   } catch (error) {
     loading.hidden = true;
     failure.hidden = false;

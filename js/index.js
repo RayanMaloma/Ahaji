@@ -1,4 +1,4 @@
-import { withImageSkeleton } from './loader.mjs?v=loader-1';
+import { withImageSkeleton } from './loader.mjs?v=loader-2';
 
 const roomGrid = document.getElementById('room-grid');
 getRooms().filter(room => window.ahajiAuthorizedRoomIds.has(room.id)).forEach((room, index) => {

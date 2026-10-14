@@ -2,9 +2,14 @@
 
 import base64
 import json
+import mimetypes
+import pathlib
+import re
 import time
 import uuid
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 PROJECT = "gbhleqizxcmxmutgcjon"
@@ -184,3 +189,16 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
             route.fulfill(status=404, headers=headers, body="{}")
 
     context.route(f"https://{PROJECT}.supabase.co/**", reply)
+    # Routing disables the browser cache, and large media passed through the
+    # interceptor can stall. Serve local room media directly, with the cache
+    # header Supabase Storage sends, so image timing reflects the application.
+    context.route(re.compile(r"^http://127\.0\.0\.1:\d+/(source|images)/"), serve_local_media)
+
+
+def serve_local_media(route):
+    path = (ROOT / unquote(urlparse(route.request.url).path).lstrip("/")).resolve()
+    if ROOT in path.parents and path.is_file():
+        route.fulfill(path=str(path), headers={"cache-control": "max-age=3600",
+                      "content-type": mimetypes.guess_type(path.name)[0] or "application/octet-stream"})
+    else:
+        route.fallback()
