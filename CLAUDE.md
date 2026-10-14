@@ -1,226 +1,56 @@
 # CLAUDE.md
 
-## Project Identity
-This project is a **local-only Escape Room Game Master system** for **Ahaji**.
-It is used on **the same machine via localhost**, with **no domain, no backend, and no database** in v1.
+Ahaji is an Arabic-first escape-room operations app: an Admin workspace, a Game Master (GM) console, and a paired Cast display, backed by Supabase. The original v1 "local-only, no backend" brief is obsolete; do not follow it.
 
-The product has 3 room options:
-- Prison
-- Pyramid
-- Uncle Saleh
+## Primary references
 
-The user flow is:
-1. Open the home page.
-2. Show 3 room cards.
-3. The Game Master clicks one room.
-4. Open the Game Master page for that room.
-5. Open the Cast page for that room.
-6. Before the game starts, the Cast page shows the selected room image.
-7. When the Game Master clicks **Start**, the room image remains visible and the screen shows a **large countdown timer** plus a **hint box overlay**.
+Read these before changing anything. They override this file where they are more specific.
 
----
+1. `AGENTS.md` — engineering rules and approval gates.
+2. `docs/AHAJI_REFINEMENT_STATUS.md` — current review status, open gaps, resume procedure.
+3. `docs/AHAJI_OPERATIONS.md` — local run, LAN review, backup, restore, security.
+4. `docs/AHAJI_ROOM_DRAFT.md` — shared room draft and media save behavior.
+5. `docs/AHAJI_DELIVERY_STATUS.md` and `README.md`.
 
-## Main Goal
-Build a clean, reliable **front-end only** local MVP that works smoothly on localhost and feels polished enough for real in-room use.
+Treat code and verified documentation as the source of truth. Record what was tested with mocks versus live services.
 
----
+## Approval gates
 
-## Non-Negotiable Constraints
+- The Product Owner's current milestone scope is authoritative. Do not start the next phase without explicit approval.
+- Work on a feature branch. Never merge into `main`, force-push, or deploy the frontend without explicit Product Owner approval.
+- Live Supabase changes (migrations, data writes, Storage changes, Edge Function deploys, Auth settings) require explicit Product Owner authorization for each change. Read-only metadata inspection is the default.
+- Supabase operations are restricted to project `gbhleqizxcmxmutgcjon`.
+- Use only free tools and infrastructure. No paid services or plan upgrades.
 
-### Scope
-- This is **version 1 only**.
-- Do **not** add backend.
-- Do **not** add Firebase, Supabase, WebSockets, databases, authentication, APIs, or deployment setup.
-- Do **not** add features that were not requested.
-- Do **not** redesign the product concept.
+## Architecture
 
-### Technical Boundaries
-- Use only **HTML, CSS, and vanilla JavaScript**.
-- Must run locally on **localhost**.
-- Must support communication between pages using a **local-only browser mechanism**, preferably:
-  - `BroadcastChannel`
-  - and/or `localStorage` events as fallback if needed.
-- No frameworks unless explicitly requested later.
+- Frontend: static HTML, CSS, and vanilla ES modules. No framework or bundler except `npm run build:auth`, which builds `js/vendor/supabase.bundle.mjs` with esbuild.
+- Pages: `login.html`, `recover.html`, `unauthorized.html`, `admin.html`, `staff.html`, `index.html` (GM room selection), `gm.html`, `cast.html`, `cast-preview.html`.
+- Admin (`js/admin/`): rooms are the default page. Each room has five tabs (settings, hints, images, videos, sounds) backed by a single `createRoomDraft` instance. Save All uploads staged files and then calls the `admin_save_room_draft` RPC, which compares `rooms.content_revision` and commits in one transaction. Also includes staff, history (Asia/Riyadh grouping, active-duration from events), and account/profile.
+- Room data: `js/app.js` holds normalized room configuration and the shared `renderCastView` used by both Cast and the Admin preview. `js/data/` contains the Supabase room and Admin repositories.
+- Sessions: `js/session-adapter.js` is the transport boundary. Session state and timer timestamps are server-owned. Gameplay writes go only through named `game_session_command` actions. GM receives Postgres Realtime notifications and refetches authoritative state. Cast polls a token-checked function about every two seconds using an expiring 48-character pairing token whose hash is stored server-side. Cast needs no staff account. Scope every session read, write, and message by room ID and session ID.
+- GM/Cast behavior: timer, controls, and media presentation live in `js/gm.js` and `js/cast.js`. Preserve the three original room flows and the GM/Cast URL shape (`room`, `session`, `key`).
+- Auth and RBAC (`js/auth/`): Supabase Auth with no public sign-up. Roles live only in `staff_accounts` and room assignments in `staff_room_access`, never in JWT or user metadata. Admin requires a verified email and a live session. The last active Admin cannot be removed. Operator GM usernames are handled by the `operator-login` and `operator-account` Edge Functions and can never be promoted to Admin. Email invitations go through `staff-invite`.
+- Database: versioned schema, RLS, grants, and trusted functions live in `supabase/migrations/`; seed data in `supabase/seed.sql`; rolled-back SQL regression tests in `supabase/tests/`. Every public table has RLS and explicit grants.
+- Storage: the public `room-assets` bucket serves Cast media, and only Admin may write to it. `profile-assets` holds owner-scoped avatars. Uploads are limited to 10 MiB and an allowlisted MIME list. Replaced objects are retained, not deleted automatically.
 
-### Design Boundaries
-- Preserve the immersive room feeling.
-- The Cast screen is **not** a boring dashboard.
-- The room image must remain visible after start.
-- Timer and hint box must feel integrated with the room image, not randomly pasted on top.
-- The layout must look strong on a large display.
+## Security
 
-### Working Style
-- Make only the requested changes.
-- Keep code clean and modular.
-- If you need to make a structural decision, choose the simplest stable option.
-- If a requested change might break current behavior, explain it before changing too much.
+- Only the publishable Supabase key belongs in browser code. Keep service-role, SMTP, and database credentials out of Git, frontend code, logs, and backups.
+- `backups/` is Git-ignored and contains sensitive snapshots. Preserve it and never commit it.
+- Never restore into the live project. Restore testing happens only in a disposable PostgreSQL 17 database.
+- Treat Cast links as temporary secrets.
 
----
+## Design direction
 
-## Product Requirements
+- Arabic-first, RTL interfaces using the bundled Thmanyah Serif Display fonts in `css/fonts/`.
+- The Cast screen is immersive, not a dashboard. The room image stays visible, and the timer and hint box should feel integrated with it on large displays.
+- Dark, clean, professional, minimal clutter. Avoid gimmicks and excess animation. Respect `prefers-reduced-motion`.
+- Keep three verified viewport sizes in mind: 1440, 820, and 390 pixels.
 
-### 1) Home Page
-Create a landing page that shows 3 room choices:
-- Prison
-- Pyramid
-- Uncle Saleh
+## Local checks
 
-Requirements:
-- Each room appears as a clear selectable card.
-- Strong visual hierarchy.
-- Easy for a Game Master to use quickly.
-- When a room is selected, navigate into the Game Master flow for that room.
-
-### 2) Game Master Page
-The Game Master page must control the selected room.
-
-Minimum required controls:
-- Show selected room name
-- Start timer
-- Pause timer
-- Resume timer
-- Reset timer back to 60:00
-- Add time
-- Subtract time
-- Hint input field
-- Send / update hint
-- Open Cast screen button
-
-Behavior:
-- The timer starts at **60:00**.
-- Game Master actions must immediately affect the Cast page.
-- The Cast page should be openable in a separate window/tab from the same local machine.
-
-### 3) Cast Page
-The Cast page is the in-room display screen.
-
-Before Start:
-- Show the selected room image full-screen or near full-screen.
-- Show Ahaji logo at top-left.
-- No timer visible yet.
-- No ugly placeholder UI.
-
-After Start:
-- Keep the room image visible.
-- Show a large clear countdown timer over the image.
-- Show a large hint box over the image.
-- The timer and hint box must be visually balanced with the background image.
-- The hint box should be wide, responsive, and suitable for TV or display casting.
-
-Important:
-- The image must **not disappear** when the timer starts.
-- The timer and hint container should feel like part of the scene.
-- Use an overlay layer if needed for readability.
-
----
-
-## Assets
-Assume this structure exists or should be used:
-
-```txt
-/images
-  anbar.png
-  pyramid.png
-  amsaleh.png
-  ahaji-logo.png
-```
-
-Map rooms like this:
-- Al Anbar -> `images/prison.png`
-- Al Haram -> `images/pyramid.png`
-- Am Saleh -> `images/unclesaleh.png`
-- Logo -> `images/ahajilogo.png`
-
-If file names need to be referenced in code, keep them exactly as above unless the actual project files differ.
-
----
-
-## Suggested File Structure
-Use this unless the current project already has a better equivalent structure:
-
-```txt
-/index.html
-/gm.html
-/cast.html
-/css/style.css
-/js/app.js
-/js/gm.js
-/js/cast.js
-/images/...
-```
-
-If reorganization is needed, do it cleanly and keep paths obvious.
-
----
-
-## Room State Model
-Use a single simple room state object for local communication.
-
-Suggested state fields:
-- `roomId`
-- `roomName`
-- `image`
-- `status` (`idle`, `running`, `paused`, `ended`)
-- `durationSeconds`
-- `remainingSeconds`
-- `hintText`
-- `startedAt`
-- `lastUpdatedAt`
-
-Keep the implementation simple.
-
----
-
-## UX Priorities
-Prioritize these in order:
-1. Reliability of local communication between GM and Cast
-2. Readability of timer on large display
-3. Strong room atmosphere on Cast page
-4. Clean controls on GM page
-5. Responsive layout
-
----
-
-## Visual Direction
-- Clean
-- Dark / immersive
-- Professional
-- Minimal clutter
-- Good spacing
-- Large readable timer
-- Hint box should feel intentional and premium
-- Avoid over-animating
-- Avoid gimmicks
-
----
-
-## What Not To Do
-- Do not add login
-- Do not add unnecessary settings panels
-- Do not add sound systems unless requested
-- Do not add networking or server setup
-- Do not add admin roles
-- Do not add extra room management complexity
-- Do not convert to React/Vue/etc.
-- Do not create fake backend code
-
----
-
-## Delivery Standard
-When implementing:
-- Keep code readable
-- Comment only where helpful
-- Avoid duplication
-- Keep naming clear
-- Make sure the full flow works end-to-end
-- If something is mocked temporarily, label it clearly
-
----
-
-## Response Style
-When responding while coding:
-- Be direct and practical
-- State what you changed
-- State what files were touched
-- State any assumptions clearly
-- Do not add unnecessary explanation
+- Serve: `python -m http.server 8765 --bind 127.0.0.1 --protocol HTTP/1.1`, then open `http://127.0.0.1:8765/login.html`.
+- `npm test` runs the Node unit tests.
+- `python -m unittest discover -s tests -v` runs the mocked Playwright browser suite. One Cast navigation test is intermittently flaky; rerun before treating it as a real failure.
+- Check GM and Cast together in the browser before presenting a milestone.
