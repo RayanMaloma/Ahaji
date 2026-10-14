@@ -22,7 +22,9 @@ const newTables={...legacyTables,
   rooms:[...legacyTables.rooms,'presentation_settings'],
   staff_accounts:[...legacyTables.staff_accounts,'account_type','login_name'],
   staff_profiles:['user_id','display_name','avatar_ref','updated_at']};
-const spec=value=>value.format==='ahaji-full-snapshot-v2'?newTables:legacyTables;
+const draftTables={...newTables,rooms:[...newTables.rooms,'content_revision']};
+const spec=value=>value.format!=='ahaji-full-snapshot-v2'?legacyTables:
+  value.migration_versions.includes('20261014113852')?draftTables:newTables;
 const jsonColumns=new Set(['state','payload','before_record','after_record','metadata','presentation_settings']);
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const canonical=value=>JSON.stringify(value,(_key,item)=>

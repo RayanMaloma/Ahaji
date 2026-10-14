@@ -72,6 +72,13 @@ export function createAdminRepository(client) {
   async function updateRoom(id, values) {
     return checked(client.from('rooms').update(values).eq('id', id).select('id').single());
   }
+  async function getRoom(id){return rooms.getRoom(id,{includeInactive:true});}
+  async function saveRoomDraft(id,revision,payload){
+    return checked(client.rpc('admin_save_room_draft',{
+      p_room_id:id,p_expected_revision:revision,p_room:payload.room,
+      p_hints:payload.hints,p_media:payload.media
+    }));
+  }
   async function deleteNewRoom(id) {
     return checked(client.from('rooms').delete().eq('id', id));
   }
@@ -113,6 +120,7 @@ export function createAdminRepository(client) {
     if(error) throw error;
   }
 
-  return Object.freeze({ load,loadHistory,listEvents,createRoom,createRoomForName,updateRoom,deleteNewRoom,saveHint,
+  return Object.freeze({ load,loadHistory,listEvents,createRoom,createRoomForName,updateRoom,
+    getRoom,saveRoomDraft,deleteNewRoom,saveHint,
     deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
 }

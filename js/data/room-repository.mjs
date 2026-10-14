@@ -35,6 +35,7 @@ function normalizeRoom(row, hints, media) {
     isActive: row.is_active,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    contentRevision: row.content_revision ?? 0,
     hints: hints.filter(item => item.room_id === row.id)
       .sort((a, b) => a.display_order - b.display_order)
       .map(item => ({ id: item.id, text: item.body, displayOrder: item.display_order })),
@@ -57,7 +58,7 @@ export function createRoomRepository(client) {
 
   async function listRooms({ includeInactive = false } = {}) {
     let query = client.from('rooms').select(
-      'id,name,description,thumbnail_ref,background_ref,default_duration_seconds,presentation_settings,display_order,is_active,created_at,updated_at'
+      'id,name,description,thumbnail_ref,background_ref,default_duration_seconds,presentation_settings,display_order,is_active,created_at,updated_at,content_revision'
     );
     if (!includeInactive) query = query.eq('is_active', true);
     const rooms = await read(query.order('display_order').order('id'));
