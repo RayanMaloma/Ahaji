@@ -368,3 +368,5 @@ body{direction:rtl;background:var(--paper)}
 }
 .media-image-frame{border-radius:5px;overflow:hidden;background:#111}.media-image-frame img{display:block}
 .upload-preview.image-skeleton{width:min(100%,260px);height:135px;border-radius:7px}
+.staff-status{display:grid;gap:4px;justify-items:start}.staff-status-note{color:var(--muted);font-size:11px}
+.invite-sent{border-color:rgba(121,232,160,.35)}

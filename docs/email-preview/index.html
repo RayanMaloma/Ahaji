@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>معاينة دعوة الفريق · أحاجي</title>
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;background:#080808;color:#e8e8e8;font-family:Tahoma,"Segoe UI",Arial,sans-serif}
+  header{padding:24px 16px 8px;max-width:1100px;margin:auto}
+  h1{margin:0 0 6px;font-size:22px}
+  p{margin:0;color:#a3a3a3;font-size:14px;line-height:1.7}
+  .grid{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;padding:16px}
+  figure{margin:0}
+  figcaption{font-size:13px;color:#a3a3a3;margin-bottom:8px}
+  iframe{border:1px solid #2a2a2a;border-radius:10px;background:#0d0d0d;display:block}
+  .desktop{width:min(680px,calc(100vw - 32px));height:980px}
+  .mobile{width:375px;max-width:calc(100vw - 32px);height:980px}
+  pre{white-space:pre-wrap;background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:16px;max-width:680px;margin:0 auto 32px;font-size:13px;line-height:1.8}
+  section{padding:0 16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>معاينة رسالة دعوة الفريق</h1>
+  <p>عيّنة ببيانات تجريبية. الشعار هنا محمّل من المستودع؛ في الإنتاج يُستضاف على رابط HTTPS عام. الرابط في الزر وهمي ولا يفعّل أي حساب.</p>
+</header>
+<div class="grid">
+  <figure><figcaption>سطح المكتب · مع اسم المدعو</figcaption><iframe class="desktop" src="staff-invite-email.html" title="الرسالة على سطح المكتب"></iframe></figure>
+  <figure><figcaption>الجوال · 375px</figcaption><iframe class="mobile" src="staff-invite-email.html" title="الرسالة على الجوال"></iframe></figure>
+  <figure><figcaption>بدون اسم</figcaption><iframe class="mobile" src="staff-invite-email-no-name.html" title="الرسالة بدون اسم"></iframe></figure>
+</div>
+<section>
+  <p style="max-width:680px;margin:0 auto 8px">النص البديل (للعملاء التي لا تعرض HTML)</p>
+  <pre id="text">جارٍ التحميل…</pre>
+</section>
+<script>fetch('staff-invite-email.txt').then(r=>r.text()).then(t=>{document.getElementById('text').textContent=t;}).catch(()=>{document.getElementById('text').textContent='افتح staff-invite-email.txt';});</script>
+</body>
+</html>

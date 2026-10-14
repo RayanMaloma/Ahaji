@@ -100,7 +100,16 @@ export function revealPage(gate, content) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced) { gate.hidden = true; return; }
   gate.classList.add('is-leaving');
-  const done = () => { gate.hidden = true; gate.classList.remove('is-leaving'); };
+  const done = () => {
+    if (!gate.classList.contains('is-leaving')) return;
+    gate.hidden = true; gate.classList.remove('is-leaving');
+  };
   gate.addEventListener('animationend', done, { once: true });
   setTimeout(done, 260);
+}
+
+// Shows a page gate again (e.g. while verifying), cancelling any fade in progress.
+export function showPageGate(gate) {
+  gate.classList.remove('is-leaving');
+  gate.hidden = false;
 }

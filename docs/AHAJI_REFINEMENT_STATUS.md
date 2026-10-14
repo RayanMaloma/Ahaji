@@ -2,6 +2,14 @@
 
 Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Product Owner decision: **request changes; not approved**. Work is on `codex/final-review-refinements`. Do not merge or deploy the application.
 
+## Branded staff invitations (2026-10-14)
+
+The Product Owner approved the loader. The review branch was backed up to GitHub at `baf3bd5`. The invitation work is implemented and tested locally but **not activated**: no live migration, Edge Function deploy, Auth setting change, or email. See `docs/AHAJI_STAFF_INVITATIONS.md`.
+
+- [x] Migration `20261014203000_staff_invitations.sql` (pending invitations, activation gate, resend, revoke, directory status), SQL regression `supabase/tests/staff_invitations.sql`, verified on disposable PostgreSQL 17 including a restored production snapshot.
+- [x] `staff-invite` v4 logic in a testable `handler.ts`; branded Arabic RTL email template with a plain-text version and a preview; `activate.html` first-login journey; Staff page with name, invitation status, resend, and revoke; pending invitees routed to activation from every entry point.
+- [ ] Live activation awaiting Product Owner approval: migration, function deploy, Auth settings and template, logo upload, and custom SMTP provider.
+
 ## Branded loader integration (2026-10-14)
 
 Product Owner authorized loader integration only. See `docs/AHAJI_LOADER.md`.
