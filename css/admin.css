@@ -297,3 +297,71 @@ body{direction:rtl;background:var(--paper)}
 .history-card-meta{grid-column:1;display:flex;gap:8px 20px;flex-wrap:wrap;color:var(--muted);font-size:13px}
 .history-card>.mini-action{grid-column:2;grid-row:1/span 2;align-self:center}
 @media(max-width:650px){.history-card{grid-template-columns:1fr}.history-card>.mini-action{grid-column:1;grid-row:auto;justify-self:start}}
+
+/* A compact save bar stays in view while all five room tabs share one draft. */
+.room-workspace-tabs{margin-bottom:12px}
+.room-savebar{position:sticky;top:0;z-index:8;display:flex;align-items:center;
+  justify-content:space-between;gap:12px;min-height:58px;padding:9px 13px;
+  margin-bottom:22px;border:1px solid var(--line);border-radius:9px;
+  background:#171717f2;backdrop-filter:blur(10px)}
+.room-savebar.is-dirty{border-color:#8e761b}
+.room-draft-status{font-size:13px;color:#c9c7bb;line-height:1.5}
+.room-savebar.is-dirty .room-draft-status{color:var(--yellow)}
+.room-draft-status.error{color:#ff9c93!important}
+.room-savebar-actions{display:flex;align-items:center;gap:8px;flex:none}
+.room-savebar .button-dark{background:var(--yellow);color:#111;border-color:var(--yellow)}
+.room-savebar .button-dark:hover{background:#ffe052}
+.room-savebar .button-dark:disabled{opacity:.52;cursor:not-allowed}
+.room-savebar [hidden]{display:none}
+.leave-draft-copy{margin:0;line-height:1.65;color:#e0ded6}
+.leave-draft-actions{display:flex;gap:9px;flex-wrap:wrap}
+.leave-draft-actions button{min-height:40px}
+.admin-content>.settings-section{margin-bottom:24px}
+.admin-content>.settings-section:last-child{margin-bottom:0}
+
+/* Manual libraries and automatic events have separate cards and rhythm. */
+.media-library-section .settings-section-head{display:grid;
+  grid-template-columns:minmax(0,1fr) auto;column-gap:20px;row-gap:5px}
+.media-library-section .settings-section-head h2{grid-column:1;grid-row:1}
+.media-library-section .settings-section-head p{grid-column:1;grid-row:2}
+.media-library-section .settings-section-head .button-dark{
+  grid-column:2;grid-row:1 / span 2;align-self:center;margin:0}
+.media-library-section>.panel-empty{padding:15px 0 3px;margin:0}
+.media-grid-video{grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:17px}
+.media-grid-audio{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:17px}
+.room-media-card{padding:14px;gap:11px}
+.room-media-card video{max-height:190px;object-fit:contain}
+.room-media-card img{max-height:190px;object-fit:contain}
+.media-card-copy{display:grid;gap:3px;min-width:0}
+.media-card-copy strong{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.media-card-copy small{font-size:12px;color:var(--muted);direction:auto;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room-media-card .item-actions{margin-top:auto;padding-top:4px;flex-wrap:wrap}
+.automatic-media-card{display:grid;gap:13px;margin-top:15px;padding:18px;
+  border:1px solid var(--line);border-radius:10px;background:#1b1b1b}
+.automatic-media-card:first-of-type{margin-top:4px}
+.automatic-media-head{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.automatic-media-copy h3{margin:0 0 6px;font-size:18px}
+.automatic-media-copy p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.automatic-media-state{flex:none;border:1px solid var(--line);border-radius:999px;
+  padding:5px 10px;color:var(--muted);font-size:12px}
+.automatic-media-state.assigned{color:var(--yellow);border-color:#816c20;background:#302914}
+.automatic-media-preview{display:grid;gap:7px;min-width:0}
+.automatic-media-preview video{display:block;width:min(100%,360px);aspect-ratio:16/9;
+  object-fit:contain;background:#0b0b0b;border-radius:7px}
+.automatic-media-preview .ahaji-audio-player{max-width:420px}
+.automatic-media-preview small{color:var(--muted);font-size:11px;direction:auto}
+.automatic-media-empty{margin:0;color:#aaa69a;font-size:13px}
+.automatic-media-actions{justify-content:flex-start;flex-wrap:wrap}
+@media(max-width:650px){
+  .media-library-section .settings-section-head{grid-template-columns:1fr}
+  .media-library-section .settings-section-head h2,
+  .media-library-section .settings-section-head p,
+  .media-library-section .settings-section-head .button-dark{grid-column:1;grid-row:auto}
+  .media-library-section .settings-section-head .button-dark{justify-self:start;margin-top:7px}
+  .room-savebar{top:0;align-items:stretch;flex-direction:column;padding:9px}
+  .room-savebar-actions{width:100%;justify-content:space-between}
+  .room-savebar-actions .button-dark{flex:1}
+  .automatic-media-head{flex-wrap:wrap}
+  .media-grid-video,.media-grid-audio{grid-template-columns:1fr}
+}

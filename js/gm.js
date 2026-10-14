@@ -168,13 +168,6 @@
     return sent;
   }
 
-  function emitLoseMediaIfNeeded() {
-    const roomMedia = getRoomMedia(roomId);
-    if (roomMedia.loseSound || roomMedia.loseVideo) {
-      session.publishSessionEvent('lose-media');
-    }
-  }
-
   function stopRenderLoop() {
     if (renderIntervalId !== null) {
       clearInterval(renderIntervalId);
@@ -213,16 +206,13 @@
     state.remainingSeconds = 0;
     state.endsAt = null;
     state.status = 'ended';
-    let shouldEmitLose = false;
     if (state.viewMode !== 'win') {
       state = setLoseState(state);
       const roomMedia = getRoomMedia(roomId);
       if (roomMedia.loseVideo) { state.loseMode = 'video'; } else { delete state.loseMode; }
-      shouldEmitLose = true;
     }
     render();
     broadcast('timeout');
-    if (shouldEmitLose) emitLoseMediaIfNeeded();
   }
 
   function doAddCounter() {
@@ -248,6 +238,12 @@
       const currentMs = Math.max(0, state.endsAt - Date.now());
       const newMs = Math.max(0, Math.min(currentMs + deltaMs, MAX_SECONDS * 1000));
       if (newMs === 0) {
+        // The server owns the timer. Record the adjustment first; its next
+        // authoritative read settles expiry and publishes the loss state.
+        if (serverMode) {
+          broadcast('adjust',{delta_seconds:minutes*60});
+          return;
+        }
         state.endsAt = Date.now();
         handleTimeout();
         return;

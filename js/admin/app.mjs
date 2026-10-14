@@ -1,8 +1,9 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=room-ux-1';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=room-draft-1';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
-import { renderRoomWorkspace } from './room-workspace.mjs?v=room-ux-1';
+import { renderRoomWorkspace } from './room-workspace.mjs?v=room-draft-1';
+import { createRoomDraft } from './room-draft.mjs';
 import {activeDuration,dateKey,groupLabel} from './history-model.mjs?v=refinement-2';
 
 const repository = createAdminRepository(supabase);
@@ -19,6 +20,7 @@ const state = { access: null, data: null, loading: false, error: false,
   historyView:{timeZone:localStorage.getItem('ahaji-history-timezone')||'Asia/Riyadh',
     mode:'all',day:'',start:'',end:'',showShort:false} };
 let accessRequestId = 0;
+let workspaceDraft=null,workspaceCleanup=null,lastRenderedUrl=location.pathname+location.search;
 const roomName = room => room.name;
 
 function node(tag, className = '', value) {
@@ -145,8 +147,11 @@ function detailField(label, value) {
 }
 function showDialog(title,build) {
   const dialog=node('dialog','admin-dialog');
+  const titleId=`admin-dialog-${crypto.randomUUID()}`;
+  dialog.setAttribute('aria-labelledby',titleId);
   const form=node('form','admin-dialog-form');form.method='dialog';
-  const head=node('div','admin-dialog-head');head.append(node('h2','',title));
+  const head=node('div','admin-dialog-head');const titleNode=node('h2','',title);
+  titleNode.id=titleId;head.append(titleNode);
   const close=button('✕','mini-action');close.setAttribute('aria-label','إغلاق');close.addEventListener('click',()=>dialog.close());head.append(close);
   form.append(head);build(form,dialog);
   dialog.append(form);document.body.append(dialog);
@@ -545,7 +550,9 @@ function setNavigation(view,id){
   document.title=`${title} · أحاجي`;
 }
 function render(){
-  const {view,id}=route();setNavigation(view,id);content.replaceChildren();
+  workspaceCleanup?.();workspaceCleanup=null;
+  const {view,id}=route();lastRenderedUrl=location.pathname+location.search;
+  setNavigation(view,id);content.replaceChildren();
   adminMain.classList.toggle('rooms-scroll',['rooms','room','edit-room','new-room'].includes(view));
   content.classList.toggle('compact-content',view==='rooms'||view==='staff'||view==='account');
   if(view==='account' && state.access){renderAccount();return;}
@@ -560,19 +567,150 @@ function render(){
   if(view==='rooms')renderRooms();
   else if(view==='room'||view==='edit-room'){
     const room=state.data.rooms.find(item=>item.id===id);
-    if(room)renderRoomWorkspace({room,container:content,repository,navigate,refresh});
+    if(room){
+      if(!workspaceDraft||workspaceDraft.roomId!==room.id)workspaceDraft=createRoomDraft(room);
+      workspaceCleanup=renderRoomWorkspace({draft:workspaceDraft,container:content,
+        onSave:saveCurrentDraft,onDiscard:discardCurrentDraft,rerender:render});
+    }
     else renderNotFound('لم نتمكن من العثور على هذه الغرفة.');
   }
-  else if(view==='new-room')renderRoomWorkspace({container:content,repository,navigate,refresh});
+  else if(view==='new-room'){
+    if(!workspaceDraft||workspaceDraft.roomId)workspaceDraft=createRoomDraft();
+    workspaceCleanup=renderRoomWorkspace({draft:workspaceDraft,container:content,
+      onSave:saveCurrentDraft,onDiscard:discardCurrentDraft,rerender:render});
+  }
   else if(view==='staff')renderStaff();
   else if(view==='history')renderHistory();
   else if(view==='session')renderSessionDetail(id);
   else renderNotFound('هذا الرابط لا يشير إلى صفحة في لوحة الإدارة.');
 }
+function sameWorkspace(url){
+  if(!workspaceDraft)return false;
+  const params=url.searchParams,view=params.get('view');
+  return workspaceDraft.roomId
+    ?(['room','edit-room'].includes(view)&&params.get('id')===workspaceDraft.roomId)
+    :view==='new-room';
+}
+async function discardCurrentDraft(){
+  if(!workspaceDraft?.isDirty())return;
+  if(!confirm('تجاهل جميع التغييرات غير المحفوظة في هذه الغرفة؟'))return;
+  const draft=workspaceDraft;
+  if(draft.roomId){
+    try{
+      const latest=await repository.getRoom(draft.roomId);
+      if(!latest)throw new Error('لم نتمكن من تحميل الغرفة.');
+      draft.resetFrom(latest);
+      const index=state.data?.rooms.findIndex(room=>room.id===draft.roomId)??-1;
+      if(index>=0)state.data.rooms[index]=latest;
+    }catch(error){draft.setStatus(error.message||'تعذّر تحميل أحدث بيانات الغرفة.',true);return;}
+  }else draft.discard();
+  render();
+}
+async function saveCurrentDraft(){
+  const draft=workspaceDraft;
+  if(!draft||draft.saving||draft.locked)return false;
+  if(!draft.isDirty())return true;
+  const values=draft.general;
+  if(!values.name.trim()){draft.setStatus('اكتب اسم الغرفة.',true);return false;}
+  if(!Number.isInteger(values.durationSeconds)||values.durationSeconds<60||
+    values.durationSeconds>5940){draft.setStatus('مدة اللعبة يجب أن تكون بين دقيقة و99 دقيقة.',true);return false;}
+  const stagedRefs=[],uploaded=new Map();
+  draft.setSaving(true);
+  let roomId=draft.roomId,created=false,committed=false;
+  try{
+    if(!roomId){
+      roomId=await repository.createRoomForName({
+        name:values.name.trim(),description:values.description.trim(),
+        default_duration_seconds:values.durationSeconds,
+        is_active:false,presentation_settings:values.presentation,
+        thumbnail_ref:'images/ahajilogo.svg',background_ref:'images/ahajilogo.svg'
+      });
+      created=true;
+    }
+    for(const entry of draft.uploadEntries()){
+      const ref=await repository.uploadAsset(roomId,entry.file);
+      stagedRefs.push(ref);uploaded.set(entry.kind==='image'?'image':entry.id,ref);
+    }
+    const payload=draft.payload(uploaded);
+    if(created){
+      await repository.updateRoom(roomId,{
+        name:payload.room.name,description:payload.room.description,
+        default_duration_seconds:payload.room.durationSeconds,
+        is_active:payload.room.active,
+        presentation_settings:payload.room.presentation,
+        thumbnail_ref:payload.room.imageRef,background_ref:payload.room.imageRef
+      });
+      draft.markCommitted(0);
+    }else{
+      const result=await repository.saveRoomDraft(roomId,draft.revision,payload);
+      draft.markCommitted(result.revision);
+    }
+    committed=true;
+    const savedRoom=await repository.getRoom(roomId);
+    if(!savedRoom)throw new Error('حُفظت البيانات لكن تعذّر تحديث عرض الغرفة. أعد تحميل الصفحة.');
+    if(state.data){
+      state.data.rooms=state.data.rooms.filter(room=>room.id!==roomId);
+      state.data.rooms.push(savedRoom);
+      state.data.rooms.sort((a,b)=>a.displayOrder-b.displayOrder||a.id.localeCompare(b.id));
+    }
+    if(created){
+      workspaceDraft=createRoomDraft(savedRoom);
+      workspaceDraft.setStatus('أُنشئت الغرفة وحُفظت التغييرات.');
+      history.replaceState(null,'',`admin.html?view=room&id=${encodeURIComponent(roomId)}&tab=settings`);
+    }else draft.resetFrom(savedRoom);
+    render();return true;
+  }catch(error){
+    if(!committed){
+      const cleanup=await Promise.allSettled(stagedRefs.map(ref=>repository.removeAsset(ref)));
+      if(created)await repository.deleteNewRoom(roomId).catch(()=>{});
+      const incomplete=cleanup.some(result=>result.status==='rejected');
+      draft.setSaving(false);
+      const conflict=error.code==='40001';
+      draft.setStatus(conflict
+        ?'عدّل مدير آخر هذه الغرفة. لم يُحفظ شيء. احتفظ بمسودتك أو تجاهلها لتحميل أحدث نسخة.'
+        :`${error.message||'تعذّر الحفظ.'}${incomplete?' تعذّر تنظيف بعض الملفات المرفوعة؛ راجع التخزين.':''}`,true);
+    }else{
+      draft.setStatus('حُفظت البيانات، لكن تعذّر تحديث عرض الغرفة. أعد تحميل الصفحة قبل تعديلها مجدداً.',true);
+    }
+    return false;
+  }
+}
+function leaveDialog(continueTo){
+  const {dialog,form}=showDialog('تغييرات غير محفوظة',(form,dialog)=>{
+    form.append(node('p','leave-draft-copy','لديك تغييرات في هذه الغرفة لم تُحفظ بعد.'),
+      node('p','leave-draft-copy','يمكنك حفظها أولاً، أو تجاهلها، أو البقاء لإكمال التعديل.'));
+    const actions=node('div','leave-draft-actions');
+    const save=button('حفظ التغييرات والمغادرة','button-dark');
+    const discard=button('تجاهل التغييرات','mini-action danger');
+    const stay=button('البقاء في الصفحة','mini-action');
+    save.addEventListener('click',async()=>{
+      save.disabled=true;discard.disabled=true;stay.disabled=true;
+      if(await saveCurrentDraft()){dialog.close();continueTo();}
+      else{save.disabled=false;discard.disabled=false;stay.disabled=false;}
+    });
+    discard.addEventListener('click',()=>{
+      workspaceDraft?.discard();workspaceDraft=null;dialog.close();continueTo();
+    });
+    stay.addEventListener('click',()=>dialog.close());
+    actions.append(save,discard,stay);form.append(actions);
+  });
+  dialog.addEventListener('cancel',event=>{
+    if(workspaceDraft?.saving)event.preventDefault();
+  });
+  return dialog;
+}
 function navigate(href){
   const url=new URL(href,location.href);
-  history.pushState(null,'',url.pathname+url.search);closeMenu();render();
-  content.focus({preventScroll:true});adminMain.scrollTo(0,0);
+  if(workspaceDraft?.saving||workspaceDraft?.locked){
+    workspaceDraft.setStatus('انتظر حتى يكتمل الحفظ قبل المغادرة.');return;
+  }
+  const go=()=>{
+    if(!sameWorkspace(url))workspaceDraft=null;
+    history.pushState(null,'',url.pathname+url.search);closeMenu();render();
+    verifyAccess();content.focus({preventScroll:true});adminMain.scrollTo(0,0);
+  };
+  if(workspaceDraft?.isDirty()&&!sameWorkspace(url))leaveDialog(go);
+  else go();
 }
 function closeMenu(){sidebar.classList.remove('open');scrim.hidden=true;menuButton.setAttribute('aria-expanded','false');}
 function openMenu(){sidebar.classList.add('open');scrim.hidden=false;menuButton.setAttribute('aria-expanded','true');}
@@ -585,22 +723,33 @@ document.addEventListener('click',event=>{
   event.preventDefault();
   const target=new URL(anchor.href);
   if(target.origin!==location.origin)return;
-  history.pushState(null,'',target.pathname+target.search);
-  closeMenu();
-  if(target.searchParams.get('view')==='account') {
-    const {view,id}=route();setNavigation(view,id);
-    content.replaceChildren(node('div','loading-panel','جارٍ تحديث بيانات الحساب…'));
-    verifyAccess();
-  } else {render();verifyAccess();}
-  content.focus({preventScroll:true});window.scrollTo(0,0);
+  navigate(target.href);
 });
 window.addEventListener('popstate',()=>{
+  const target=location.pathname+location.search;
+  const targetUrl=new URL(target,location.origin);
+  if(workspaceDraft?.saving||workspaceDraft?.locked){
+    history.pushState(null,'',lastRenderedUrl);
+    workspaceDraft.setStatus('انتظر حتى يكتمل الحفظ قبل المغادرة.');return;
+  }
+  if(workspaceDraft?.isDirty()&&!sameWorkspace(targetUrl)){
+    history.pushState(null,'',lastRenderedUrl);
+    leaveDialog(()=>{workspaceDraft=null;history.back();});
+    return;
+  }
+  if(!sameWorkspace(targetUrl))workspaceDraft=null;
   closeMenu();
   if(route().view==='account') {
     const {view,id}=route();setNavigation(view,id);
     content.replaceChildren(node('div','loading-panel','جارٍ تحديث بيانات الحساب…'));
     verifyAccess();
   } else {render();verifyAccess();}
+});
+window.addEventListener('beforeunload',event=>{
+  if(workspaceDraft?.isDirty()){
+    event.preventDefault();
+    event.returnValue='';
+  }
 });
 
 async function loadData(){
@@ -648,9 +797,16 @@ document.getElementById('admin-auth-retry').addEventListener('click',async()=>{
   gateError.hidden=true;gate.hidden=false;if(await verifyAccess())await loadData();
 });
 document.getElementById('admin-logout').addEventListener('click',async event=>{
-  event.currentTarget.disabled=true;
-  try{await supabase.auth.signOut();location.replace('login.html');}
-  catch{event.currentTarget.disabled=false;}
+  if(workspaceDraft?.saving||workspaceDraft?.locked){
+    workspaceDraft.setStatus('انتظر حتى يكتمل الحفظ قبل المغادرة.');return;
+  }
+  const action=async()=>{
+    event.currentTarget.disabled=true;
+    try{await supabase.auth.signOut();location.replace('login.html');}
+    catch{event.currentTarget.disabled=false;}
+  };
+  if(workspaceDraft?.isDirty())leaveDialog(action);
+  else await action();
 });
 supabase.auth.onAuthStateChange(event=>{
   if(event==='SIGNED_OUT')location.replace('login.html');

@@ -73,7 +73,7 @@ async function checkAccess() {
     panel.hidden = false;
     if (!window.ahajiPageLoaded) {
       window.ahajiPageLoaded = true;
-      await import(page === 'gm' ? '../gm.js?v=full-delivery-3' : page === 'index' ? '../index.js' : './staff.mjs');
+      await import(page === 'gm' ? '../gm.js?v=room-draft-2' : page === 'index' ? '../index.js' : './staff.mjs');
     }
   } catch (error) {
     loading.hidden = true;

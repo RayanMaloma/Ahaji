@@ -130,7 +130,7 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
                      "endsAt": None, "hintText": "", "activeImageSrc": None, "activeVideoSrc": None,
                      "activeImageScale": 100, "viewMode": "normal", "roomConfig": config,
                      "lastUpdatedAt": int(time.time()*1000)}
-            session_store[sid] = {"state": state, "revision": 1, "token": "a"*48}
+            session_store[sid] = {"state": state, "revision": 1, "token": "a"*48, "commands": []}
             route.fulfill(status=200, headers=headers, body=json.dumps({"sessionId": sid, "castToken": "a"*48,
                           "state": state, "serverNow": int(time.time()*1000), "revision": 1}))
         elif session_store is not None and path.endswith("/rest/v1/rpc/get_game_session"):
@@ -147,6 +147,7 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
             else:
                 state = item["state"].copy()
                 command = body.get("p_command")
+                item["commands"].append(command)
                 value = body.get("p_value") or {}
                 if command == "start":
                     state.update(status="running", endsAt=int(time.time()*1000)+state["remainingSeconds"]*1000)
@@ -154,6 +155,17 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
                 elif command == "resume": state.update(status="running", endsAt=int(time.time()*1000)+state["remainingSeconds"]*1000)
                 elif command == "hint": state["hintText"] = value.get("text", "")
                 elif command == "win": state.update(status="ended", viewMode="win", endsAt=None)
+                elif command == "adjust":
+                    remaining = max(0, state["remainingSeconds"] + value.get("delta_seconds", 0))
+                    state["remainingSeconds"] = remaining
+                    if remaining == 0:
+                        state.update(status="ended", viewMode="lose", resultState="lose",
+                                     isLose=True, isWin=False, endsAt=None)
+                    elif state["status"] == "running":
+                        state["endsAt"] = int(time.time()*1000) + remaining*1000
+                elif command == "timeout" and state["remainingSeconds"] == 0:
+                    state.update(status="ended", viewMode="lose", resultState="lose",
+                                 isLose=True, isWin=False, endsAt=None)
                 elif command == "image": state["activeImageSrc"] = None
                 item["revision"] += 1
                 state["lastUpdatedAt"] = int(time.time()*1000)

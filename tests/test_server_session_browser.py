@@ -81,6 +81,23 @@ class ServerSessionBrowserTests(unittest.TestCase):
         unauthorized.goto(cast_url.replace("key=" + "a"*48, "key=" + "b"*48))
         expect(unauthorized.locator("#cast-invalid-session")).to_contain_text("انتهت صلاحية العرض", timeout=8000)
 
+    def test_zero_time_adjustment_reaches_server_before_timeout(self):
+        store = {}
+        context = self.browser.new_context()
+        self.addCleanup(context.close)
+        install_auth_mock(context, local_session=False, session_store=store)
+        gm = context.new_page()
+        gm.goto(self.base + "/gm.html?room=anbar")
+        expect(gm.locator("#gm-room-name")).to_have_text("السجن")
+        session_id = parse_qs(urlparse(gm.url).query)["session"][0]
+        gm.locator("#btn-start").click()
+        expect(gm.locator("#btn-pause")).to_be_enabled()
+        gm.locator("#time-adj-value").fill("-60")
+        gm.locator("#btn-update-time").click()
+        expect(gm.locator("#btn-win")).to_be_disabled()
+        self.assertEqual(store[session_id]["commands"][:2], ["start", "adjust"])
+        self.assertEqual(store[session_id]["state"]["viewMode"], "lose")
+
 
 if __name__ == "__main__":
     unittest.main()

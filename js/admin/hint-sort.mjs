@@ -1,6 +1,6 @@
 // Pointer Events cover mouse, pen, and touch. The list is only persisted on
 // drop (or keyboard confirmation), never while the pointer is moving.
-export function installHintSorting({list,roomId,repository,onSaved,onError}) {
+export function installHintSorting({list,roomId,repository,onReorder,onSaved,onError}) {
   const rows=()=>Array.from(list.querySelectorAll(':scope > li[data-hint-id]'));
   const ids=()=>rows().map(row=>row.dataset.hintId);
   const status=document.createElement('p');status.className='sr-only';status.id='hint-sort-status';
@@ -22,7 +22,10 @@ export function installHintSorting({list,roomId,repository,onSaved,onError}) {
   async function persist(original){const next=ids();finish();
     if(next.every((id,index)=>id===original[index])){status.textContent='لم يتغير ترتيب التلميحات.';return;}
     saving=true;list.classList.add('is-saving');
-    try{await repository.reorderHints(roomId,next);status.textContent='حُفظ ترتيب التلميحات.';await onSaved();}
+    try{if(onReorder)await onReorder(next);
+      else await repository.reorderHints(roomId,next);
+      status.textContent=onReorder?'تغيّر الترتيب في المسودة. احفظ جميع التغييرات لتطبيقه.':'حُفظ ترتيب التلميحات.';
+      await onSaved?.();}
     catch(error){restore(original);status.textContent='تعذّر حفظ الترتيب. عاد الترتيب السابق.';
       onError(error.message||'تعذّر حفظ ترتيب التلميحات.');}
     finally{saving=false;list.classList.remove('is-saving');}
