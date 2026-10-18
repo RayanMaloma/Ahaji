@@ -212,7 +212,9 @@
     const imgEl = document.getElementById('cast-image-overlay-img');
     if (!overlayEl || !imgEl) return;
 
-    if (nextState.activeImageSrc) {
+    // The win/lose screen replaces any image the GM left on display.
+    const resultShown = nextState.viewMode === 'win' || nextState.viewMode === 'lose';
+    if (nextState.activeImageSrc && !resultShown) {
       imgEl.src = resolveRoomAsset(nextState.activeImageSrc) || '';
       const scale =
         typeof nextState.activeImageScale === 'number' ? nextState.activeImageScale : 100;

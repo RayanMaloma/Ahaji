@@ -30,6 +30,17 @@ test('one draft keeps settings, hint order, and staged media across views',()=>{
   assert.deepEqual(draft.hints.map(h=>h.id),['h1','h2']);
 });
 
+test('new room carries the full presentation profile without touching display settings',()=>{
+  const draft=createRoomDraft();
+  draft.setGeneral({name:'غرفة جديدة'});
+  const presentation=draft.payload().room.presentation;
+  assert.deepEqual(Object.keys(presentation).sort(),['hintDurationSeconds','hintPosition',
+    'hintScale','imageFit','loseMessage','timerColor','timerFont','timerPosition',
+    'timerScale','videoFit','winMessage']);
+  assert.equal(presentation.timerPosition,'center');
+  assert.equal(presentation.winMessage,'مبروك الفوز');
+});
+
 test('failed save leaves draft editable and committed save rebases revision',()=>{
   const draft=createRoomDraft(room());
   draft.setGeneral({name:'السجن الجديد'});

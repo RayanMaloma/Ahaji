@@ -319,6 +319,15 @@ body{direction:rtl;background:var(--paper)}
 .leave-draft-actions button{min-height:40px}
 .admin-content>.settings-section{margin-bottom:24px}
 .admin-content>.settings-section:last-child{margin-bottom:0}
+.room-delete-section{margin-top:24px}
+.room-delete-section .settings-section-head{display:grid;
+  grid-template-columns:minmax(0,1fr) auto;column-gap:20px;row-gap:5px;margin-bottom:0}
+.room-delete-section .settings-section-head h2{grid-column:1;grid-row:1}
+.room-delete-section .settings-section-head p{grid-column:1;grid-row:2;line-height:1.6}
+.room-delete-button{grid-column:2;grid-row:1 / span 2;align-self:center;min-height:42px;
+  padding:9px 20px;font-size:14px;font-weight:700;border-color:rgba(255,140,135,.45)}
+.room-delete-button:hover,.room-delete-button:focus-visible{border-color:#ff8c87;
+  color:#ffc4c1;background:rgba(255,90,80,.1)}
 
 /* Manual libraries and automatic events have separate cards and rhythm. */
 .media-library-section .settings-section-head{display:grid;
@@ -360,6 +369,11 @@ body{direction:rtl;background:var(--paper)}
   .media-library-section .settings-section-head p,
   .media-library-section .settings-section-head .button-dark{grid-column:1;grid-row:auto}
   .media-library-section .settings-section-head .button-dark{justify-self:start;margin-top:7px}
+  .room-delete-section .settings-section-head{grid-template-columns:1fr}
+  .room-delete-section .settings-section-head h2,
+  .room-delete-section .settings-section-head p,
+  .room-delete-button{grid-column:1;grid-row:auto}
+  .room-delete-button{justify-self:stretch;margin-top:9px}
   .room-savebar{top:0;align-items:stretch;flex-direction:column;padding:9px}
   .room-savebar-actions{width:100%;justify-content:space-between}
   .room-savebar-actions .button-dark{flex:1}

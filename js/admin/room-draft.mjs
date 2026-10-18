@@ -1,11 +1,20 @@
 // A room draft owns every unsaved setting and content edit. File objects stay
 // in memory; refresh/close warns instead of claiming they can be restored.
 const clone=value=>structuredClone(value);
+// Mirrors the rooms.presentation_settings column default. The
+// rooms_presentation_valid check requires all eleven keys, so a new room must
+// carry them even if the Admin never touches the display controls.
+const DEFAULT_PRESENTATION=Object.freeze({
+  timerScale:1,timerPosition:'center',timerColor:'#ffffff',timerFont:'mono',
+  hintScale:1,hintPosition:'bottom',hintDurationSeconds:0,
+  imageFit:'contain',videoFit:'contain',
+  winMessage:'مبروك الفوز',loseMessage:'كنتم قريبين جداً'
+});
 const initial=room=>({
   general:{
     name:room?.name||'',description:room?.description||'',
     durationSeconds:room?.defaultDuration||3600,active:room?.isActive??true,
-    presentation:clone(room?.presentation||{}),
+    presentation:{...DEFAULT_PRESENTATION,...clone(room?.presentation||{})},
     imageRef:room?.backgroundImage||'images/ahajilogo.svg'
   },
   imageStage:null,

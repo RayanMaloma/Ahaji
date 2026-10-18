@@ -47,13 +47,18 @@ function normalizePresentationSettings(input) {
   };
 }
 
+const ROOM_ASSET_URL = 'https://gbhleqizxcmxmutgcjon.supabase.co/storage/v1/object/public/room-assets/';
+
+// Idempotent: normalized rooms already hold resolved URLs, and callers may
+// resolve them again, so an already-resolved room-assets URL passes through.
 function resolveRoomAsset(ref) {
   if (typeof ref !== 'string') return null;
   if (/^(images|source)\//.test(ref) && !ref.includes('..')) return ref;
-  if (ref.startsWith('storage://room-assets/')) {
-    const path = ref.slice('storage://room-assets/'.length);
-    if (/^[a-z][a-z0-9_-]{0,63}\/[A-Za-z0-9._-]+$/.test(path))
-      return `https://gbhleqizxcmxmutgcjon.supabase.co/storage/v1/object/public/room-assets/${path}`;
+  const prefix = ref.startsWith('storage://room-assets/') ? 'storage://room-assets/'
+    : ref.startsWith(ROOM_ASSET_URL) ? ROOM_ASSET_URL : null;
+  if (prefix) {
+    const path = ref.slice(prefix.length);
+    if (/^[a-z][a-z0-9_-]{0,63}\/[A-Za-z0-9._-]+$/.test(path)) return ROOM_ASSET_URL + path;
   }
   return null;
 }

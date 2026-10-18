@@ -602,8 +602,10 @@
     elImageSizeValue.textContent = scale + '%';
 
     if (elPreviewImageOverlay && elPreviewImageOverlayImg) {
-      if (hasImage) {
-        elPreviewImageOverlayImg.src = resolveRoomAsset(state.activeImageSrc) || '';
+      // Mirrors Cast: the win/lose screen replaces any displayed image.
+      if (hasImage && state.viewMode !== 'win' && state.viewMode !== 'lose') {
+        // activeImageSrc is already resolved to a URL; resolving again yields null.
+        elPreviewImageOverlayImg.src = state.activeImageSrc;
         elPreviewImageOverlayImg.style.maxWidth = scale + '%';
         elPreviewImageOverlayImg.style.maxHeight = scale + '%';
         elPreviewImageOverlay.style.display = 'flex';
@@ -615,7 +617,7 @@
     const previewVideo=document.getElementById('gm-preview-video');
     if(previewVideo){
       if(state.activeVideoSrc){
-        if(previewVideo.getAttribute('src')!==state.activeVideoSrc){previewVideo.src=resolveRoomAsset(state.activeVideoSrc)||'';previewVideo.play().catch(()=>{});}
+        if(previewVideo.getAttribute('src')!==state.activeVideoSrc){previewVideo.src=state.activeVideoSrc;previewVideo.play().catch(()=>{});}
         previewVideo.hidden=false;
       }else{previewVideo.hidden=true;previewVideo.pause();previewVideo.removeAttribute('src');}
     }

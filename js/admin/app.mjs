@@ -1,9 +1,9 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=loader-2';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=room-delete-1';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
-import { renderRoomWorkspace } from './room-workspace.mjs?v=loader-2';
-import { createRoomDraft } from './room-draft.mjs';
+import { renderRoomWorkspace } from './room-workspace.mjs?v=room-delete-2';
+import { createRoomDraft } from './room-draft.mjs?v=presentation-1';
 import {activeDuration,dateKey,groupLabel} from './history-model.mjs?v=refinement-2';
 import {createLoader,withImageSkeleton,preloadImages,waitForImages,visibleImages,revealPage} from '../loader.mjs?v=loader-2';
 
@@ -648,7 +648,8 @@ function render(){
     if(room){
       if(!workspaceDraft||workspaceDraft.roomId!==room.id)workspaceDraft=createRoomDraft(room);
       workspaceCleanup=renderRoomWorkspace({draft:workspaceDraft,container:content,
-        onSave:saveCurrentDraft,onDiscard:discardCurrentDraft,rerender:render});
+        onSave:saveCurrentDraft,onDiscard:discardCurrentDraft,onDelete:deleteCurrentRoom,
+        rerender:render});
     }
     else renderNotFound('لم نتمكن من العثور على هذه الغرفة.');
   }
@@ -683,6 +684,39 @@ async function discardCurrentDraft(){
     }catch(error){draft.setStatus(error.message||'تعذّر تحميل أحدث بيانات الغرفة.',true);return;}
   }else draft.discard();
   render();
+}
+async function deleteCurrentRoom(){
+  const draft=workspaceDraft;
+  if(!draft?.roomId||draft.saving||draft.locked)return;
+  const room=state.data?.rooms.find(item=>item.id===draft.roomId);
+  const name=room?.name||draft.general.name;
+  const {dialog}=showDialog('حذف الغرفة',(form,dialog)=>{
+    form.append(node('p','leave-draft-copy',`ستُحذف غرفة «${name}» نهائياً مع تلميحاتها ووسائطها.`),
+      node('p','leave-draft-copy','لا يمكن التراجع عن ذلك.'));
+    const actions=node('div','leave-draft-actions');
+    const remove=button('حذف الغرفة نهائياً','mini-action danger');
+    const cancel=button('إلغاء','mini-action');
+    remove.addEventListener('click',async()=>{
+      remove.disabled=true;cancel.disabled=true;draft.setSaving(true);
+      try{
+        await repository.deleteRoom(draft.roomId);
+      }catch(error){
+        draft.setSaving(false);remove.disabled=false;cancel.disabled=false;
+        formStatus(form,error.code==='23503'
+          ?'لا يمكن حذف غرفة لُعبت فيها جلسات لأن سجلها مرتبط بها. اجعلها «غير نشطة» بدلاً من ذلك.'
+          :error.message||'تعذّر حذف الغرفة.');
+        return;
+      }
+      dialog.close();
+      if(state.data)state.data.rooms=state.data.rooms.filter(item=>item.id!==draft.roomId);
+      workspaceDraft=null;
+      navigate('admin.html?view=rooms');
+    });
+    cancel.addEventListener('click',()=>dialog.close());
+    actions.append(remove,cancel);form.append(actions);
+    cancel.autofocus=true;
+  });
+  dialog.addEventListener('cancel',event=>{if(draft.saving)event.preventDefault();});
 }
 async function saveCurrentDraft(){
   const draft=workspaceDraft;

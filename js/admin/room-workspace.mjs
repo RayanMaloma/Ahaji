@@ -165,7 +165,7 @@ function readPresentation(c){return window.normalizePresentationSettings({
   loseMessage:c.loseMessage.value.trim()
 });}
 
-export function renderRoomWorkspace({draft,container,onSave,onDiscard,rerender}){
+export function renderRoomWorkspace({draft,container,onSave,onDiscard,onDelete,rerender}){
   const creating=!draft.roomId;
   const requested=new URLSearchParams(location.search).get('tab')||'settings';
   const currentTab=roomTabs.some(([key])=>key===requested)?requested:'settings';
@@ -204,7 +204,10 @@ export function renderRoomWorkspace({draft,container,onSave,onDiscard,rerender})
     discard.hidden=!dirty||draft.saving||draft.locked;
   }
   const unsubscribe=draft.subscribe(sync);sync();
-  if(currentTab==='settings'||creating)renderSettings({draft,container,onSave});
+  if(currentTab==='settings'||creating){
+    renderSettings({draft,container,onSave});
+    if(!creating&&onDelete)renderDeleteRoom({container,onDelete});
+  }
   else if(currentTab==='hints')renderHints({draft,container,rerender});
   else renderMediaTab({draft,container,tab:currentTab,rerender});
   return unsubscribe;
@@ -283,6 +286,16 @@ function renderSettings({draft,container,onSave}){
     control.addEventListener('change',syncPresentation);
   }
   form.addEventListener('submit',event=>{event.preventDefault();onSave();});
+}
+
+function renderDeleteRoom({container,onDelete}){
+  const section=settingsGroup('حذف الغرفة',
+    'يُحذف نهائياً مع تلميحاتها ووسائطها. الغرفة التي لُعبت فيها جلسات لا تُحذف؛ أوقفها بدلاً من ذلك.');
+  section.classList.add('room-delete-section');
+  const remove=btn('حذف الغرفة نهائياً','mini-action danger room-delete-button');
+  remove.addEventListener('click',()=>onDelete());
+  section.querySelector('.settings-section-head').append(remove);
+  container.append(section);
 }
 
 function renderHints({draft,container,rerender}){

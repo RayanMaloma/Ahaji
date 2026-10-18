@@ -89,7 +89,7 @@ async function checkAccess() {
     panel.hidden = false;
     if (!window.ahajiPageLoaded) {
       window.ahajiPageLoaded = true;
-      await import(page === 'gm' ? '../gm.js?v=room-draft-2' : page === 'index' ? '../index.js?v=loader-2' : './staff.mjs');
+      await import(page === 'gm' ? '../gm.js?v=result-overlay-1' : page === 'index' ? '../index.js?v=loader-2' : './staff.mjs');
       if (page === 'index') await waitForImages(visibleImages(panel), BOOT_IMAGE_BUDGET_MS);
     }
     revealPage(loading, panel);

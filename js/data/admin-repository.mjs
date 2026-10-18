@@ -85,6 +85,12 @@ export function createAdminRepository(client) {
   async function deleteNewRoom(id) {
     return checked(client.from('rooms').delete().eq('id', id));
   }
+  // Sessions reference rooms with ON DELETE RESTRICT, so a played room fails
+  // with 23503 and stays intact. Hints, media rows and room access cascade.
+  async function deleteRoom(id) {
+    const rows = await checked(client.from('rooms').delete().eq('id', id).select('id'));
+    if (!rows?.length) throw new Error('لم تُحذف الغرفة. ربما حُذفت مسبقاً أو لا تملك الصلاحية.');
+  }
   async function saveHint(roomId, hint) {
     if (hint.id) return checked(client.from('room_hints').update({body:hint.text})
       .eq('id',hint.id).eq('room_id',roomId).select('id').single());
@@ -124,6 +130,6 @@ export function createAdminRepository(client) {
   }
 
   return Object.freeze({ load,listRooms,loadHistory,listEvents,createRoom,createRoomForName,updateRoom,
-    getRoom,saveRoomDraft,deleteNewRoom,saveHint,
+    getRoom,saveRoomDraft,deleteNewRoom,deleteRoom,saveHint,
     deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
 }
