@@ -1,6 +1,7 @@
 import { supabase } from '../auth/client.mjs';
 import { installHintSorting } from './hint-sort.mjs';
 import { createAudioPlayer } from './audio-player.mjs';
+import { createTrimEditor, formatTrimTime } from './audio-trim-editor.mjs';
 import { withImageSkeleton } from '../loader.mjs?v=loader-2';
 
 const roomTabs = [
@@ -20,6 +21,8 @@ const $ = (tag, className='', text) => {
 };
 const btn=(text,className='subtle-button')=>{const element=$('button',className,text);element.type='button';return element;};
 const fileName=ref=>ref?.split('/').at(-1)||'ملف';
+const trimLabel=record=>record.trimStartMs||record.trimEndMs!=null
+  ?`مقصوص: ${formatTrimTime(record.trimStartMs||0)} – ${record.trimEndMs==null?'النهاية':formatTrimTime(record.trimEndMs)}`:'';
 function assetUrl(ref){
   if(typeof ref!=='string')return '';
   if(ref.startsWith('storage://room-assets/')){
@@ -370,6 +373,7 @@ function renderMediaTab({draft,container,tab,rerender}){
     const text=$('div','media-card-copy');
     text.append($('strong','',record.label||'ملف بلا اسم'),
       $('small','',record.file?.name||fileName(record.assetRef)));
+    if(config.type==='audio'&&trimLabel(record))text.append($('small','media-trim-note',trimLabel(record)));
     card.append(text);
     const actions=$('div','item-actions');
     const replace=btn('تغيير الملف أو الاسم','mini-action');
@@ -389,6 +393,8 @@ function renderMediaTab({draft,container,tab,rerender}){
   if(tab==='audio'){
     const automatic=settingsGroup('أصوات أحداث اللعبة',
       'أصوات مستقلة يشغّلها النظام تلقائياً؛ لا تظهر في مكتبة مدير اللعبة.');
+    automatic.append(systemCard('theme_sound','موسيقى الثيم','audio',
+      'تعمل على شاشة العرض مع بدء المؤقت وتتكرر طوال اللعب، وتنخفض قليلاً عند تشغيل أي صوت آخر. يتحكم مدير اللعبة في تشغيلها.'));
     automatic.append(systemCard('hint_sound','صوت إشعار التلميح','audio',
       'يعمل عندما يصل تلميح إلى شاشة العرض.'));
     automatic.append(systemCard('lose_sound','صوت الخسارة','audio',
@@ -411,6 +417,7 @@ function renderMediaTab({draft,container,tab,rerender}){
       else if(url){const video=$('video');video.src=url;video.controls=true;
         video.preload='metadata';preview.append(video);}
       preview.append($('small','',record.file?.name||fileName(record.assetRef)));
+      if(type==='audio'&&trimLabel(record))preview.append($('small','media-trim-note',trimLabel(record)));
       card.append(preview);
     }else card.append($('p','automatic-media-empty','لم يُختر ملف لهذا الحدث.'));
     const actions=$('div','item-actions automatic-media-actions');
@@ -430,17 +437,26 @@ function renderMediaTab({draft,container,tab,rerender}){
         currentRef:record?.assetRef||'',staged:record?.file?record:null,
         required:!record?.assetRef,allowRemove:false});
       form.append(upload.element);
+      const trimmer=type==='audio'?createTrimEditor({
+        src:record?.url||assetUrl(record?.assetRef),
+        trimStartMs:record?.trimStartMs??0,trimEndMs:record?.trimEndMs??null}):null;
+      if(trimmer){
+        form.append(trimmer.element);
+        upload.element.addEventListener('change',()=>
+          trimmer.setSource(upload.url||assetUrl(record?.assetRef)));
+      }
       const stage=btn('إضافة إلى المسودة','button-dark');stage.type='submit';form.append(stage);
-      dialog.addEventListener('close',()=>upload.dispose(),{once:true});
+      dialog.addEventListener('close',()=>{upload.dispose();trimmer?.dispose();},{once:true});
       form.addEventListener('submit',event=>{
         event.preventDefault();
         try{
           upload.validate();
           if(label&&!label.value.trim())throw new Error('اكتب اسم الملف.');
+          const trim=trimmer?trimmer.value():{trimStartMs:0,trimEndMs:null};
           const selected=upload.take();
           draft.upsertMedia({id:record?.id,kind,
             label:label?label.value.trim():title,
-            assetRef:record?.assetRef||'',
+            assetRef:record?.assetRef||'',...trim,
             file:selected.file,url:selected.url});
           dialog.close();rerender();
         }catch(error){formMessage(form,error.message||'تعذّر إضافة الملف إلى المسودة.');}

@@ -474,6 +474,25 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
   border-color: rgba(229,57,53,0.7);
 }
 
+/* Theme toggle — neutral when off, yellow when the theme will play */
+.gm-theme-btn {
+  border-color: var(--border-mid);
+  color: var(--text-dim);
+}
+
+.gm-theme-btn.is-on {
+  border-color: rgba(245,200,0,0.55);
+  color: var(--accent);
+  background: rgba(245,200,0,0.08);
+}
+
+.gm-theme-btn:not(:disabled):hover {
+  border-color: rgba(245,200,0,0.7);
+  color: var(--accent);
+}
+
+.gm-theme-btn[hidden] { display: none; }
+
 /* Volume button + popover */
 .gm-volume-btn {
   border-color: var(--border-mid);

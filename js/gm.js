@@ -119,6 +119,8 @@
   const btnSendHint = document.getElementById('btn-send-hint');
   const btnOpenCast = document.getElementById('btn-open-cast');
   const btnAlert = document.getElementById('btn-alert');
+  const btnTheme = document.getElementById('btn-theme');
+  const elThemeLabel = document.getElementById('btn-theme-label');
   const btnVolume = document.getElementById('btn-volume');
   const elVolumeCtrl = document.getElementById('gm-volume-ctrl');
   const elVolumePopover = document.getElementById('gm-volume-popover');
@@ -432,7 +434,7 @@
         playBtn.textContent = '▶';
         playBtn.title = 'تشغيل';
         playBtn.addEventListener('click', () => {
-          try { new Audio(item.src).play().catch(() => {}); } catch (e) {}
+          try { createTrimmedSound(item.src, item).play().catch(() => {}); } catch (e) {}
           session.publishSessionEvent('alert',{type:'gm-sound',media_id:item.id});
         });
         li.appendChild(playBtn);
@@ -440,6 +442,14 @@
 
       elMediaList.appendChild(li);
     });
+  }
+
+  // The theme itself plays on Cast; GM only owns the on/off switch.
+  function toggleTheme() {
+    const enabled = !isThemeEnabled(state, room.media);
+    state.themeEnabled = enabled;
+    render();
+    broadcast('theme', { enabled });
   }
 
   function playAlert() {
@@ -573,6 +583,7 @@
   btnClearImage.addEventListener('click', doClearImage);
   elImageSizeSlider.addEventListener('input', doImageSize);
   btnAlert.addEventListener('click', playAlert);
+  btnTheme.addEventListener('click', toggleTheme);
   btnVolume.addEventListener('click', toggleVolumePopover);
   btnOpenCast.addEventListener('click', openCastPage);
 
@@ -643,7 +654,13 @@
     btnSubTime.disabled = serverMode && isEnded;
     btnUpdateTime.disabled = isEnded;
     for(const control of [btnSendHint,btnClearHint,btnClearImage,btnShowVideos,
-      btnShowImages,btnShowSounds,btnAlert,btnVolume,elImageSizeSlider,elHintInput])
+      btnShowImages,btnShowSounds,btnAlert,btnVolume,btnTheme,elImageSizeSlider,elHintInput])
       control.disabled=serverMode && isEnded;
+
+    const themeOn = isThemeEnabled(state, room.media);
+    btnTheme.hidden = !room.media.themeSound;
+    btnTheme.classList.toggle('is-on', themeOn);
+    btnTheme.setAttribute('aria-pressed', String(themeOn));
+    elThemeLabel.textContent = themeOn ? 'الثيم: يعمل' : 'الثيم: متوقف';
   }
 })();

@@ -1,5 +1,5 @@
 import { supabase, currentAccess, safeNext } from './client.mjs';
-import { createRoomRepository } from '../data/room-repository.mjs';
+import { createRoomRepository } from '../data/room-repository.mjs?v=theme-1';
 import { revealPage, visibleImages, waitForImages } from '../loader.mjs?v=loader-2';
 
 const BOOT_IMAGE_BUDGET_MS = 2500;
@@ -89,7 +89,7 @@ async function checkAccess() {
     panel.hidden = false;
     if (!window.ahajiPageLoaded) {
       window.ahajiPageLoaded = true;
-      await import(page === 'gm' ? '../gm.js?v=result-overlay-1' : page === 'index' ? '../index.js?v=loader-2' : './staff.mjs');
+      await import(page === 'gm' ? '../gm.js?v=theme-1' : page === 'index' ? '../index.js?v=loader-2' : './staff.mjs');
       if (page === 'index') await waitForImages(visibleImages(panel), BOOT_IMAGE_BUDGET_MS);
     }
     revealPage(loading, panel);

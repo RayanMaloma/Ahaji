@@ -7,10 +7,15 @@ function generateSessionId() {
   return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
 }
 
+const FULL_AUDIO_TRIM = Object.freeze({ trimStartMs: 0, trimEndMs: null });
+
 const EMPTY_ROOM_MEDIA = Object.freeze({
   hintSound: null,
+  hintSoundTrim: FULL_AUDIO_TRIM,
   loseSound: null,
+  loseSoundTrim: FULL_AUDIO_TRIM,
   loseVideo: null,
+  themeSound: null,
   gmImages: Object.freeze([]),
   gmSounds: Object.freeze([]),
   gmVideos: Object.freeze([])
@@ -75,10 +80,16 @@ function normalizeRoom(room) {
     presentation: Object.freeze(normalizePresentationSettings(room.presentation)),
     media: Object.freeze({
       hintSound: resolveRoomAsset(media.hintSound),
+      hintSoundTrim: normalizeAudioTrim(media.hintSoundTrim),
       loseSound: resolveRoomAsset(media.loseSound),
+      loseSoundTrim: normalizeAudioTrim(media.loseSoundTrim),
       loseVideo: resolveRoomAsset(media.loseVideo),
+      themeSound: media.themeSound && resolveRoomAsset(media.themeSound.src)
+        ? Object.freeze({ ...normalizeAudioTrim(media.themeSound), src: resolveRoomAsset(media.themeSound.src) })
+        : null,
       gmImages: Object.freeze((media.gmImages || []).map(item => Object.freeze({ ...item, src: resolveRoomAsset(item.src) }))),
-      gmSounds: Object.freeze((media.gmSounds || []).map(item => Object.freeze({ ...item, src: resolveRoomAsset(item.src) }))),
+      gmSounds: Object.freeze((media.gmSounds || []).map(item => Object.freeze({
+        ...item, ...normalizeAudioTrim(item), src: resolveRoomAsset(item.src) }))),
       gmVideos: Object.freeze((media.gmVideos || []).map(item => Object.freeze({ ...item, src: resolveRoomAsset(item.src) })))
     }),
     hints: Object.freeze({
@@ -114,6 +125,63 @@ function getRoom(roomId) {
 function getRoomMedia(roomId) {
   const room = getRoom(roomId);
   return room ? room.media : EMPTY_ROOM_MEDIA;
+}
+
+// Trims are start/end points in milliseconds over the untouched file. A null
+// end means "to the end of the file"; anything malformed plays in full.
+function normalizeAudioTrim(input) {
+  const start = Number(input?.trimStartMs);
+  const end = input?.trimEndMs == null ? null : Number(input.trimEndMs);
+  const trimStartMs = Number.isInteger(start) && start >= 0 ? start : 0;
+  const trimEndMs = Number.isInteger(end) && end > trimStartMs ? end : null;
+  return { trimStartMs, trimEndMs };
+}
+
+// Plays only the trimmed part of an audio element. With loop, playback wraps
+// back to the start point instead of the beginning of the file. Returns a
+// function that detaches the trim.
+function applyAudioTrim(audio, trim, { loop = false } = {}) {
+  const { trimStartMs, trimEndMs } = normalizeAudioTrim(trim);
+  const start = trimStartMs / 1000, end = trimEndMs === null ? null : trimEndMs / 1000;
+  let timer = null;
+  const seekStart = () => { try { audio.currentTime = start; } catch (e) {} };
+  const check = () => {
+    if (end !== null && audio.currentTime >= end) {
+      if (loop) seekStart();
+      else { audio.pause(); seekStart(); audio.dispatchEvent(new Event('trimend')); }
+    }
+  };
+  const onPlay = () => { if (timer === null) timer = setInterval(check, 40); };
+  const onPause = () => { clearInterval(timer); timer = null; };
+  const onEnded = () => { if (loop) { seekStart(); audio.play().catch(() => {}); } };
+  audio.loop = false;
+  if (audio.readyState >= 1) seekStart();
+  else audio.addEventListener('loadedmetadata', seekStart, { once: true });
+  audio.addEventListener('play', onPlay);
+  audio.addEventListener('pause', onPause);
+  audio.addEventListener('ended', onEnded);
+  return () => {
+    onPause();
+    audio.removeEventListener('play', onPlay);
+    audio.removeEventListener('pause', onPause);
+    audio.removeEventListener('ended', onEnded);
+  };
+}
+
+// A one-shot sound limited to its trim. Callers can listen for
+// 'trimend'/'ended' on the returned element to know when it stopped.
+function createTrimmedSound(src, trim, volume = 1) {
+  const audio = new Audio(src);
+  audio.volume = Math.max(0, Math.min(1, volume));
+  applyAudioTrim(audio, trim);
+  return audio;
+}
+
+// The GM's theme toggle defaults to on whenever the room has a theme, which
+// also covers sessions created before the toggle existed.
+function isThemeEnabled(state, roomMedia) {
+  if (!roomMedia?.themeSound) return false;
+  return typeof state?.themeEnabled === 'boolean' ? state.themeEnabled : true;
 }
 
 function formatTime(seconds) {

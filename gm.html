@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>مدير اللعبة · أحاجي</title>
-  <link rel="preconnect" href="https://gbhleqizxcmxmutgcjon.supabase.co" crossorigin><link rel="preconnect" href="https://gbhleqizxcmxmutgcjon.supabase.co"><link rel="stylesheet" href="css/style.css?v=invite-1" />
+  <link rel="preconnect" href="https://gbhleqizxcmxmutgcjon.supabase.co" crossorigin><link rel="preconnect" href="https://gbhleqizxcmxmutgcjon.supabase.co"><link rel="stylesheet" href="css/style.css?v=theme-1" />
 </head>
 <body class="gm-page">
   <div id="gm-connection" class="gm-connection" role="status">جارٍ الاتصال…</div>
@@ -42,6 +42,10 @@
               <input class="gm-volume-slider" id="alert-volume" type="range" min="0" max="1" step="0.05" value="0.5" />
             </div>
           </div>
+          <button class="btn gm-top-action-btn gm-theme-btn" id="btn-theme" type="button" aria-pressed="false" hidden>
+            <svg class="btn-icon-svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10.5V2.5l6.5-1.5v8"/><circle cx="3.5" cy="10.5" r="1.5"/><circle cx="10" cy="9" r="1.5"/></svg>
+            <span id="btn-theme-label">الثيم</span>
+          </button>
           <button class="btn gm-top-action-btn gm-reset-btn" id="btn-reset">
             <svg class="btn-icon-svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 4.5-4.5 4.5 4.5 0 0 0-3 1.1"/><polyline points="2.5,2.5 2.5,5.5 5.5,5.5"/></svg>
             جلسة جديدة
@@ -158,9 +162,9 @@
   </main>
   </div>
 
-  <script src="js/app.js?v=asset-url-1"></script>
+  <script src="js/app.js?v=theme-1"></script>
   <script src="js/session-adapter.js?v=full-delivery-3"></script>
   <script>document.body.dataset.protectedPage = 'gm';</script>
-  <script type="module" src="js/auth/guard.mjs?v=result-overlay-1"></script>
+  <script type="module" src="js/auth/guard.mjs?v=theme-1"></script>
 </body>
 </html>

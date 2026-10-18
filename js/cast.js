@@ -79,8 +79,102 @@
       fn();
     }
     if (currentState?.activeVideoSrc) document.getElementById('cast-room-video')?.play().catch(()=>{});
+    if (currentState) syncTheme(currentState);
 
     console.info(`[cast] Audio unlocked via ${source}.`);
+  }
+
+  // Theme music loops within its trim while the timer runs and the GM has it
+  // enabled. Any other sound on Cast ducks it slightly until that sound stops.
+  const THEME_VOLUME = 0.7;
+  const THEME_DUCKED_VOLUME = 0.3;
+  const activeEffects = new Set();
+  let themeAudio = null;
+  let themeSrc = null;
+  let detachThemeTrim = null;
+  let fadeTimer = null;
+
+  function videoIsAudible(id) {
+    const video = document.getElementById(id);
+    return Boolean(video && !video.paused && !video.ended && !video.muted &&
+      video.style.display !== 'none' && !video.hidden);
+  }
+
+  function effectsPlaying() {
+    return activeEffects.size > 0 || videoIsAudible('cast-room-video') || videoIsAudible('cast-lose-video');
+  }
+
+  function fadeTheme(target) {
+    if (!themeAudio) return;
+    clearInterval(fadeTimer);
+    fadeTimer = setInterval(() => {
+      const step = 0.05;
+      const volume = themeAudio ? themeAudio.volume : target;
+      if (!themeAudio || Math.abs(volume - target) <= step) {
+        if (themeAudio) themeAudio.volume = target;
+        clearInterval(fadeTimer);
+        fadeTimer = null;
+      } else {
+        themeAudio.volume = volume + (target > volume ? step : -step);
+      }
+    }, 25);
+  }
+
+  function syncDucking() {
+    fadeTheme(effectsPlaying() ? THEME_DUCKED_VOLUME : THEME_VOLUME);
+  }
+
+  // Registers a one-shot sound (or a short synthetic beep token) for ducking.
+  function trackEffect(effect, maxMs) {
+    activeEffects.add(effect);
+    syncDucking();
+    const done = () => { if (activeEffects.delete(effect)) syncDucking(); };
+    if (effect instanceof HTMLMediaElement) {
+      for (const type of ['ended', 'pause', 'trimend', 'error']) effect.addEventListener(type, done);
+    }
+    if (maxMs) setTimeout(done, maxMs);
+  }
+
+  for (const id of ['cast-room-video', 'cast-lose-video']) {
+    const video = document.getElementById(id);
+    for (const type of ['play', 'pause', 'ended', 'volumechange', 'emptied'])
+      video?.addEventListener(type, syncDucking);
+  }
+
+  function stopTheme() {
+    if (!themeAudio) return;
+    clearInterval(fadeTimer);
+    fadeTimer = null;
+    if (detachThemeTrim) detachThemeTrim();
+    themeAudio.pause();
+    themeAudio.removeAttribute('src');
+    themeAudio.load();
+    themeAudio = null;
+    themeSrc = null;
+    detachThemeTrim = null;
+  }
+
+  function syncTheme(state) {
+    const media = room ? room.media : getRoomMedia(roomId);
+    const theme = media.themeSound;
+    if (themeAudio && (!theme || theme.src !== themeSrc)) stopTheme();
+    const resultShown = state.viewMode === 'win' || state.viewMode === 'lose';
+    const shouldPlay = audioUnlocked && theme && isThemeEnabled(state, media) &&
+      state.status === 'running' && !resultShown;
+    if (!shouldPlay) {
+      // Paused or toggled off keeps the position; idle and ended start over.
+      if (state.status === 'running' || state.status === 'paused') themeAudio?.pause();
+      else stopTheme();
+      return;
+    }
+    if (!themeAudio) {
+      themeAudio = new Audio(theme.src);
+      themeSrc = theme.src;
+      themeAudio.preload = 'auto';
+      themeAudio.volume = effectsPlaying() ? THEME_DUCKED_VOLUME : THEME_VOLUME;
+      detachThemeTrim = applyAudioTrim(themeAudio, theme, { loop: true });
+    }
+    if (themeAudio.paused) themeAudio.play().catch(err => console.warn('[cast] Theme blocked:', err));
   }
 
   function unlockAudio() {
@@ -199,6 +293,7 @@
         roomVideo.hidden=false;
       }else{roomVideo.hidden=true;roomVideo.pause();roomVideo.removeAttribute('src');}
     }
+    syncTheme(nextState);
 
     if ((nextState.status === 'running' && typeof nextState.endsAt === 'number') ||
         (nextState.hintText && typeof nextState.hintExpiresAt === 'number' &&
@@ -230,7 +325,13 @@
       if(nextState.signal.type==='hint-sound')playRoomNotificationSound(1);
       if(nextState.signal.type==='gm-sound'){
         const src=resolveRoomAsset(nextState.signal.asset_ref);
-        if(src && audioUnlocked)new Audio(src).play().catch(()=>{});
+        const media=room ? room.media : getRoomMedia(roomId);
+        const sound=media.gmSounds.find(item=>item.src===src);
+        if(src && audioUnlocked){
+          const audio=createTrimmedSound(src,sound,1);
+          trackEffect(audio);
+          audio.play().catch(()=>{});
+        }
       }
     }
     if(nextState.viewMode==='lose' && room?.media?.loseVideo)nextState.loseMode='video';
@@ -257,8 +358,8 @@
 
     if (roomMedia.hintSound) {
       try {
-        const audio = new Audio(roomMedia.hintSound);
-        audio.volume = vol;
+        const audio = createTrimmedSound(roomMedia.hintSound, roomMedia.hintSoundTrim, vol);
+        trackEffect(audio);
         audio.play().catch(err => console.warn('[cast] Notification sound blocked:', err));
       } catch (err) {
         console.warn('[cast] Notification sound error:', err);
@@ -287,6 +388,7 @@
 
         beep(ctx.currentTime, 700, 0.14);
         beep(ctx.currentTime + 0.19, 700, 0.14);
+        trackEffect({}, 450);
       } catch (err) {
         console.warn('[cast] Beep fallback failed:', err);
       }
@@ -309,7 +411,8 @@
       }
     } else if (roomMedia.loseSound) {
       try {
-        const audio = new Audio(roomMedia.loseSound);
+        const audio = createTrimmedSound(roomMedia.loseSound, roomMedia.loseSoundTrim);
+        trackEffect(audio);
         audio.play().catch(err => console.warn('[cast] Lose sound blocked:', err));
       } catch (err) {
         console.warn('[cast] Lose sound error:', err);

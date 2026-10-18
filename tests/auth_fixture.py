@@ -172,6 +172,7 @@ def install_auth_mock(context, role="admin", rooms=None, authenticated=True, das
                     state.update(status="ended", viewMode="lose", resultState="lose",
                                  isLose=True, isWin=False, endsAt=None)
                 elif command == "image": state["activeImageSrc"] = None
+                elif command == "theme": state["themeEnabled"] = bool(value.get("enabled"))
                 item["revision"] += 1
                 state["lastUpdatedAt"] = int(time.time()*1000)
                 item["state"] = state

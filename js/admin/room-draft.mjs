@@ -21,8 +21,12 @@ const initial=room=>({
   hints:(room?.hints||[]).map(h=>({id:h.id,text:h.text})),
   media:(room?.mediaRecords||[]).map(m=>({
     id:m.id,kind:m.kind,label:m.label||'',assetRef:m.assetRef,
+    trimStartMs:m.trimStartMs??0,trimEndMs:m.trimEndMs??null,
     file:null,url:null
   }))
+});
+const mediaSignature=({id,kind,label,assetRef,trimStartMs,trimEndMs,token})=>({
+  id,kind,label,assetRef,trimStartMs,trimEndMs,token:token||null
 });
 const signature=state=>JSON.stringify({
   general:state.general,
@@ -31,15 +35,11 @@ const signature=state=>JSON.stringify({
     token:state.imageStage.token||null
   },
   hints:state.hints.map(({id,text})=>({id,text})),
-  media:state.media.map(({id,kind,label,assetRef,token})=>({
-    id,kind,label,assetRef,token:token||null
-  }))
+  media:state.media.map(mediaSignature)
 });
 const groupSignature=(state,group)=>JSON.stringify(group==='hints'
   ?state.hints.map(({id,text})=>({id,text}))
-  :state.media.map(({id,kind,label,assetRef,token})=>({
-    id,kind,label,assetRef,token:token||null
-  })));
+  :state.media.map(mediaSignature));
 const release=stage=>{if(stage?.url)URL.revokeObjectURL(stage.url);};
 
 export function createRoomDraft(room=null){
@@ -91,6 +91,7 @@ export function createRoomDraft(room=null){
       if(old?.url&&old.url!==record.url)release(old);
       const next={id,kind:record.kind,label:record.label||'',
         assetRef:record.assetRef||old?.assetRef||'',
+        trimStartMs:record.trimStartMs??0,trimEndMs:record.trimEndMs??null,
         file:record.file||null,url:record.url||null,
         token:record.file?crypto.randomUUID():null};
       if(index<0)state.media.push(next);else state.media[index]=next;
@@ -119,7 +120,8 @@ export function createRoomDraft(room=null){
       const media=this.groupDirty('media')?state.media.map(m=>({
         id:m.id.startsWith('draft-')?null:m.id,
         kind:m.kind,label:m.label.trim()||null,
-        assetRef:uploaded.get(m.id)||m.assetRef
+        assetRef:uploaded.get(m.id)||m.assetRef,
+        trimStartMs:m.trimStartMs??0,trimEndMs:m.trimEndMs??null
       })):null;
       return {room:roomValues,hints,media};
     },

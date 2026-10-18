@@ -1,9 +1,9 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=room-delete-1';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=theme-1';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
-import { renderRoomWorkspace } from './room-workspace.mjs?v=room-delete-2';
-import { createRoomDraft } from './room-draft.mjs?v=presentation-1';
+import { renderRoomWorkspace } from './room-workspace.mjs?v=theme-1';
+import { createRoomDraft } from './room-draft.mjs?v=theme-1';
 import {activeDuration,dateKey,groupLabel} from './history-model.mjs?v=refinement-2';
 import {createLoader,withImageSkeleton,preloadImages,waitForImages,visibleImages,revealPage} from '../loader.mjs?v=loader-2';
 

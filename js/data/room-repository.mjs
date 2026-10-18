@@ -18,10 +18,13 @@ async function read(query) {
 function normalizeRoom(row, hints, media) {
   const roomMedia = media.filter(item => item.room_id === row.id);
   const first = kind => roomMedia.find(item => item.kind === kind)?.asset_ref || null;
+  const trim = item => ({ trimStartMs: item?.trim_start_ms ?? 0, trimEndMs: item?.trim_end_ms ?? null });
+  const theme = roomMedia.find(item => item.kind === 'theme_sound');
   const list = kind => roomMedia
     .filter(item => item.kind === kind)
     .sort((a, b) => a.display_order - b.display_order)
-    .map(item => ({ id: item.id, label: item.label, src: item.asset_ref }));
+    .map(item => ({ id: item.id, label: item.label, src: item.asset_ref,
+      ...(kind === 'gm_sound' ? trim(item) : {}) }));
 
   return {
     id: row.id,
@@ -41,11 +44,14 @@ function normalizeRoom(row, hints, media) {
       .map(item => ({ id: item.id, text: item.body, displayOrder: item.display_order })),
     mediaRecords: roomMedia.sort((a, b) => a.display_order - b.display_order)
       .map(item => ({ id: item.id, kind: item.kind, label: item.label,
-        assetRef: item.asset_ref, displayOrder: item.display_order })),
+        assetRef: item.asset_ref, displayOrder: item.display_order, ...trim(item) })),
     media: {
       hintSound: first('hint_sound'),
+      hintSoundTrim: trim(roomMedia.find(item => item.kind === 'hint_sound')),
       loseSound: first('lose_sound'),
+      loseSoundTrim: trim(roomMedia.find(item => item.kind === 'lose_sound')),
       loseVideo: first('lose_video'),
+      themeSound: theme ? { src: theme.asset_ref, ...trim(theme) } : null,
       gmImages: list('gm_image'),
       gmSounds: list('gm_sound'),
       gmVideos: list('gm_video')
@@ -67,7 +73,7 @@ export function createRoomRepository(client) {
     const ids = rooms.map(room => room.id);
     const [hints, media] = await Promise.all([
       read(client.from('room_hints').select('id,room_id,body,display_order').in('room_id', ids)),
-      read(client.from('room_media').select('id,room_id,kind,label,asset_ref,display_order').in('room_id', ids))
+      read(client.from('room_media').select('id,room_id,kind,label,asset_ref,display_order,trim_start_ms,trim_end_ms').in('room_id', ids))
     ]);
     return rooms.map(room => normalizeRoom(room, hints, media));
   }

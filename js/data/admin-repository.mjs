@@ -1,4 +1,4 @@
-import { createRoomRepository } from './room-repository.mjs';
+import { createRoomRepository } from './room-repository.mjs?v=theme-1';
 import { roomIdBase,roomIdCandidate } from './room-id.mjs';
 
 // The database remains the authority. This module has no credentials and
