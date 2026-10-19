@@ -156,6 +156,31 @@ begin
   denied := false; begin update public.staff_accounts set role = 'admin' where user_id = venue_id;
     exception when check_violation then denied := true; end;
   if not denied then raise exception 'Operational account promoted to Admin'; end if;
+  -- Deactivation and password rotation (operator-account revokes sessions
+  -- through admin_revoke_operator_sessions) end access at once; Admin stays.
+  perform set_config('request.jwt.claim.sub',admin_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('session_id',admin_sid)::text,true);
+  execute 'set local role authenticated';
+  perform public.admin_manage_staff(events_id,'game_master',false,
+    (select coalesce(array_agg(room_id order by room_id),'{}') from public.staff_room_access where user_id=events_id));
+  perform public.admin_revoke_operator_sessions(venue_id);
+  if ahaji_private.current_staff_role() <> 'admin' then raise exception 'Admin access lost'; end if;
+  execute 'reset role';
+  if (select operational_slot from public.staff_accounts where user_id=events_id) <> 'events'
+    or not exists(select 1 from public.staff_room_access where user_id=events_id and room_id='qa_faw') then
+    raise exception 'Deactivation dropped the slot or rooms'; end if;
+  perform set_config('request.jwt.claim.sub',events_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('session_id',events_sid)::text,true);
+  execute 'set local role authenticated';
+  if ahaji_private.current_staff_role() is not null or ahaji_private.can_access_room('qa_faw') then
+    raise exception 'Deactivated operational account kept access'; end if;
+  execute 'reset role';
+  perform set_config('request.jwt.claim.sub',venue_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('session_id',venue_sid)::text,true);
+  execute 'set local role authenticated';
+  if ahaji_private.current_staff_role() is not null or ahaji_private.can_access_room('qa_anbar') then
+    raise exception 'Rotated password left the old session working'; end if;
+  execute 'reset role';
   raise notice 'operational_room_assignments.sql: all checks passed';
 end;
 $qa$;

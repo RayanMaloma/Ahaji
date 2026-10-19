@@ -61,6 +61,27 @@ After a move or removal, the previous account loses the room at once: its RLS re
   - The table shows the account label under the username.
   - Passwords stay in Supabase Auth: the existing one-time generated password plus Admin reset via `operator-account`.
 
+## Approved account policy (2026-10-19)
+
+| Account | Sign-in | Notes |
+|---|---|---|
+| Admin | Personal, verified real email (`signInWithPassword`) | Onboarded through the existing `staff-invite` invitation (Supabase invite, then a password set on `recover.html`). Email verification and RBAC unchanged. |
+| حساب محل أحاجي | `venue@ahaji.com` → operator login `venue` | Not a mailbox. Rooms: العم صالح, عنبر 23, الهرم. |
+| حساب الفعاليات | `events@ahaji.com` → operator login `events` | Not a mailbox. Room: أسرار الفاو. |
+
+- **Sign-in path:**
+  - An identifier ending in `@ahaji.com` (or a bare username) goes to `operator-login`. The function strips `@ahaji.com`, requires an active `game_master` operator account, and signs in to the hidden `.invalid` Auth identity.
+  - If no operator matches, an `@ahaji.com` identifier falls back to normal email sign-in, so a personal Admin with a real `@ahaji.com` mailbox still works.
+  - Both failures show the same message.
+- **No first-login password change.** No code path forces one, for operational accounts or for anyone else.
+- **Passwords:**
+  - Generated server-side by `operator-account` (26 random characters) and stored only as an Auth hash.
+  - Shown once to the Admin.
+  - Rotation is «إعادة تعيين كلمة المرور». It issues a new password and revokes existing sessions immediately, through `admin_revoke_operator_sessions`.
+- **Deactivation** («الحساب نشط» off) blocks `operator-login` and makes `current_staff_role()` null at once. It keeps the slot and rooms for later reactivation.
+- **Admin rights:** operator accounts can never become Admin (`staff_operator_identity_valid`, plus the slot check constraint).
+- **Room isolation:** room access remains per account in `staff_room_access`, so one shared account's password never reaches the other's rooms.
+
 ## Shared credentials: accountability limits
 
 The two operational accounts are shared by design (a business requirement). Consequences:
@@ -78,7 +99,7 @@ Room `anbar` keeps its ID and every relationship. Only `rooms.name` changes. In 
 
 1. Fresh recovery snapshot (`docs/AHAJI_OPERATIONS.md`).
 2. Apply `supabase/migrations/20261019125113_operational_room_assignments.sql`.
-3. Admin → فريق العمل → إضافة عضو → حساب تشغيلي: create the two username accounts (for example `ahaji_venue` and `ahaji_events`), choosing «حساب محل أحاجي» / «حساب الفعاليات» in «الحساب التشغيلي». Hand over each one-time password securely.
+3. Admin → فريق العمل → إضافة عضو → حساب تشغيلي: create the two username accounts **`venue`** and **`events`** (they sign in as `venue@ahaji.com` / `events@ahaji.com`), choosing «حساب محل أحاجي» / «حساب الفعاليات» in «الحساب التشغيلي». Hand over each one-time password securely.
 4. Either use ربط الغرف to assign the rooms and rename `anbar` in its room settings, **or** run `supabase/manual/20261019_operational_rollout.sql` once in the SQL editor. The script is idempotent. It aborts without changes if an account is missing, if there is not exactly one room named «أسرار الفاو», or if any of these rooms has a running game.
 5. Sign in as each account and confirm that only its rooms appear.
 

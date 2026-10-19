@@ -438,7 +438,7 @@ function showStaffEditor(person=null){
         const option=node('option','',label);option.value=value;accountType.append(option);}
       form.append(field('طريقة الدخول',accountType));
       username=node('input','admin-input');username.type='text';username.dir='ltr';
-      username.pattern='[a-z][a-z0-9._-]{2,63}';username.placeholder='gamemaster';
+      username.pattern='[a-z][a-z0-9._-]{2,63}';username.placeholder='venue';
       const usernameWrap=field('اسم المستخدم · ‎@ahaji.com',username);
       email=node('input','admin-input');email.type='email';email.dir='ltr';
       const emailWrap=field('البريد الإلكتروني',email);
@@ -492,8 +492,8 @@ function showStaffEditor(person=null){
           const secret=node('div','operator-credentials');
           secret.append(node('strong','','بيانات الدخول · تظهر مرة واحدة'),
             detailAccount('اسم المستخدم',data.username,true),
-            detailAccount('كلمة المرور المؤقتة',data.password,true),
-            node('p','account-note','سلّم كلمة المرور للموظف عبر قناة آمنة. لا توجد رسائل بريد أو استعادة بريدية لهذا الحساب.'));
+            detailAccount('كلمة المرور',data.password,true),
+            node('p','account-note','انسخها الآن وسلّمها عبر قناة آمنة؛ لن تُعرض مجدداً ولا تُخزَّن نصاً. لا يُطلب تغييرها عند أول دخول، ويمكن للمدير تدويرها من «إعادة تعيين كلمة المرور». هذا اسم دخول وليس بريداً حقيقياً، فلا توجد رسائل أو استعادة بالبريد.'));
           form.append(secret);return;
         }else{
           const {data,error}=await supabase.functions.invoke('staff-invite',{
