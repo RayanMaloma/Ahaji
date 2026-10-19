@@ -1,6 +1,14 @@
 # Operational accounts and room assignment (ربط الغرف)
 
-Implemented 2026-10-19 on `codex/final-review-refinements`. **Local only.** The migration, the account creation, and the initial assignments all need explicit Product Owner approval before they touch project `gbhleqizxcmxmutgcjon` (see "Rollout").
+Implemented 2026-10-19 on `codex/final-review-refinements`.
+
+**Live state (2026-10-19):** with Product Owner approval, migration `20261019125113_operational_room_assignments` was applied to `gbhleqizxcmxmutgcjon` through the Supabase connector. The steps around it:
+
+- **Snapshot first:** a targeted pre-migration snapshot `backups/pre-room-assignment-20261019.json` (git-ignored) holds rooms, staff, profiles, access rows, migration versions, and the replaced function definitions verbatim, with an MD5 match to the server. It also holds row counts and MD5 digests of hints, media, sessions, events, audit, and Storage objects.
+- **Verified after:** 19 migrations, the column, triggers, and grants are present (`anon` has no execute). The data digests are identical before and after, and no slot is set yet.
+- **Advisors:** the security advisor shows only the documented categories. The three new Admin RPCs appear in the intentional "authenticated SECURITY DEFINER" list; each checks the Admin role inside.
+
+Not done yet (each needs approval): the two operational accounts, the assignments, and the «عنبر 23» rename. The live «أسرار الفاو» room is `room-1c0392f`.
 
 ## Model
 
@@ -15,7 +23,7 @@ Implemented 2026-10-19 on `codex/final-review-refinements`. **Local only.** The 
 - **One operational owner per room.** A trigger on `staff_room_access` (and on slot changes) rejects a room held by two slot accounts, whatever writes it. Individual employee accounts without a slot can still be given rooms alongside the operational account, which keeps future per-employee accounts possible.
 - **Unassigned** means no slot account holds the room. Only the Admin sees it. New rooms start unassigned because room creation never writes access rows.
 
-## Database (migration `20261019120000_operational_room_assignments.sql`)
+## Database (migration `20261019125113_operational_room_assignments.sql`)
 
 - `staff_accounts.operational_slot`, together with its check constraint, unique index, and owner trigger.
 - `admin_set_operational_slot(user_id, slot)` marks or clears an account. It is Admin-only and works on Game Masters only. An empty display name is filled with the account label.
@@ -69,14 +77,14 @@ Room `anbar` keeps its ID and every relationship. Only `rooms.name` changes. In 
 ## Rollout (each step needs Product Owner approval)
 
 1. Fresh recovery snapshot (`docs/AHAJI_OPERATIONS.md`).
-2. Apply `supabase/migrations/20261019120000_operational_room_assignments.sql`.
+2. Apply `supabase/migrations/20261019125113_operational_room_assignments.sql`.
 3. Admin → فريق العمل → إضافة عضو → حساب تشغيلي: create the two username accounts (for example `ahaji_venue` and `ahaji_events`), choosing «حساب محل أحاجي» / «حساب الفعاليات» in «الحساب التشغيلي». Hand over each one-time password securely.
 4. Either use ربط الغرف to assign the rooms and rename `anbar` in its room settings, **or** run `supabase/manual/20261019_operational_rollout.sql` once in the SQL editor. The script is idempotent. It aborts without changes if an account is missing, if there is not exactly one room named «أسرار الفاو», or if any of these rooms has a running game.
 5. Sign in as each account and confirm that only its rooms appear.
 
 **Rollback:** remove the slots (`admin_set_operational_slot(id, null)`). Access rows remain ordinary assignments. Dropping the migration's functions, triggers, and column restores the previous schema; restore the previous `admin_staff_directory` from `20261012161918_operational_staff_accounts.sql`.
 
-**Live data not verified:** this connector cannot run SQL on the live project. The latest recovery snapshot (2026-10-14) has no room named «أسرار الفاو», and `anbar` is still «السجن». The rollout script checks both before changing anything.
+**Live data checked 2026-10-19:** «أسرار الفاو» exists as `room-1c0392f` (11 hints, 5 media). `anbar` is still «السجن». No operational accounts exist and no games are running.
 
 ## Tests
 

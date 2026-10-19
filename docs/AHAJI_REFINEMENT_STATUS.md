@@ -6,9 +6,10 @@ Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Produc
 
 The Product Owner cancelled email onboarding. Commit `aa5d333` (staff invitations, never applied or deployed) was reverted in `4dcade6`. New, local-only feature: see `docs/AHAJI_ROOM_ASSIGNMENTS.md`.
 
-- [x] Migration `20261019120000_operational_room_assignments.sql`: an operational slot on Game Master accounts, one operational owner per room, atomic and revision-checked assign/move/unassign that refuses during a running game, and an Admin-only read. Verified on disposable PostgreSQL 17, including the restored 2026-10-14 snapshot.
+- [x] Migration `20261019125113_operational_room_assignments.sql`: an operational slot on Game Master accounts, one operational owner per room, atomic and revision-checked assign/move/unassign that refuses during a running game, and an Admin-only read. Verified on disposable PostgreSQL 17, including the restored 2026-10-14 snapshot.
 - [x] Admin «ربط الغرف» page (two columns, image cards, actions dialog, unassigned section, mobile stacking) and the operational-account field in the Staff editor. «عنبر 23» in the seed and fixtures.
-- [ ] Live rollout awaiting approval: migration, two operator accounts, assignments and rename (UI or `supabase/manual/20261019_operational_rollout.sql`). «أسرار الفاو» was not in the latest snapshot; the rollout script verifies it exists.
+- [x] Migration applied live on 2026-10-19 with approval (`20261019125113`), after a verified targeted snapshot `backups/pre-room-assignment-20261019.json`. Data digests are unchanged and no assignment exists yet.
+- [ ] Awaiting approval: two operator accounts, assignments, and the «عنبر 23» rename (UI or `supabase/manual/20261019_operational_rollout.sql`). «أسرار الفاو» is `room-1c0392f`.
 
 ## Branded loader integration (2026-10-14)
 

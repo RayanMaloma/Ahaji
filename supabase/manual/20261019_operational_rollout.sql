@@ -1,5 +1,5 @@
 -- Optional one-time rollout for operational accounts. RUN ONLY WITH EXPLICIT
--- PRODUCT OWNER APPROVAL, after migration 20261019120000 and after both
+-- PRODUCT OWNER APPROVAL, after migration 20261019125113 and after both
 -- operational accounts exist and are marked in Admin → فريق العمل.
 -- Everything here can also be done in the Admin UI (room settings for the
 -- name, ربط الغرف for assignments); the script is the deterministic version.
