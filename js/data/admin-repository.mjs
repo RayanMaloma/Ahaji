@@ -60,6 +60,22 @@ export function createAdminRepository(client) {
     return {sessions,eventMap};
   }
 
+  async function loadAssignments() {
+    const data = await checked(client.rpc('admin_room_assignments'));
+    if (!data) throw new Error('Admin access required');
+    return data;
+  }
+  // Errors keep their Postgres code (40001 stale view, 55006 game in progress).
+  async function setRoomAssignment(roomId, slot, expectedSlot) {
+    const { data, error } = await client.rpc('admin_set_room_assignment',
+      { p_room_id: roomId, p_slot: slot, p_expected_slot: expectedSlot });
+    if (error) throw error;
+    return data;
+  }
+  async function setOperationalSlot(userId, slot) {
+    const { error } = await client.rpc('admin_set_operational_slot', { p_user_id: userId, p_slot: slot });
+    if (error) throw error;
+  }
   async function createRoom(values) {
     return checked(client.from('rooms').insert(values).select('id').single());
   }
@@ -123,7 +139,7 @@ export function createAdminRepository(client) {
     if(error) throw error;
   }
 
-  return Object.freeze({ load,listRooms,loadHistory,listEvents,createRoom,createRoomForName,updateRoom,
+  return Object.freeze({ load,listRooms,loadHistory,loadAssignments,setRoomAssignment,setOperationalSlot,listEvents,createRoom,createRoomForName,updateRoom,
     getRoom,saveRoomDraft,deleteNewRoom,saveHint,
     deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
 }

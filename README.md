@@ -14,6 +14,7 @@ For separate devices, serve on `0.0.0.0` and open the GM page through the comput
 - `js/data/`: Supabase room and Admin data boundaries.
 - `js/session-adapter.js`: server-backed session commands, GM Realtime subscription, and token-checked Cast synchronization. The local adapter exists only for the legacy browser fixture.
 - `js/gm.js` and `js/cast.js`: timer, controls, media presentation, and display behavior.
+- `js/admin/room-assignments.mjs`: «ربط الغرف», the assignment of rooms to the venue and events operational accounts. See [room assignment](docs/AHAJI_ROOM_ASSIGNMENTS.md).
 - `js/loader.mjs`, `css/loader.css`, `images/loader/`: the approved branded loader and image skeletons. See [loader notes](docs/AHAJI_LOADER.md).
 - `supabase/migrations/`: versioned schema, RLS, grants, audit, and trusted session functions.
 - `supabase/functions/staff-invite/`: JWT-verified Admin invitation endpoint. Privileged keys remain in Supabase's function environment.

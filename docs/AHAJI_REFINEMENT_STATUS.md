@@ -2,6 +2,14 @@
 
 Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Product Owner decision: **request changes; not approved**. Work is on `codex/final-review-refinements`. Do not merge or deploy the application.
 
+## Operational accounts and room assignment (2026-10-19)
+
+The Product Owner cancelled email onboarding. Commit `aa5d333` (staff invitations, never applied or deployed) was reverted in `4dcade6`. New, local-only feature: see `docs/AHAJI_ROOM_ASSIGNMENTS.md`.
+
+- [x] Migration `20261019120000_operational_room_assignments.sql`: an operational slot on Game Master accounts, one operational owner per room, atomic and revision-checked assign/move/unassign that refuses during a running game, and an Admin-only read. Verified on disposable PostgreSQL 17, including the restored 2026-10-14 snapshot.
+- [x] Admin «ربط الغرف» page (two columns, image cards, actions dialog, unassigned section, mobile stacking) and the operational-account field in the Staff editor. «عنبر 23» in the seed and fixtures.
+- [ ] Live rollout awaiting approval: migration, two operator accounts, assignments and rename (UI or `supabase/manual/20261019_operational_rollout.sql`). «أسرار الفاو» was not in the latest snapshot; the rollout script verifies it exists.
+
 ## Branded loader integration (2026-10-14)
 
 Product Owner authorized loader integration only. See `docs/AHAJI_LOADER.md`.

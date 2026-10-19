@@ -1,11 +1,12 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=loader-2';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=assign-1';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
 import { renderRoomWorkspace } from './room-workspace.mjs?v=loader-2';
 import { createRoomDraft } from './room-draft.mjs';
 import {activeDuration,dateKey,groupLabel} from './history-model.mjs?v=refinement-2';
 import {createLoader,withImageSkeleton,preloadImages,waitForImages,visibleImages,revealPage} from '../loader.mjs?v=loader-2';
+import {renderRoomAssignments,accountLabel} from './room-assignments.mjs?v=assign-1';
 
 const repository = createAdminRepository(supabase);
 const shell = document.getElementById('admin-shell');
@@ -18,6 +19,7 @@ const menuButton = document.getElementById('admin-menu-button');
 const scrim = document.getElementById('admin-scrim');
 const state = { access: null, data: null, loading: false, error: false,
   history:null,historyLoading:false,historyError:false,
+  assignments:null,assignmentsLoading:false,assignmentsError:false,
   historyView:{timeZone:localStorage.getItem('ahaji-history-timezone')||'Asia/Riyadh',
     mode:'all',day:'',start:'',end:'',showShort:false} };
 let accessRequestId = 0,lastVerifiedAt = 0;
@@ -195,7 +197,7 @@ function renderStaff() {
       const copy=node('span');
       const email=node('strong','staff-email',display);email.dir='auto';
       copy.append(email,node('small','',person.account_type==='operator'
-        ? `${person.login_name}@ahaji.com · حساب تشغيلي`
+        ? `${person.login_name}@ahaji.com · ${person.operational_slot?accountLabel(person.operational_slot):'حساب تشغيلي'}`
         : person.email_confirmed?'بريد موثّق':'البريد غير موثّق'));
       identity.append(copy); accountCell.append(identity); row.append(accountCell);
       const roleCell=node('td'); roleCell.append(rolePill(person.role)); row.append(roleCell);
@@ -337,6 +339,88 @@ function renderSessionDetail(id){
   }).catch(()=>{if(holder.isConnected)holder.textContent='تعذّر تحميل سجل الأحداث.';});
 }
 
+function assignmentError(error){
+  const message=String(error?.message||'');
+  if(error?.code==='40001')return 'تغيّر ربط هذه الغرفة من جلسة إدارة أخرى. حُدّثت الصفحة بأحدث حالة.';
+  if(error?.code==='55006')return 'الغرفة قيد اللعب الآن. انتظر حتى تنتهي الجولة ثم أعد المحاولة.';
+  if(/not set up/i.test(message))return 'الحساب المستهدف غير محدّد. حدّده أولاً من فريق العمل.';
+  if(/unavailable/i.test(message))return 'الغرفة غير نشطة. فعّلها من إعدادات الغرفة قبل ربطها.';
+  return 'تعذّر حفظ الربط. تحقّق من اتصالك ثم أعد المحاولة.';
+}
+function announce(message){
+  let live=document.getElementById('assign-status');
+  if(!live){live=node('p','assign-status');live.id='assign-status';live.setAttribute('role','status');document.body.append(live);}
+  live.textContent='';setTimeout(()=>{live.textContent=message;},30);
+}
+async function refreshAssignments(){
+  const data=await repository.loadAssignments();
+  const changed=JSON.stringify(data)!==JSON.stringify(state.assignments);
+  state.assignments=data;state.assignmentsError=false;
+  if(changed&&route().view==='assignments'&&!document.querySelector('dialog[open]'))render();
+}
+function openAssignmentDialog(room,trigger){
+  const {dialog,form}=showDialog(room.name,(form,dialog)=>{
+    const current=room.slot,other=current==='venue'?'events':current==='events'?'venue':null;
+    form.append(node('p','assign-dialog-room',current?`مرتبطة بـ ${accountLabel(current)}`:'غير مرتبطة بأي حساب'));
+    const actions=node('div','assign-actions');form.append(actions);
+    const run=async(slot,doneMessage)=>{
+      actions.querySelectorAll('button').forEach(b=>{b.disabled=true;});
+      try{
+        await repository.setRoomAssignment(room.room_id,slot,current||'');
+        dialog.close();await refreshAssignments();render();announce(doneMessage);
+      }catch(error){
+        formStatus(form,assignmentError(error));
+        actions.querySelectorAll('button').forEach(b=>{b.disabled=false;});
+        if(error?.code==='40001'){await refreshAssignments().catch(()=>{});dialog.close();render();}
+      }
+    };
+    const choose=()=>{
+      actions.replaceChildren();
+      if(current){
+        const remove=button('إزالة الغرفة','assign-action danger');
+        const move=button(`نقل إلى ${accountLabel(other)}`,'assign-action primary');
+        remove.addEventListener('click',confirmRemove);
+        move.addEventListener('click',()=>run(other,`نُقلت «${room.name}» إلى ${accountLabel(other)}.`));
+        actions.append(move,remove);
+      }else for(const slot of ['venue','events']){
+        const assign=button(`ربط بـ ${accountLabel(slot)}`,'assign-action primary');
+        assign.addEventListener('click',()=>run(slot,`رُبطت «${room.name}» بـ ${accountLabel(slot)}.`));
+        actions.append(assign);
+      }
+      const cancel=button('إلغاء','assign-action quiet');cancel.addEventListener('click',()=>dialog.close());
+      actions.append(cancel);
+    };
+    const confirmRemove=()=>{
+      actions.replaceChildren(node('p','assign-confirm',
+        `ستُزال «${room.name}» من ${accountLabel(current)} فقط. تبقى الغرفة وتلميحاتها ووسائطها وسجل جلساتها كما هي، ويمكن ربطها لاحقاً.`));
+      const yes=button('تأكيد الإزالة','assign-action danger');
+      const back=button('رجوع','assign-action quiet');
+      yes.addEventListener('click',()=>run(null,`أُزيلت «${room.name}» من ${accountLabel(current)}.`));
+      back.addEventListener('click',choose);
+      actions.append(yes,back);yes.focus();
+    };
+    choose();
+  });
+  dialog.addEventListener('close',()=>{
+    const again=document.querySelector(`.assign-card[data-room-id="${CSS.escape(room.room_id)}"]`);
+    (again||trigger)?.focus({preventScroll:true});
+  });
+}
+function renderAssignments(){
+  content.append(heading('','ربط الغرف',''));
+  if(!state.assignments&&!state.assignmentsLoading&&!state.assignmentsError){
+    state.assignmentsLoading=true;
+    repository.loadAssignments().then(data=>{state.assignments=data;state.assignmentsLoading=false;
+      if(route().view==='assignments')render();})
+      .catch(()=>{state.assignmentsLoading=false;state.assignmentsError=true;
+        if(route().view==='assignments')render();});
+  }
+  if(state.assignmentsLoading&&!state.assignments){content.append(createLoader({label:'جارٍ تحميل ربط الغرف…'}));return;}
+  if(state.assignmentsError&&!state.assignments){const error=node('div','error-panel');error.append(node('p','','تعذّر تحميل ربط الغرف.'));
+    const retry=button('إعادة المحاولة','button-dark');retry.addEventListener('click',()=>{state.assignmentsError=false;render();});
+    error.append(retry);content.append(error);return;}
+  content.append(renderRoomAssignments(state.assignments,{imageUrl:assetUrl,onOpen:openAssignmentDialog}));
+}
 function staffRoomChoices(form,selected=[]){
   const list=node('fieldset','staff-room-choices');list.append(node('legend','','الغرف المسموح بها'));
   for(const room of state.data.rooms.filter(r=>r.isActive)){
@@ -373,22 +457,38 @@ function showStaffEditor(person=null){
     role.value=person?.role||'game_master';form.append(field('الدور',role));
     const active=node('input');active.type='checkbox';active.checked=person?.active??true;
     if(person)form.append(field('الحساب نشط',active));
+    const slot=node('select','admin-select');
+    for(const [value,label] of [['','حساب فردي'],['venue','حساب محل أحاجي'],['events','حساب الفعاليات']]){
+      const option=node('option','',label);option.value=value;slot.append(option);}
+    slot.value=person?.operational_slot||'';
+    const slotWrap=field('الحساب التشغيلي',slot);form.append(slotWrap);
+    const slotNote=node('p','account-note','تُدار غرف هذا الحساب من صفحة «ربط الغرف».');form.append(slotNote);
     const rooms=staffRoomChoices(form,person?.room_ids||[]);
-    const syncRooms=()=>{rooms.hidden=role.value==='admin';};role.addEventListener('change',syncRooms);syncRooms();
+    const syncRooms=()=>{const gm=role.value!=='admin';slotWrap.hidden=!gm;if(!gm)slot.value='';
+      slotNote.hidden=!slot.value;rooms.hidden=!gm||Boolean(slot.value);};
+    role.addEventListener('change',syncRooms);slot.addEventListener('change',syncRooms);syncRooms();
     if(accountType)accountType.dispatchEvent(new Event('change'));
     const save=button(person?'حفظ الصلاحيات':'إنشاء الحساب','button-dark');save.type='submit';form.append(save);
     form.addEventListener('submit',async event=>{
       event.preventDefault();save.disabled=true;
-      const roomIds=role.value==='admin'?[]:[...rooms.querySelectorAll('input:checked')].map(x=>x.value);
+      // Operational accounts keep their rooms; those change only in ربط الغرف.
+      const roomIds=role.value==='admin'?[]:slot.value?(person?.operational_slot?person.room_ids||[]:[]):
+        [...rooms.querySelectorAll('input:checked')].map(x=>x.value);
+      const newSlot=role.value==='admin'?null:slot.value||null,oldSlot=person?.operational_slot||null;
       try{
-        if(person){const {error}=await supabase.rpc('admin_manage_staff',{
+        if(person){
+          if(oldSlot&&newSlot!==oldSlot)await repository.setOperationalSlot(person.user_id,null);
+          const {error}=await supabase.rpc('admin_manage_staff',{
           p_user_id:person.user_id,p_role:role.value,p_active:active.checked,p_room_ids:roomIds});
           if(error)throw error;
+          if(newSlot&&newSlot!==oldSlot)await repository.setOperationalSlot(person.user_id,newSlot);
+          state.assignments=null;
         }else if(accountType.value==='operator'){
           const {data,error}=await supabase.functions.invoke('operator-account',{
             body:{action:'create',username:username.value.trim(),room_ids:roomIds}});
           if(error||data?.error)throw new Error(data?.error||error?.message||'تعذّر إنشاء الحساب.');
-          await refresh();save.hidden=true;
+          if(newSlot&&data.user_id)await repository.setOperationalSlot(data.user_id,newSlot);
+          state.assignments=null;await refresh();save.hidden=true;
           const secret=node('div','operator-credentials');
           secret.append(node('strong','','بيانات الدخول · تظهر مرة واحدة'),
             detailAccount('اسم المستخدم',data.username,true),
@@ -399,6 +499,7 @@ function showStaffEditor(person=null){
           const {data,error}=await supabase.functions.invoke('staff-invite',{
             body:{email:email.value.trim(),role:role.value,room_ids:roomIds}});
           if(error)throw error;if(data?.error)throw new Error(data.error);
+          if(newSlot&&data?.user_id)await repository.setOperationalSlot(data.user_id,newSlot);
         }
         dialog.close();await refresh();
       }catch(error){formStatus(form,error.message||'تعذّر حفظ بيانات الفريق.');save.disabled=false;}
@@ -552,7 +653,7 @@ function setNavigation(view,id){
     if(item.dataset.nav===section)item.setAttribute('aria-current','page');
     else item.removeAttribute('aria-current');
   });
-  const titles={rooms:'الغرف',staff:'فريق العمل',account:'حسابي',room:'تفاصيل الغرفة',
+  const titles={rooms:'الغرف',assignments:'ربط الغرف',staff:'فريق العمل',account:'حسابي',room:'تفاصيل الغرفة',
     'new-room':'إضافة غرفة','edit-room':'تعديل الغرفة',history:'سجل الجلسات',session:'تفاصيل الجلسة'};
   let title=titles[view]||'صفحة غير موجودة';
   if(view==='room'){
@@ -565,7 +666,7 @@ function render(){
   workspaceCleanup?.();workspaceCleanup=null;
   const {view,id}=route();lastRenderedUrl=location.pathname+location.search;
   setNavigation(view,id);content.replaceChildren();
-  adminMain.classList.toggle('rooms-scroll',['rooms','room','edit-room','new-room'].includes(view));
+  adminMain.classList.toggle('rooms-scroll',['rooms','room','edit-room','new-room','assignments'].includes(view));
   content.classList.toggle('compact-content',view==='rooms'||view==='staff'||view==='account');
   if(view==='account' && state.access){renderAccount();return;}
   if(state.error){
@@ -576,7 +677,7 @@ function render(){
     return;
   }
   if(!state.data){
-    const labels={rooms:'جارٍ تحميل الغرف…',room:'جارٍ تحميل مساحة الغرفة…','edit-room':'جارٍ تحميل مساحة الغرفة…',
+    const labels={rooms:'جارٍ تحميل الغرف…',assignments:'جارٍ تحميل ربط الغرف…',room:'جارٍ تحميل مساحة الغرفة…','edit-room':'جارٍ تحميل مساحة الغرفة…',
       'new-room':'جارٍ تجهيز غرفة جديدة…',staff:'جارٍ تحميل فريق العمل…',history:'جارٍ تحميل سجل الجلسات…',
       session:'جارٍ تحميل تفاصيل الجلسة…'};
     content.append(createLoader({label:labels[view]||'جارٍ تحميل لوحة الإدارة…'}));return;
@@ -598,6 +699,7 @@ function render(){
   }
   else if(view==='staff')renderStaff();
   else if(view==='history')renderHistory();
+  else if(view==='assignments')renderAssignments();
   else if(view==='session')renderSessionDetail(id);
   else renderNotFound('هذا الرابط لا يشير إلى صفحة في لوحة الإدارة.');
 }
@@ -662,7 +764,7 @@ async function saveCurrentDraft(){
       const result=await repository.saveRoomDraft(roomId,draft.revision,payload);
       draft.markCommitted(result.revision);
     }
-    committed=true;
+    committed=true;state.assignments=null;
     const savedRoom=await repository.getRoom(roomId);
     if(!savedRoom)throw new Error('حُفظت البيانات لكن تعذّر تحديث عرض الغرفة. أعد تحميل الصفحة.');
     if(state.data){
@@ -724,6 +826,7 @@ function navigate(href){
   const go=()=>{
     if(!sameWorkspace(url))workspaceDraft=null;
     history.pushState(null,'',url.pathname+url.search);closeMenu();render();
+    if(route().view==='assignments'&&state.assignments)refreshAssignments().catch(()=>{});
     verifyAccess();content.focus({preventScroll:true});adminMain.scrollTo(0,0);
   };
   if(workspaceDraft?.isDirty()&&!sameWorkspace(url))leaveDialog(go);
@@ -842,6 +945,9 @@ async function boot(){
   if(!await verifyAccess({force:true}))return;
   performance.mark('ahaji:auth-ready');
   await loadData({roomRead});
+  if(route().view==='assignments'&&!state.error){
+    try{state.assignments=await repository.loadAssignments();}catch{state.assignmentsError=true;}
+  }
   if(['history','session'].includes(route().view)&&!state.error){
     try{state.history=await repository.loadHistory();}catch{state.historyError=true;}
   }
