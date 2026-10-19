@@ -48,12 +48,10 @@ class StaffManagementBrowserTests(unittest.TestCase):
             body=route.request.post_data_json
             staff.append({"user_id":"00000000-0000-4000-8000-000000000099",
                           "email":body["email"],"email_confirmed":False,"role":body["role"],
-                          "active":False,"account_type":"email","login_name":None,
-                          "display_name":body.get("display_name"),"avatar_ref":None,
-                          "created_at":"2026-10-11T00:00:00Z","room_ids":body["room_ids"],
-                          "invitation_id":"11111111-1111-4111-8111-111111111111",
-                          "invitation_status":"pending","invitation_expires_at":"2026-10-12T00:00:00Z"})
-            route.fulfill(status=200,headers=headers,body=json.dumps({"status":"pending","email":body["email"]}))
+                          "active":True,"account_type":"email","login_name":None,
+                          "display_name":None,"avatar_ref":None,
+                          "created_at":"2026-10-11T00:00:00Z","room_ids":body["room_ids"]})
+            route.fulfill(status=200,headers=headers,body='{"status":"invited"}')
 
         def manage(route):
             body=route.request.post_data_json
@@ -70,20 +68,14 @@ class StaffManagementBrowserTests(unittest.TestCase):
         page.get_by_role("combobox",name="طريقة الدخول").select_option("email")
         page.get_by_role("textbox",name="البريد الإلكتروني").fill("newgm@test.invalid")
         page.locator(".staff-room-choices input[value=anbar]").check()
-        page.get_by_role("button",name="إرسال الدعوة").click()
-        expect(page.get_by_role("dialog").get_by_text("أُرسلت الدعوة")).to_be_visible()
-        page.get_by_role("dialog").get_by_role("button",name="إغلاق").click()
+        page.get_by_role("button",name="إنشاء الحساب").click()
+        expect(page.get_by_text("newgm@test.invalid")).to_be_visible()
         row=page.locator(".staff-table tbody tr").filter(has_text="newgm@test.invalid")
-        expect(row).to_contain_text("بانتظار التفعيل")
-        expect(row).to_contain_text("السجن")
-        # Room scope stays editable while pending; activation is left to the invitee.
+        expect(row).to_contain_text("بانتظار توثيق البريد")
         row.get_by_role("button",name="إدارة").click()
-        expect(page.get_by_role("checkbox",name="الحساب نشط")).to_have_count(0)
-        page.locator(".staff-room-choices input[value=saleh]").check()
+        page.get_by_role("checkbox",name="الحساب نشط").uncheck()
         page.get_by_role("button",name="حفظ الصلاحيات").click()
-        person=next(s for s in staff if s["email"]=="newgm@test.invalid")
-        self.assertFalse(person["active"])
-        self.assertEqual(sorted(person["room_ids"]),["anbar","saleh"])
+        self.assertFalse(next(s for s in staff if s["email"]=="newgm@test.invalid")["active"])
 
     def test_operator_provision_room_scope_deactivate_and_reset(self):
         staff=copy.deepcopy(DASHBOARD_STAFF)

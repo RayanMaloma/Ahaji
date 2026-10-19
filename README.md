@@ -16,7 +16,7 @@ For separate devices, serve on `0.0.0.0` and open the GM page through the comput
 - `js/gm.js` and `js/cast.js`: timer, controls, media presentation, and display behavior.
 - `js/loader.mjs`, `css/loader.css`, `images/loader/`: the approved branded loader and image skeletons. See [loader notes](docs/AHAJI_LOADER.md).
 - `supabase/migrations/`: versioned schema, RLS, grants, audit, and trusted session functions.
-- `supabase/functions/staff-invite/`: JWT-verified Admin invitation endpoint (invite, resend, revoke). Privileged keys remain in Supabase's function environment. `activate.html` is the invitee's first-login page. See [staff invitations](docs/AHAJI_STAFF_INVITATIONS.md).
+- `supabase/functions/staff-invite/`: JWT-verified Admin invitation endpoint. Privileged keys remain in Supabase's function environment.
 
 Do not put service-role credentials, Auth sessions, or backup files in Git. The publishable key in the browser is constrained by Supabase Auth, RLS, and server functions.
 

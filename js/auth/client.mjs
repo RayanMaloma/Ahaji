@@ -33,20 +33,8 @@ export async function currentAccess() {
       .select('display_name,avatar_ref').eq('user_id',userData.user.id).maybeSingle()
   ]);
   if (error) throw error;
-  if (!data?.active || !['admin', 'game_master'].includes(data.role)) {
-    return { user: userData.user, role: null, pendingInvitation: await hasPendingInvitation() };
-  }
+  if (!data?.active || !['admin', 'game_master'].includes(data.role)) return { user: userData.user, role: null };
   if(profileError)throw profileError;
   return { user: userData.user, role: data.role, accountType:data.account_type,
     loginName:data.login_name, profile:profile||null };
-}
-
-// An invited user who has not finished activation is sent to activate.html.
-// Failures fall back to the ordinary unauthorized route.
-async function hasPendingInvitation() {
-  try {
-    const { data, error } = await supabase.rpc('my_staff_invitation');
-    const row = Array.isArray(data) ? data[0] : data;
-    return !error && row?.status === 'pending';
-  } catch { return false; }
 }

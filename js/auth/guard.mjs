@@ -35,7 +35,7 @@ async function checkAccess() {
       return;
     }
     if (!access.role) {
-      window.location.replace(access.pendingInvitation ? 'activate.html' : 'unauthorized.html');
+      window.location.replace('unauthorized.html');
       return;
     }
     if (page === 'gm' || page === 'index') {

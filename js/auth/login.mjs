@@ -10,7 +10,7 @@ function showError(message) { errorBox.textContent = message; errorBox.hidden = 
 function route(access) {
   window.location.replace(access.role
     ? (!requestedNext && access.role === 'admin' ? 'admin.html?view=rooms' : next)
-    : access.pendingInvitation ? 'activate.html' : 'unauthorized.html');
+    : 'unauthorized.html');
 }
 
 try {

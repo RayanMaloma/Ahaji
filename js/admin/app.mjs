@@ -204,25 +204,16 @@ function renderStaff() {
       else if(!person.room_ids?.length) chips.append(node('span','','لا توجد غرف معيّنة'));
       else for(const id of person.room_ids) chips.append(node('span','assignment-chip',rooms.get(id)||id));
       assignments.append(chips);row.append(assignments);
-      const statusCell=node('td');statusCell.append(staffStatus(person));
+      const statusCell=node('td');
+      statusCell.append(!person.active?statusPill(false):person.account_type==='operator'||person.email_confirmed?statusPill(true):
+        node('span','status-pill pending','بانتظار توثيق البريد'));
       row.append(statusCell);
       const actionCell=node('td');const edit=button('إدارة','mini-action');
       edit.addEventListener('click',()=>showStaffEditor(person));actionCell.append(edit);
-      const invitation=person.invitation_status;
       if(person.account_type==='operator'){
         const reset=button('إعادة تعيين كلمة المرور','mini-action');
         reset.addEventListener('click',()=>resetOperator(person));actionCell.append(reset);
-      }else if(['pending','expired'].includes(invitation)&&!person.active){
-        const resend=button('إعادة إرسال الدعوة','mini-action');
-        resend.addEventListener('click',()=>invitationAction('resend',person,resend));
-        const revoke=button('إلغاء الدعوة','mini-action danger');
-        revoke.addEventListener('click',()=>invitationAction('revoke',person,revoke));
-        actionCell.append(resend,revoke);
-      }else if(invitation==='revoked'&&!person.active){
-        const again=button('دعوة مجدداً','mini-action');
-        again.addEventListener('click',()=>showStaffEditor(null,person));actionCell.append(again);
-      }else if(!invitation&&!person.email_confirmed){
-        const resend=button('إرسال رابط تعيين كلمة المرور','mini-action');
+      }else if(!person.email_confirmed){const resend=button('إعادة الدعوة','mini-action');
         resend.addEventListener('click',()=>resendInvite(person));actionCell.append(resend);}
       row.append(actionCell);
       tbody.append(row);
@@ -346,40 +337,6 @@ function renderSessionDetail(id){
   }).catch(()=>{if(holder.isConnected)holder.textContent='تعذّر تحميل سجل الأحداث.';});
 }
 
-function staffStatus(person){
-  const invitation=person.invitation_status;
-  if(person.account_type==='email'&&!person.active&&invitation&&invitation!=='accepted'){
-    const labels={pending:['pending','بانتظار التفعيل'],expired:['inactive','دعوة منتهية'],revoked:['inactive','دعوة ملغاة']};
-    const [kind,label]=labels[invitation]||['inactive','غير نشطة'];
-    const wrap=node('div','staff-status');wrap.append(node('span',`status-pill ${kind}`,label));
-    if(invitation==='pending'&&person.invitation_expires_at)
-      wrap.append(node('small','staff-status-note',`تنتهي ${fmtDateTime(person.invitation_expires_at)}`));
-    return wrap;
-  }
-  if(!person.active)return statusPill(false);
-  if(person.account_type==='operator'||person.email_confirmed)return statusPill(true);
-  return node('span','status-pill pending','بانتظار توثيق البريد');
-}
-// Non-2xx Edge Function replies carry their message in the response body.
-async function functionMessage(error,data,fallback){
-  if(data?.error)return data.error;
-  try{const body=await error?.context?.json();if(body?.error)return body.error;}catch{}
-  return fallback;
-}
-function activationUrl(){return new URL('activate.html',location.href).href.split('?')[0];}
-async function invitationAction(action,person,trigger){
-  const target=person.display_name||person.email;
-  if(action==='revoke'&&!confirm(`إلغاء دعوة ${target}؟ لن يعمل رابط التفعيل بعد الآن.`))return;
-  trigger.disabled=true;
-  const {data,error}=await supabase.functions.invoke('staff-invite',{body:{action,
-    invitation_id:person.invitation_id,redirect_to:activationUrl()}});
-  if(error||data?.error){
-    alert(await functionMessage(error,data,action==='revoke'?'تعذّر إلغاء الدعوة.':'تعذّرت إعادة إرسال الدعوة.'));
-    trigger.disabled=false;return;
-  }
-  alert(action==='revoke'?'أُلغيت الدعوة.':`أُعيد إرسال الدعوة إلى ${person.email}. تنتهي خلال 24 ساعة.`);
-  await refresh();
-}
 function staffRoomChoices(form,selected=[]){
   const list=node('fieldset','staff-room-choices');list.append(node('legend','','الغرف المسموح بها'));
   for(const room of state.data.rooms.filter(r=>r.isActive)){
@@ -388,11 +345,9 @@ function staffRoomChoices(form,selected=[]){
   }
   form.append(list);return list;
 }
-function showStaffEditor(person=null,prefill=null){
+function showStaffEditor(person=null){
   showDialog(person?'إدارة عضو الفريق':'إضافة عضو فريق',(form,dialog)=>{
-    let email=null,username=null,accountType=null,displayName=null;
-    const pendingInvite=Boolean(person&&person.account_type==='email'&&!person.active&&
-      ['pending','expired','revoked'].includes(person.invitation_status));
+    let email=null,username=null,accountType=null;
     if(!person){
       accountType=node('select','admin-select');
       for(const [value,label] of [['operator','حساب تشغيلي باسم مستخدم'],['email','دعوة عبر بريد موثّق']]){
@@ -401,18 +356,12 @@ function showStaffEditor(person=null,prefill=null){
       username=node('input','admin-input');username.type='text';username.dir='ltr';
       username.pattern='[a-z][a-z0-9._-]{2,63}';username.placeholder='gamemaster';
       const usernameWrap=field('اسم المستخدم · ‎@ahaji.com',username);
-      displayName=node('input','admin-input');displayName.type='text';displayName.maxLength=80;
-      displayName.autocomplete='off';displayName.placeholder='مثال: سارة العتيبي';
-      const nameWrap=field('الاسم',displayName);
-      email=node('input','admin-input');email.type='email';email.dir='ltr';email.autocomplete='off';
+      email=node('input','admin-input');email.type='email';email.dir='ltr';
       const emailWrap=field('البريد الإلكتروني',email);
-      const inviteNote=node('p','account-note','ستصل العضو رسالة دعوة لتفعيل حسابه واختيار كلمة مرور. لا يحصل على أي صلاحية قبل التفعيل.');
-      form.append(usernameWrap,nameWrap,emailWrap,inviteNote);
-      if(prefill){accountType.value='email';displayName.value=prefill.display_name||'';email.value=prefill.email||'';}
+      form.append(usernameWrap,emailWrap);
       accountType.addEventListener('change',()=>{
         const operator=accountType.value==='operator';usernameWrap.hidden=!operator;
-        emailWrap.hidden=nameWrap.hidden=inviteNote.hidden=operator;username.required=operator;email.required=!operator;
-        save.textContent=operator?'إنشاء الحساب':'إرسال الدعوة';
+        emailWrap.hidden=operator;username.required=operator;email.required=!operator;
         role.disabled=operator;if(operator)role.value='game_master';syncRooms();
       });
     }else form.append(node('p','staff-email',person.account_type==='operator'
@@ -421,20 +370,19 @@ function showStaffEditor(person=null,prefill=null){
     for(const [value,label] of [['game_master','مدير لعبة'],['admin','مدير']]){
       const option=node('option','',label);option.value=value;role.append(option);}
     if(person?.account_type==='operator')role.querySelector('[value=admin]').remove();
-    role.value=person?.role||prefill?.role||'game_master';form.append(field('الدور',role));
+    role.value=person?.role||'game_master';form.append(field('الدور',role));
     const active=node('input');active.type='checkbox';active.checked=person?.active??true;
-    if(person&&!pendingInvite)form.append(field('الحساب نشط',active));
-    if(pendingInvite)form.append(node('p','account-note','يُفعَّل الحساب عندما يكمل العضو خطوة التفعيل من رسالة الدعوة.'));
-    const rooms=staffRoomChoices(form,person?.room_ids||prefill?.room_ids||[]);
+    if(person)form.append(field('الحساب نشط',active));
+    const rooms=staffRoomChoices(form,person?.room_ids||[]);
     const syncRooms=()=>{rooms.hidden=role.value==='admin';};role.addEventListener('change',syncRooms);syncRooms();
-    const save=button(person?'حفظ الصلاحيات':'إنشاء الحساب','button-dark');save.type='submit';form.append(save);
     if(accountType)accountType.dispatchEvent(new Event('change'));
+    const save=button(person?'حفظ الصلاحيات':'إنشاء الحساب','button-dark');save.type='submit';form.append(save);
     form.addEventListener('submit',async event=>{
       event.preventDefault();save.disabled=true;
       const roomIds=role.value==='admin'?[]:[...rooms.querySelectorAll('input:checked')].map(x=>x.value);
       try{
         if(person){const {error}=await supabase.rpc('admin_manage_staff',{
-          p_user_id:person.user_id,p_role:role.value,p_active:pendingInvite?false:active.checked,p_room_ids:roomIds});
+          p_user_id:person.user_id,p_role:role.value,p_active:active.checked,p_room_ids:roomIds});
           if(error)throw error;
         }else if(accountType.value==='operator'){
           const {data,error}=await supabase.functions.invoke('operator-account',{
@@ -448,16 +396,9 @@ function showStaffEditor(person=null,prefill=null){
             node('p','account-note','سلّم كلمة المرور للموظف عبر قناة آمنة. لا توجد رسائل بريد أو استعادة بريدية لهذا الحساب.'));
           form.append(secret);return;
         }else{
-          if(!email.value.trim()||!email.checkValidity())throw new Error('اكتب بريداً إلكترونياً صحيحاً.');
           const {data,error}=await supabase.functions.invoke('staff-invite',{
-            body:{action:'invite',email:email.value.trim(),display_name:displayName.value.trim(),
-              role:role.value,room_ids:roomIds,redirect_to:activationUrl()}});
-          if(error||data?.error)throw new Error(await functionMessage(error,data,'تعذّر إرسال الدعوة.'));
-          await refresh();save.hidden=true;
-          const sent=node('div','operator-credentials invite-sent');sent.setAttribute('role','status');
-          sent.append(node('strong','','أُرسلت الدعوة'),
-            node('p','account-note',`أُرسلت رسالة التفعيل إلى ${data?.email||email.value.trim()}. تنتهي خلال 24 ساعة، ويبقى الحساب غير نشط حتى يكمل العضو التفعيل.`));
-          form.append(sent);return;
+            body:{email:email.value.trim(),role:role.value,room_ids:roomIds}});
+          if(error)throw error;if(data?.error)throw new Error(data.error);
         }
         dialog.close();await refresh();
       }catch(error){formStatus(form,error.message||'تعذّر حفظ بيانات الفريق.');save.disabled=false;}
@@ -480,14 +421,12 @@ function resetOperator(person){
       }).catch(error=>{formStatus(form,error.message||'تعذّرت إعادة التعيين.');});
   });
 }
-// Accounts created before invitations had an activation step get the
-// standard password-setup (recovery) link instead.
 async function resendInvite(person){
-  if(!confirm(`إرسال رابط تعيين كلمة المرور إلى ${person.email}؟`))return;
-  const {error}=await supabase.auth.resetPasswordForEmail(person.email,
-    {redirectTo:new URL('recover.html',location.href).href.split('?')[0]});
-  if(error)alert('تعذّر إرسال الرابط. حاول لاحقاً.');
-  else alert('أُرسل رابط تعيين كلمة المرور.');
+  if(!confirm(`إعادة إرسال دعوة إلى ${person.email}؟`))return;
+  const {data,error}=await supabase.functions.invoke('staff-invite',{
+    body:{email:person.email,role:person.role,room_ids:person.room_ids||[]}});
+  if(error||data?.error)alert(data?.error||error?.message||'تعذّرت إعادة الدعوة. يمكن للعضو استخدام استعادة كلمة المرور.');
+  else{alert('أُرسلت الدعوة مجدداً.');await refresh();}
 }
 
 function renderAccount() {
@@ -845,7 +784,7 @@ async function verifyAccess({force=false}={}){
     const access=await currentAccess();
     if(requestId!==accessRequestId)return false;
     if(!access){location.replace(`login.html?next=${encodeURIComponent(location.pathname.slice(1)+location.search)}`);return false;}
-    if(access.role!=='admin'){state.data=null;location.replace(access.pendingInvitation?'activate.html':'unauthorized.html?reason=admin');return false;}
+    if(access.role!=='admin'){state.data=null;location.replace('unauthorized.html?reason=admin');return false;}
     state.access=access;lastVerifiedAt=Date.now();
     const avatar=profileAvatarUrl(access.profile?.avatar_ref);
     const sidebarAvatar=document.getElementById('sidebar-avatar');
