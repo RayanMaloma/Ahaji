@@ -78,7 +78,7 @@ class Phase2BrowserTests(unittest.TestCase):
         cast = popup_info.value
         cast.on("pageerror", lambda error: self.errors.append(str(error)))
         self.assertEqual(parse_qs(urlparse(cast.url).query)["session"][0], session)
-        expect(cast.locator("#cast-idle-name")).to_contain_text("السجن")
+        expect(cast.locator("#cast-idle-name")).to_contain_text("عنبر 23")
         expect(cast.locator("#cast-bg")).to_have_attribute("src", "source/prison/background.jpg")
 
         gm.locator("#btn-start").click()

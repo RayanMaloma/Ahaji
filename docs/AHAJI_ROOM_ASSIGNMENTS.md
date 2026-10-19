@@ -1,0 +1,120 @@
+# Operational accounts and room assignment (ربط الغرف)
+
+Implemented 2026-10-19 on `codex/final-review-refinements`.
+
+**Live state (2026-10-19):** with Product Owner approval, migration `20261019125113_operational_room_assignments` was applied to `gbhleqizxcmxmutgcjon` through the Supabase connector. The steps around it:
+
+- **Snapshot first:** a targeted pre-migration snapshot `backups/pre-room-assignment-20261019.json` (git-ignored) holds rooms, staff, profiles, access rows, migration versions, and the replaced function definitions verbatim, with an MD5 match to the server. It also holds row counts and MD5 digests of hints, media, sessions, events, audit, and Storage objects.
+- **Verified after:** 19 migrations, the column, triggers, and grants are present (`anon` has no execute). The data digests are identical before and after, and no slot is set yet.
+- **Advisors:** the security advisor shows only the documented categories. The three new Admin RPCs appear in the intentional "authenticated SECURITY DEFINER" list; each checks the Admin role inside.
+
+Not done yet (each needs approval): the two operational accounts, the assignments, and the «عنبر 23» rename. The live «أسرار الفاو» room is `room-1c0392f`.
+
+## Model
+
+| Account | Role | Slot | Rooms |
+|---|---|---|---|
+| Main Admin (existing, verified email) | `admin` | none | all, through role |
+| حساب محل أحاجي | `game_master` (operator username) | `venue` | عنبر 23, الهرم, العم صالح |
+| حساب الفعاليات | `game_master` (operator username) | `events` | أسرار الفاو |
+
+- There is **no new role.** An operational account is an ordinary Game Master staff account with `staff_accounts.operational_slot` set to `venue` or `events`. A unique index allows one account per slot. A check constraint allows a slot only on a `game_master`, so a slot account can never become Admin, and operator accounts were already barred from Admin.
+- **Access is still decided only by `staff_room_access`.** That table feeds `can_access_room()`, which every room, hint, media, and session RLS policy and every session RPC already uses. No frontend list grants anything.
+- **One operational owner per room.** A trigger on `staff_room_access` (and on slot changes) rejects a room held by two slot accounts, whatever writes it. Individual employee accounts without a slot can still be given rooms alongside the operational account, which keeps future per-employee accounts possible.
+- **Unassigned** means no slot account holds the room. Only the Admin sees it. New rooms start unassigned because room creation never writes access rows.
+
+## Database (migration `20261019125113_operational_room_assignments.sql`)
+
+- `staff_accounts.operational_slot`, together with its check constraint, unique index, and owner trigger.
+- `admin_set_operational_slot(user_id, slot)` marks or clears an account. It is Admin-only and works on Game Masters only. An empty display name is filled with the account label.
+- `admin_set_room_assignment(room_id, slot, expected_slot)` assigns, moves, or unassigns (`slot = null`) in one transaction:
+  - It locks the room row, so concurrent Admin edits serialize.
+  - It rejects a stale view: if the owner the Admin saw differs from the actual one, it raises `40001` and the page reloads.
+  - It refuses to change hands while the current owner has a running or paused game (`55006`), so no Game Master loses control mid-game. Idle and ended sessions stay as history.
+  - It deletes the old access row and inserts the new one in the same transaction, so there is no moment when both accounts (or neither, during a move) hold access.
+  - It never touches rooms, hints, media, Storage, or sessions.
+- `admin_room_assignments()` returns accounts and rooms with their owner in one Admin-only read.
+- `admin_staff_directory()` gains `operational_slot`. `anon` can execute none of these functions.
+- Every assignment change is audited by the existing `audit_assignments` and `audit_staff` triggers.
+
+After a move or removal, the previous account loses the room at once: its RLS reads, its old session URLs, and any `game_session_command` on that room are denied. That includes rows it already saw on screen. Cast displays are token-scoped and unaffected, but a room cannot move during a running game.
+
+## Admin interface
+
+- **Sidebar:** «ربط الغرف» sits directly below «الغرف».
+- **Desktop page:** two equal columns.
+  - Right: «حساب الفعاليات». Left: «حساب محل أحاجي».
+  - Generous spacing, with a subtle 1 px divider between the columns.
+  - Headings are centred over each column's cards. There are no counts.
+- **Cards:** image-backed. Each card shows the room cover (cropped with `object-fit: cover`), a dark gradient, the Arabic name, and a three-dot icon, nothing else.
+  - The whole card is a button that opens a dialog.
+  - Hover lifts the card and turns the border yellow. Keyboard focus shows a yellow outline.
+  - Focus returns to the card when the dialog closes.
+- **Dialog for an assigned room:** «نقل إلى …» (primary) and «إزالة الغرفة» (danger), plus «إلغاء» and ✕.
+  - Removal asks for confirmation inside the dialog, stating that the room, hints, media, and history are kept.
+  - An unassigned room offers «ربط بـ حساب محل أحاجي» and «ربط بـ حساب الفعاليات».
+- **Unassigned rooms:** «الغرف غير المرتبطة» sits below both columns.
+- **Mobile:** sections stack (events first) with a top divider and no horizontal scroll.
+- **Refresh behaviour:** results are re-read from the server after every change and announced in a live region. Revisiting the page shows cached data and refreshes it in the background. Saving a room clears the cache.
+- **Staff page:** the operational-account selector was removed on 2026-10-19 (see `docs/AHAJI_STAFF_ACCOUNTS.md`). Slots are fixed backend configuration, and `venue`/`events` are reserved accounts.
+  - For a slot account, the room checklist is replaced by a note pointing to ربط الغرف.
+  - The table shows the account label under the username.
+  - Passwords stay in Supabase Auth: the existing one-time generated password plus Admin reset via `operator-account`.
+
+## Approved account policy (2026-10-19)
+
+| Account | Sign-in | Notes |
+|---|---|---|
+| Admin | Personal, verified real email (`signInWithPassword`) | Onboarded through the existing `staff-invite` invitation (Supabase invite, then a password set on `recover.html`). Email verification and RBAC unchanged. |
+| حساب محل أحاجي | `venue@ahaji.com` → operator login `venue` | Not a mailbox. Rooms: العم صالح, عنبر 23, الهرم. |
+| حساب الفعاليات | `events@ahaji.com` → operator login `events` | Not a mailbox. Room: أسرار الفاو. |
+
+- **Sign-in path:**
+  - An identifier ending in `@ahaji.com` (or a bare username) goes to `operator-login`. The function strips `@ahaji.com`, requires an active `game_master` operator account, and signs in to the hidden `.invalid` Auth identity.
+  - If no operator matches, an `@ahaji.com` identifier falls back to normal email sign-in, so a personal Admin with a real `@ahaji.com` mailbox still works.
+  - Both failures show the same message.
+- **No first-login password change.** No code path forces one, for operational accounts or for anyone else.
+- **Passwords:**
+  - Generated server-side by `operator-account` (26 random characters) and stored only as an Auth hash.
+  - Shown once to the Admin.
+  - Rotation is «إعادة تعيين كلمة المرور». It issues a new password and revokes existing sessions immediately, through `admin_revoke_operator_sessions`.
+- **Deactivation** («الحساب نشط» off) blocks `operator-login` and makes `current_staff_role()` null at once. It keeps the slot and rooms for later reactivation.
+- **Admin rights:** operator accounts can never become Admin (`staff_operator_identity_valid`, plus the slot check constraint).
+- **Room isolation:** room access remains per account in `staff_room_access`, so one shared account's password never reaches the other's rooms.
+
+## Shared credentials: accountability limits
+
+The two operational accounts are shared by design (a business requirement). Consequences:
+
+- History records the account, not the person. «حساب محل أحاجي» cannot tell which employee ran a game.
+- Anyone who knows the password can sign in until it is reset. Reset it when staff change, using the existing Admin reset, which also revokes current sessions.
+- Deactivating the account stops every employee using it at once.
+- For person-level accountability later, add individual Game Master accounts (no slot) and give them the same rooms. The schema already supports this.
+
+## Display name «عنبر 23»
+
+Room `anbar` keeps its ID and every relationship. Only `rooms.name` changes. In this commit, `supabase/seed.sql` and the test fixtures use «عنبر 23». The live rename is part of the approval-gated rollout below, or the Admin can rename it in the room settings.
+
+## Rollout (each step needs Product Owner approval)
+
+1. Fresh recovery snapshot (`docs/AHAJI_OPERATIONS.md`).
+2. Apply `supabase/migrations/20261019125113_operational_room_assignments.sql`.
+3. Admin → فريق العمل → إضافة عضو → حساب تشغيلي: create the two username accounts **`venue`** and **`events`** (they sign in as `venue@ahaji.com` / `events@ahaji.com`), choosing «حساب محل أحاجي» / «حساب الفعاليات» in «الحساب التشغيلي». Hand over each one-time password securely.
+4. Either use ربط الغرف to assign the rooms and rename `anbar` in its room settings, **or** run `supabase/manual/20261019_operational_rollout.sql` once in the SQL editor. The script is idempotent. It aborts without changes if an account is missing, if there is not exactly one room named «أسرار الفاو», or if any of these rooms has a running game.
+5. Sign in as each account and confirm that only its rooms appear.
+
+**Rollback:** remove the slots (`admin_set_operational_slot(id, null)`). Access rows remain ordinary assignments. Dropping the migration's functions, triggers, and column restores the previous schema; restore the previous `admin_staff_directory` from `20261012161918_operational_staff_accounts.sql`.
+
+**Live data checked 2026-10-19:** «أسرار الفاو» exists as `room-1c0392f` (11 hints, 5 media). `anbar` is still «السجن». No operational accounts exist and no games are running.
+
+## Tests
+
+| Suite | Kind | Result |
+|---|---|---|
+| `supabase/tests/operational_room_assignments.sql` | Disposable PostgreSQL 17, self-contained, rolled back | pass |
+| All `supabase/tests/*.sql` on a restore of `post-media-draft-final-20261014` plus the migration | Disposable | 9 pass. `phase3_assertions`, `phase4_rls`, and `phase5_directory_rls` fail identically **without** the migration (they assume 3 rooms and predate the single-image constraint). |
+| Rollout script on that restore | Disposable | Aborts without accounts and without «أسرار الفاو», then applies the expected distribution |
+| `tests/test_room_assignment_browser.py` | Chromium, mocked Supabase | 11 pass |
+| Full Node and browser regression | Node, plus Chromium with mocked Supabase | 11 and 48 pass |
+
+No live Supabase change, account, or deployment was made.

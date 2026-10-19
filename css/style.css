@@ -1797,14 +1797,3 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
 .cast-room-video{object-fit:var(--cast-video-fit,contain)}
 .gm-connection{position:fixed;inset-block-start:12px;inset-inline-start:12px;z-index:950;background:#734a11;color:#fff;border-radius:6px;padding:5px 9px;font-size:12px}
 .gm-connection.connected{background:#154a29}
-/* Account activation */
-.activation-card .auth-message[role="alert"] { color: #ffb3ae; }
-.activation-card h1:focus { outline: none; }
-.password-field { position: relative; display: flex; }
-.password-field input { padding-left: 4.6rem; }
-.password-toggle { position: absolute; inset-block: 0; left: .35rem; margin: auto 0; height: 2rem; padding: 0 .7rem; border: 1px solid var(--border-mid); border-radius: 5px; background: var(--surface2); color: var(--text); font: inherit; font-size: .75rem; cursor: pointer; }
-.password-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.password-rules { list-style: none; display: grid; gap: .3rem; padding: .4rem 0 0; font-size: .8rem; color: var(--text-dim); }
-.password-rules li.met { color: #79e8a0; }
-.password-confirm { min-height: 1.2rem; font-size: .8rem; color: #79e8a0; }
-.password-confirm.mismatch { color: #ffb3ae; }

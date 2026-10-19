@@ -11,7 +11,8 @@ Read these before changing anything. They override this file where they are more
 3. `docs/AHAJI_OPERATIONS.md` — local run, LAN review, backup, restore, security.
 4. `docs/AHAJI_ROOM_DRAFT.md` — shared room draft and media save behavior.
 5. `docs/AHAJI_DELIVERY_STATUS.md` and `README.md`.
-6. `docs/AHAJI_STAFF_INVITATIONS.md` — invitation and activation design, plus the live-activation checklist.
+6. `docs/AHAJI_ROOM_ASSIGNMENTS.md` — operational accounts (venue and events) and room assignment.
+7. `docs/AHAJI_STAFF_ACCOUNTS.md` — Super Admin, reserved operational accounts, and permanent account deletion.
 
 Treat code and verified documentation as the source of truth. Record what was tested with mocks versus live services.
 
@@ -31,7 +32,7 @@ Treat code and verified documentation as the source of truth. Record what was te
 - Room data: `js/app.js` holds normalized room configuration and the shared `renderCastView` used by both Cast and the Admin preview. `js/data/` contains the Supabase room and Admin repositories.
 - Sessions: `js/session-adapter.js` is the transport boundary. Session state and timer timestamps are server-owned. Gameplay writes go only through named `game_session_command` actions. GM receives Postgres Realtime notifications and refetches authoritative state. Cast polls a token-checked function about every two seconds using an expiring 48-character pairing token whose hash is stored server-side. Cast needs no staff account. Scope every session read, write, and message by room ID and session ID.
 - GM/Cast behavior: timer, controls, and media presentation live in `js/gm.js` and `js/cast.js`. Preserve the three original room flows and the GM/Cast URL shape (`room`, `session`, `key`).
-- Auth and RBAC (`js/auth/`): Supabase Auth with no public sign-up. Roles live only in `staff_accounts` and room assignments in `staff_room_access`, never in JWT or user metadata. Admin requires a verified email and a live session. The last active Admin cannot be removed. Operator GM usernames are handled by the `operator-login` and `operator-account` Edge Functions and can never be promoted to Admin. Email invitations go through `staff-invite`, create an inactive account plus a pending `staff_invitations` row, and activate only through `accept_staff_invitation()` after the invitee sets a password on `activate.html`.
+- Auth and RBAC (`js/auth/`): Supabase Auth with no public sign-up. Roles live only in `staff_accounts` and room assignments in `staff_room_access`, never in JWT or user metadata. Admin requires a verified email and a live session. The last active Admin cannot be removed. Operator GM usernames are handled by the `operator-login` and `operator-account` Edge Functions and can never be promoted to Admin. Email invitations go through `staff-invite`. Email onboarding beyond that was cancelled by the Product Owner; do not reintroduce it. Operational Game Master accounts carry `staff_accounts.operational_slot` (`venue` or `events`), and their rooms change only through `admin_set_room_assignment`. Slots are owner-only configuration; `is_super_admin` is owner-only, and only a Super Admin may delete accounts (through `staff-account-delete`).
 - Database: versioned schema, RLS, grants, and trusted functions live in `supabase/migrations/`; seed data in `supabase/seed.sql`; rolled-back SQL regression tests in `supabase/tests/`. Every public table has RLS and explicit grants.
 - Storage: the public `room-assets` bucket serves Cast media, and only Admin may write to it. `profile-assets` holds owner-scoped avatars. Uploads are limited to 10 MiB and an allowlisted MIME list. Replaced objects are retained, not deleted automatically.
 

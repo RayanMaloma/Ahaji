@@ -396,5 +396,56 @@ body{direction:rtl;background:var(--paper)}
 }
 .media-image-frame{border-radius:5px;overflow:hidden;background:#111}.media-image-frame img{display:block}
 .upload-preview.image-skeleton{width:min(100%,260px);height:135px;border-radius:7px}
-.staff-status{display:grid;gap:4px;justify-items:start}.staff-status-note{color:var(--muted);font-size:11px}
-.invite-sent{border-color:rgba(121,232,160,.35)}
+.icon-link{mask-image:url('../images/icons/link.svg')}
+/* ربط الغرف */
+.assign-page{display:grid;gap:56px;padding-bottom:40px}
+.assign-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.assign-column{padding:4px clamp(22px,3.6vw,56px) 8px;min-width:0}
+.assign-column + .assign-column{border-inline-start:1px solid rgba(255,255,255,.08)}
+.assign-column:first-child{padding-inline-start:0}.assign-column:last-child{padding-inline-end:0}
+.assign-column-title{margin:0 0 26px;text-align:center;font:700 22px/1.4 "Thmanyah Serif Display",Tahoma,sans-serif;color:var(--ink)}
+.assign-unassigned{border-top:1px solid rgba(255,255,255,.08);padding-top:36px}
+.assign-unassigned .assign-grid{grid-template-columns:repeat(auto-fit,minmax(210px,260px));justify-content:center}
+.assign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}
+.assign-empty{grid-column:1/-1;margin:0;padding:28px 12px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed rgba(255,255,255,.12);border-radius:12px}
+.assign-inline-link{color:var(--yellow);text-decoration:underline}
+.assign-card{position:relative;display:block;width:100%;aspect-ratio:4/3;padding:0;border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;background:#1c1c1c;color:#fff;font:inherit;text-align:right;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.assign-card-media{position:absolute;inset:0;display:block}
+.assign-card-media img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s ease,opacity .25s ease}
+.assign-card-shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.86) 0%,rgba(0,0,0,.35) 45%,rgba(0,0,0,.05) 75%)}
+.assign-card-name{position:absolute;inset-inline:16px;bottom:14px;font:700 19px/1.35 "Thmanyah Serif Display",Tahoma,sans-serif;text-shadow:0 2px 12px rgba(0,0,0,.6);overflow-wrap:anywhere}
+.assign-card-menu{position:absolute;top:12px;inset-inline-end:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.assign-card-menu i{display:block;width:4px;height:4px;border-radius:50%;background:#fff}
+.assign-card:hover{transform:translateY(-3px);border-color:rgba(245,200,0,.6);box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.assign-card:hover .assign-card-media img{transform:scale(1.04)}
+.assign-card:hover .assign-card-menu,.assign-card:focus-visible .assign-card-menu{background:var(--yellow);border-color:var(--yellow)}
+.assign-card:hover .assign-card-menu i,.assign-card:focus-visible .assign-card-menu i{background:#111}
+.assign-card:focus-visible{outline:3px solid var(--yellow);outline-offset:3px}
+.assign-dialog-room{margin:0;color:var(--muted);font-size:13px}
+.assign-actions{display:grid;gap:10px}
+.assign-action{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:10px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;border:1px solid transparent}
+.assign-action.primary{background:var(--yellow);color:#111}
+.assign-action.danger{background:transparent;color:#ff9c98;border-color:rgba(255,120,113,.45)}
+.assign-action.danger:hover{background:rgba(229,57,53,.12)}
+.assign-action.quiet{background:transparent;color:var(--muted);border-color:rgba(255,255,255,.14);min-height:42px;font-weight:400}
+.assign-action:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.assign-action:disabled{opacity:.55;cursor:wait}
+.assign-confirm{margin:0;line-height:1.9;color:var(--ink)}
+.assign-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:760px){
+  .assign-board{grid-template-columns:1fr;gap:36px}
+  .assign-column{padding:0}
+  .assign-column + .assign-column{border-inline-start:0;border-top:1px solid rgba(255,255,255,.08);padding-top:32px}
+  .assign-grid,.assign-unassigned .assign-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+}
+@media(prefers-reduced-motion:reduce){.assign-card,.assign-card-media img{transition:none}.assign-card:hover{transform:none}.assign-card:hover .assign-card-media img{transform:none}}
+.super-admin-chip{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:rgba(245,200,0,.16);color:#ffe173;font-size:11px;font-weight:700}
+.reserved-account-note{border-inline-start:3px solid var(--yellow);padding-inline-start:10px}
+.delete-account-zone{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid rgba(255,120,113,.25);padding-top:16px;margin-top:4px}
+.delete-account-zone small{color:var(--muted);font-size:12px}
+.delete-account-name{margin:0;font-size:15px}.delete-account-name strong{color:#fff}
+.delete-account-ack{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer}
+.delete-account-actions{display:flex;gap:10px;justify-content:flex-start}
+.button-danger{border:1px solid #e53935;background:#e53935;color:#fff;border-radius:8px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.button-danger:disabled{opacity:.45;cursor:not-allowed}
+.button-danger:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}

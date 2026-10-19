@@ -54,7 +54,7 @@ class ServerSessionBrowserTests(unittest.TestCase):
 
         gm = gm_context.new_page()
         gm.goto(self.base + "/gm.html?room=anbar")
-        expect(gm.locator("#gm-room-name")).to_have_text("السجن")
+        expect(gm.locator("#gm-room-name")).to_have_text("عنبر 23")
         session_id = parse_qs(urlparse(gm.url).query)["session"][0]
         self.assertIn(session_id, store)
         with gm.expect_popup() as popup_info:
@@ -66,7 +66,7 @@ class ServerSessionBrowserTests(unittest.TestCase):
 
         cast = cast_context.new_page()
         cast.goto(cast_url)
-        expect(cast.locator("#cast-idle-name")).to_contain_text("السجن", timeout=8000)
+        expect(cast.locator("#cast-idle-name")).to_contain_text("عنبر 23", timeout=8000)
         gm.locator("#btn-start").click()
         expect(cast.locator("#cast-content")).to_have_class("cast-content visible", timeout=8000)
         gm.locator("#hint-input").fill("Network hint")
@@ -88,7 +88,7 @@ class ServerSessionBrowserTests(unittest.TestCase):
         install_auth_mock(context, local_session=False, session_store=store)
         gm = context.new_page()
         gm.goto(self.base + "/gm.html?room=anbar")
-        expect(gm.locator("#gm-room-name")).to_have_text("السجن")
+        expect(gm.locator("#gm-room-name")).to_have_text("عنبر 23")
         session_id = parse_qs(urlparse(gm.url).query)["session"][0]
         gm.locator("#btn-start").click()
         expect(gm.locator("#btn-pause")).to_be_enabled()

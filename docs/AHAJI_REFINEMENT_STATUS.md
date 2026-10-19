@@ -2,13 +2,22 @@
 
 Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Product Owner decision: **request changes; not approved**. Work is on `codex/final-review-refinements`. Do not merge or deploy the application.
 
-## Branded staff invitations (2026-10-14)
+## Super Admin, reserved accounts, and deletion (2026-10-19)
 
-The Product Owner approved the loader. The review branch was backed up to GitHub at `baf3bd5`. The invitation work is implemented and tested locally but **not activated**: no live migration, Edge Function deploy, Auth setting change, or email. See `docs/AHAJI_STAFF_INVITATIONS.md`.
+The Product Owner requested changes after creating `venue` and `events`. Implemented locally; see `docs/AHAJI_STAFF_ACCOUNTS.md`.
 
-- [x] Migration `20261014203000_staff_invitations.sql` (pending invitations, activation gate, resend, revoke, directory status), SQL regression `supabase/tests/staff_invitations.sql`, verified on disposable PostgreSQL 17 including a restored production snapshot.
-- [x] `staff-invite` v4 logic in a testable `handler.ts`; branded Arabic RTL email template with a plain-text version and a preview; `activate.html` first-login journey; Staff page with name, invitation status, resend, and revoke; pending invitees routed to activation from every entry point.
-- [ ] Live activation awaiting Product Owner approval: migration, function deploy, Auth settings and template, logo upload, and custom SMTP provider.
+- [x] An explicit Super Admin flag that only the database owner can change, Super-Admin-only permanent deletion (migration `20261019143157` plus Edge Function `staff-account-delete`) with tombstone attribution and history preserved, reserved `venue`/`events` identities, and the slot selector removed from the Staff UI. Disposable PostgreSQL, Node, and mocked browser tests pass.
+- [x] Live 2026-10-19 with approval: verified backup and rollback, migration `20261019143157`, Super Admin «مدير أحاجي» only, and `staff-account-delete` v1 (`verify_jwt`). Data digests are unchanged and no account was deleted.
+- [ ] Product Owner to verify the Staff UI signed in as Super Admin on localhost (no authenticated session was available to the agent).
+
+## Operational accounts and room assignment (2026-10-19)
+
+The Product Owner cancelled email onboarding. Commit `aa5d333` (staff invitations, never applied or deployed) was reverted in `4dcade6`. New, local-only feature: see `docs/AHAJI_ROOM_ASSIGNMENTS.md`.
+
+- [x] Migration `20261019125113_operational_room_assignments.sql`: an operational slot on Game Master accounts, one operational owner per room, atomic and revision-checked assign/move/unassign that refuses during a running game, and an Admin-only read. Verified on disposable PostgreSQL 17, including the restored 2026-10-14 snapshot.
+- [x] Admin «ربط الغرف» page (two columns, image cards, actions dialog, unassigned section, mobile stacking) and the operational-account field in the Staff editor. «عنبر 23» in the seed and fixtures.
+- [x] Migration applied live on 2026-10-19 with approval (`20261019125113`), after a verified targeted snapshot `backups/pre-room-assignment-20261019.json`. Data digests are unchanged and no assignment exists yet.
+- [ ] Awaiting approval: two operator accounts, assignments, and the «عنبر 23» rename (UI or `supabase/manual/20261019_operational_rollout.sql`). «أسرار الفاو» is `room-1c0392f`.
 
 ## Branded loader integration (2026-10-14)
 

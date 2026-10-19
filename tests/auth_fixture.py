@@ -16,7 +16,7 @@ PROJECT = "gbhleqizxcmxmutgcjon"
 USER_ID = "00000000-0000-4000-8000-000000000001"
 ROOMS = ["anbar", "haram", "saleh"]
 DASHBOARD_ROOMS = [
-    {"id": "anbar", "name": "السجن", "thumbnail_ref": "images/prison.jpg", "background_ref": "source/prison/background.jpg", "default_duration_seconds": 3600, "display_order": 0, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
+    {"id": "anbar", "name": "عنبر 23", "thumbnail_ref": "images/prison.jpg", "background_ref": "source/prison/background.jpg", "default_duration_seconds": 3600, "display_order": 0, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
     {"id": "haram", "name": "الهرم", "thumbnail_ref": "images/pyramid.png", "background_ref": "source/pyramid/background.jpg", "default_duration_seconds": 2700, "display_order": 1, "is_active": False, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
     {"id": "saleh", "name": "العم صالح", "thumbnail_ref": "images/unclesaleh.png", "background_ref": "source/unclesaleh/background.jpg", "default_duration_seconds": 3600, "display_order": 2, "is_active": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"},
 ]

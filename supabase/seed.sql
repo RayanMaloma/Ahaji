@@ -3,7 +3,7 @@
 -- Apply after the foundation migration; credentials stay outside this file.
 
 insert into public.rooms (id, name, thumbnail_ref, background_ref, default_duration_seconds, display_order)
-values ('anbar', 'السجن', 'images/prison.jpg', 'source/prison/background.jpg', 3600, 0)
+values ('anbar', 'عنبر 23', 'images/prison.jpg', 'source/prison/background.jpg', 3600, 0)
 on conflict (id) do nothing;
 
 insert into public.room_hints (room_id, body, display_order)

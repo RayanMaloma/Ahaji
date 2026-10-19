@@ -1,6 +1,6 @@
 import { supabase, currentAccess, safeNext } from './client.mjs';
 import { createRoomRepository } from '../data/room-repository.mjs?v=theme-1';
-import { revealPage, visibleImages, waitForImages } from '../loader.mjs?v=loader-2';
+import { revealPage, visibleImages, waitForImages } from '../loader.mjs?v=bc-1';
 
 const BOOT_IMAGE_BUDGET_MS = 2500;
 
@@ -35,7 +35,7 @@ async function checkAccess() {
       return;
     }
     if (!access.role) {
-      window.location.replace(access.pendingInvitation ? 'activate.html' : 'unauthorized.html');
+      window.location.replace('unauthorized.html');
       return;
     }
     if (page === 'gm' || page === 'index') {
@@ -89,7 +89,7 @@ async function checkAccess() {
     panel.hidden = false;
     if (!window.ahajiPageLoaded) {
       window.ahajiPageLoaded = true;
-      await import(page === 'gm' ? '../gm.js?v=theme-1' : page === 'index' ? '../index.js?v=loader-2' : './staff.mjs');
+      await import(page === 'gm' ? '../gm.js?v=theme-1' : page === 'index' ? '../index.js?v=bc-1' : './staff.mjs');
       if (page === 'index') await waitForImages(visibleImages(panel), BOOT_IMAGE_BUDGET_MS);
     }
     revealPage(loading, panel);

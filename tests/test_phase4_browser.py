@@ -100,7 +100,7 @@ class Phase4BrowserTests(unittest.TestCase):
         page.goto(self.base + "/staff.html")
         expect(page.locator("#auth-role")).to_have_text("مدير")
         self.assertEqual(page.locator("html").get_attribute("dir"), "rtl")
-        expect(page.locator("#staff-rooms li").first).to_contain_text("السجن")
+        expect(page.locator("#staff-rooms li").first).to_contain_text("عنبر 23")
         expect(page.locator("#staff-rooms li")).to_have_count(3)
         page.locator("#new-email").fill("new-staff@test.invalid")
         page.locator("#change-email-form button").click()

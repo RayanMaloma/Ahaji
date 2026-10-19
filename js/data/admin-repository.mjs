@@ -23,16 +23,19 @@ export function createAdminRepository(client) {
   // `roomRead` lets the caller reuse a room read already in flight.
   async function load({ roomRead } = {}) {
     // Only the session list depends on settlement; rooms and staff load meanwhile.
-    const [roomRows, directory, sessions] = await Promise.all([
+    const [roomRows, directory, sessions, deleted] = await Promise.all([
       roomRead || listRooms(),
       client.rpc('admin_staff_directory'),
       checked(client.rpc('admin_settle_sessions')).then(() => client.from('game_sessions')
         .select('id,room_id,gm_user_id,status,result,started_at,ended_at,created_at,updated_at,remaining_seconds,revision')
-        .order('created_at',{ascending:false}).limit(100))
+        .order('created_at',{ascending:false}).limit(100)),
+      // Labels for sessions of deleted accounts; empty until that migration is live.
+      client.rpc('admin_deleted_staff')
     ]);
     if (directory.error) throw new Error(directory.error.message || 'Staff directory request failed.');
     if (sessions.error) throw new Error(sessions.error.message || 'Session history request failed.');
-    return { rooms: roomRows, staff: directory.data || [], sessions:sessions.data||[] };
+    return { rooms: roomRows, staff: directory.data || [], sessions:sessions.data||[],
+      deleted: deleted.error ? [] : deleted.data || [] };
   }
   async function listEvents(sessionId){
     return checked(client.from('session_events').select('id,event_type,payload,created_at,actor_user_id')
@@ -60,6 +63,18 @@ export function createAdminRepository(client) {
     return {sessions,eventMap};
   }
 
+  async function loadAssignments() {
+    const data = await checked(client.rpc('admin_room_assignments'));
+    if (!data) throw new Error('Admin access required');
+    return data;
+  }
+  // Errors keep their Postgres code (40001 stale view, 55006 game in progress).
+  async function setRoomAssignment(roomId, slot, expectedSlot) {
+    const { data, error } = await client.rpc('admin_set_room_assignment',
+      { p_room_id: roomId, p_slot: slot, p_expected_slot: expectedSlot });
+    if (error) throw error;
+    return data;
+  }
   async function createRoom(values) {
     return checked(client.from('rooms').insert(values).select('id').single());
   }
@@ -129,7 +144,7 @@ export function createAdminRepository(client) {
     if(error) throw error;
   }
 
-  return Object.freeze({ load,listRooms,loadHistory,listEvents,createRoom,createRoomForName,updateRoom,
+  return Object.freeze({ load,listRooms,loadHistory,loadAssignments,setRoomAssignment,listEvents,createRoom,createRoomForName,updateRoom,
     getRoom,saveRoomDraft,deleteNewRoom,deleteRoom,saveHint,
     deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
 }
