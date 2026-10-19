@@ -252,31 +252,19 @@ class RoomAssignmentBrowserTests(unittest.TestCase):
         border_top = self.column(page, "venue").evaluate("e => getComputedStyle(e).borderTopWidth")
         self.assertEqual(border_top, "1px")
 
-    def test_staff_editor_designates_operational_accounts(self):
+    def test_operational_accounts_are_not_assignable_from_staff_editor(self):
         page, state, calls, _ = self.open()
         staff = copy.deepcopy(DASHBOARD_STAFF)
         gm = next(s for s in staff if s["role"] == "game_master")
         page.context.route(f"{API}/rest/v1/rpc/admin_staff_directory",
                            lambda route: route.fulfill(status=200, headers=JSON, body=json.dumps(staff)))
-        page.context.route(f"{API}/rest/v1/rpc/admin_manage_staff",
-                           lambda route: (calls.append({"manage": route.request.post_data_json}),
-                                          route.fulfill(status=200, headers=JSON, body="null")))
         page.get_by_role("link", name="فريق العمل").click()
         page.locator(".staff-table tbody tr").filter(has_text=gm["email"]).get_by_role("button", name="إدارة").click()
         dialog = page.get_by_role("dialog")
-        rooms = dialog.locator(".staff-room-choices")
-        expect(rooms).to_be_visible()
-        dialog.get_by_role("combobox", name="الحساب التشغيلي").select_option("venue")
-        expect(rooms).to_be_hidden()
-        expect(dialog.get_by_text("تُدار غرف هذا الحساب من صفحة «ربط الغرف».")).to_be_visible()
-        dialog.get_by_role("combobox", name="الدور").select_option("admin")
-        expect(dialog.get_by_role("combobox", name="الحساب التشغيلي")).to_be_hidden()
-        dialog.get_by_role("combobox", name="الدور").select_option("game_master")
-        dialog.get_by_role("combobox", name="الحساب التشغيلي").select_option("venue")
-        dialog.get_by_role("button", name="حفظ الصلاحيات").click()
-        expect(page.get_by_role("dialog")).to_have_count(0)
-        self.assertEqual(calls[-1], {"slot": {"p_user_id": gm["user_id"], "p_slot": "venue"}})
-        self.assertEqual(calls[-2]["manage"]["p_room_ids"], [], "operational rooms are managed in ربط الغرف")
+        expect(dialog.get_by_role("combobox", name="الحساب التشغيلي")).to_have_count(0)
+        expect(dialog.locator(".staff-room-choices")).to_be_visible()
+        dialog.get_by_role("button", name="إغلاق").click()
+        self.assertFalse(any("slot" in c for c in calls), "slots are fixed backend configuration")
 
 
 if __name__ == "__main__":

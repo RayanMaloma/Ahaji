@@ -56,7 +56,7 @@ After a move or removal, the previous account loses the room at once: its RLS re
 - **Unassigned rooms:** «الغرف غير المرتبطة» sits below both columns.
 - **Mobile:** sections stack (events first) with a top divider and no horizontal scroll.
 - **Refresh behaviour:** results are re-read from the server after every change and announced in a live region. Revisiting the page shows cached data and refreshes it in the background. Saving a room clears the cache.
-- **Staff page:** a Game Master's editor has a «الحساب التشغيلي» field (حساب فردي / حساب محل أحاجي / حساب الفعاليات), also available when creating an operator account.
+- **Staff page:** the operational-account selector was removed on 2026-10-19 (see `docs/AHAJI_STAFF_ACCOUNTS.md`). Slots are fixed backend configuration, and `venue`/`events` are reserved accounts.
   - For a slot account, the room checklist is replaced by a note pointing to ربط الغرف.
   - The table shows the account label under the username.
   - Passwords stay in Supabase Auth: the existing one-time generated password plus Admin reset via `operator-account`.

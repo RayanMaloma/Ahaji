@@ -1,5 +1,5 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=assign-1';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=accounts-2';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
 import { renderRoomWorkspace } from './room-workspace.mjs?v=loader-2';
@@ -112,6 +112,10 @@ function fmtDateTime(value){if(!value)return '—';const date=new Date(value);
   return Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('ar-SA',
     {dateStyle:'medium',timeStyle:'short',numberingSystem:'latn',
       timeZone:state.historyView.timeZone}).format(date);}
+function deletedLabel(sessionId){
+  const entry=(state.data?.deleted||[]).find(d=>(d.session_ids||[]).includes(sessionId));
+  return entry?`${entry.label} · حساب محذوف`:'';
+}
 function sessionOutcome(session){return session.status!=='ended'?(
   session.status==='running'?'جارية':session.status==='paused'?'متوقفة مؤقتاً':'جاهزة'):
   session.result==='win'?'فوز':session.result==='lose'?'خسارة':'انتهت الصلاحية';}
@@ -199,6 +203,7 @@ function renderStaff() {
       copy.append(email,node('small','',person.account_type==='operator'
         ? `${person.login_name}@ahaji.com · ${person.operational_slot?accountLabel(person.operational_slot):'حساب تشغيلي'}`
         : person.email_confirmed?'بريد موثّق':'البريد غير موثّق'));
+      if(person.is_super_admin)copy.append(node('span','super-admin-chip','المدير الرئيسي'));
       identity.append(copy); accountCell.append(identity); row.append(accountCell);
       const roleCell=node('td'); roleCell.append(rolePill(person.role)); row.append(roleCell);
       const assignments=node('td'); const chips=node('div','assignment-list');
@@ -289,7 +294,7 @@ function renderHistory(){
       const duration=result.seconds===null?'المدة غير قابلة للحساب':
         `${Math.floor(result.seconds/60)} دقيقة${result.precise?'':' · تقديرية'}`;
       const meta=node('div','history-card-meta');
-      for(const label of [staff?.display_name||staff?.login_name||staff?.email||'مدير لعبة غير متاح',
+      for(const label of [staff?.display_name||staff?.login_name||staff?.email||deletedLabel(item.id)||'مدير لعبة غير متاح',
         `البدء ${timeText}`,duration,shortSession?'قصيرة / اختبارية':
           item.status!=='ended'?'غير مكتملة':''])if(label)meta.append(node('span','',label));
       card.append(main,meta,link(`admin.html?view=session&id=${encodeURIComponent(item.id)}`,
@@ -317,7 +322,7 @@ function renderSessionDetail(id){
   const duration=activeDuration(state.history?.eventMap.get(id)||[],session);
   const durationLabel=duration.seconds===null?'غير قابلة للحساب من الأحداث':
     `${Math.floor(duration.seconds/60)} دقيقة${duration.precise?'':' · تقديرية'}`;
-  for(const [label,value] of [['مدير اللعبة',staff?.display_name||staff?.login_name||staff?.email||'غير متاح'],
+  for(const [label,value] of [['مدير اللعبة',staff?.display_name||staff?.login_name||staff?.email||deletedLabel(session.id)||'غير متاح'],
     ['الحالة',sessionOutcome(session)],['البدء',fmtDateTime(session.started_at)],
     ['النهاية',fmtDateTime(session.ended_at)],['مدة اللعب الفعلية',durationLabel]])
     info.append(detailField(label,value));
@@ -429,16 +434,58 @@ function staffRoomChoices(form,selected=[]){
   }
   form.append(list);return list;
 }
+const RESERVED_LOGINS=new Set(['venue','events']);
+function staffLabel(person){
+  return person.display_name||(person.account_type==='operator'?`${person.login_name}@ahaji.com`:person.email)||'عضو الفريق';
+}
+// The signed-in Admin's own directory row says whether they are the Super Admin.
+// This only decides what to show; the server enforces every deletion rule.
+function isSuperAdmin(){
+  return Boolean(state.data?.staff?.find(s=>s.user_id===state.access?.user?.id)?.is_super_admin);
+}
+function canDelete(person){
+  return isSuperAdmin()&&person.user_id!==state.access?.user?.id&&!person.is_super_admin&&!person.operational_slot;
+}
+function confirmDeleteAccount(person,editor){
+  const label=staffLabel(person);
+  showDialog('حذف الحساب نهائياً',(form,dialog)=>{
+    const who=node('p','delete-account-name');who.append('الحساب: ',node('strong','',label));
+    form.append(who,node('p','account-note',
+      'الحذف نهائي ولا يمكن التراجع عنه: تُحذف هوية الدخول وتُغلق الجلسات وتُزال صلاحيات الغرف. يبقى سجل الجلسات والأحداث والتدقيق محفوظاً باسم الحساب. لإيقاف مؤقت استخدم «الحساب نشط» بدلاً من الحذف.'));
+    const ack=node('input');ack.type='checkbox';
+    const ackField=node('label','delete-account-ack');ackField.append(ack,node('span','',`أفهم أن حذف «${label}» نهائي`));
+    const actions=node('div','delete-account-actions');
+    const confirmButton=button('حذف الحساب نهائياً','button-danger');confirmButton.disabled=true;
+    const cancel=button('إلغاء','mini-action');cancel.addEventListener('click',()=>dialog.close());
+    ack.addEventListener('change',()=>{confirmButton.disabled=!ack.checked;});
+    actions.append(confirmButton,cancel);form.append(ackField,actions);
+    confirmButton.addEventListener('click',async()=>{
+      confirmButton.disabled=true;cancel.disabled=true;ack.disabled=true;
+      const {data,error}=await supabase.functions.invoke('staff-account-delete',{body:{user_id:person.user_id}});
+      let message=data?.error;
+      if(!message&&error){try{message=(await error.context?.json())?.error;}catch{}}
+      if(error||data?.error){
+        formStatus(form,message||'تعذّر حذف الحساب. حاول مجدداً.');
+        cancel.disabled=false;ack.disabled=false;confirmButton.disabled=!ack.checked;
+        await refresh();return;
+      }
+      dialog.close();editor?.close();await refresh();
+      state.assignments=null;announce(`حُذف حساب «${label}».`);
+    });
+  });
+}
 function showStaffEditor(person=null){
   showDialog(person?'إدارة عضو الفريق':'إضافة عضو فريق',(form,dialog)=>{
     let email=null,username=null,accountType=null;
+    // venue/events are fixed operational accounts managed by the backend.
+    const reserved=Boolean(person?.operational_slot);
     if(!person){
       accountType=node('select','admin-select');
-      for(const [value,label] of [['operator','حساب تشغيلي باسم مستخدم'],['email','دعوة عبر بريد موثّق']]){
+      for(const [value,label] of [['operator','مدير لعبة باسم مستخدم'],['email','دعوة عبر بريد موثّق']]){
         const option=node('option','',label);option.value=value;accountType.append(option);}
       form.append(field('طريقة الدخول',accountType));
       username=node('input','admin-input');username.type='text';username.dir='ltr';
-      username.pattern='[a-z][a-z0-9._-]{2,63}';username.placeholder='venue';
+      username.pattern='[a-z][a-z0-9._-]{2,63}';username.placeholder='gm.sara';
       const usernameWrap=field('اسم المستخدم · ‎@ahaji.com',username);
       email=node('input','admin-input');email.type='email';email.dir='ltr';
       const emailWrap=field('البريد الإلكتروني',email);
@@ -450,56 +497,55 @@ function showStaffEditor(person=null){
       });
     }else form.append(node('p','staff-email',person.account_type==='operator'
       ? `${person.login_name}@ahaji.com`:person.email));
+    if(reserved)form.append(node('p','account-note reserved-account-note',
+      `${accountLabel(person.operational_slot)}: حساب تشغيلي ثابت يُدار من النظام. تُدار غرفه من صفحة «ربط الغرف»، ويمكن هنا إيقافه مؤقتاً أو إعادة تفعيله فقط.`));
     const role=node('select','admin-select');
     for(const [value,label] of [['game_master','مدير لعبة'],['admin','مدير']]){
       const option=node('option','',label);option.value=value;role.append(option);}
     if(person?.account_type==='operator')role.querySelector('[value=admin]').remove();
-    role.value=person?.role||'game_master';form.append(field('الدور',role));
+    role.value=person?.role||'game_master';
+    const roleField=field('الدور',role);roleField.hidden=reserved;form.append(roleField);
     const active=node('input');active.type='checkbox';active.checked=person?.active??true;
     if(person)form.append(field('الحساب نشط',active));
-    const slot=node('select','admin-select');
-    for(const [value,label] of [['','حساب فردي'],['venue','حساب محل أحاجي'],['events','حساب الفعاليات']]){
-      const option=node('option','',label);option.value=value;slot.append(option);}
-    slot.value=person?.operational_slot||'';
-    const slotWrap=field('الحساب التشغيلي',slot);form.append(slotWrap);
-    const slotNote=node('p','account-note','تُدار غرف هذا الحساب من صفحة «ربط الغرف».');form.append(slotNote);
     const rooms=staffRoomChoices(form,person?.room_ids||[]);
-    const syncRooms=()=>{const gm=role.value!=='admin';slotWrap.hidden=!gm;if(!gm)slot.value='';
-      slotNote.hidden=!slot.value;rooms.hidden=!gm||Boolean(slot.value);};
-    role.addEventListener('change',syncRooms);slot.addEventListener('change',syncRooms);syncRooms();
+    const syncRooms=()=>{rooms.hidden=reserved||role.value==='admin';};
+    role.addEventListener('change',syncRooms);syncRooms();
     if(accountType)accountType.dispatchEvent(new Event('change'));
     const save=button(person?'حفظ الصلاحيات':'إنشاء الحساب','button-dark');save.type='submit';form.append(save);
+    if(person&&canDelete(person)){
+      const zone=node('div','delete-account-zone');
+      const remove=button('حذف الحساب','mini-action danger');
+      remove.addEventListener('click',()=>confirmDeleteAccount(person,dialog));
+      zone.append(node('small','','إجراء نهائي متاح للمدير الرئيسي فقط.'),remove);form.append(zone);
+    }
     form.addEventListener('submit',async event=>{
       event.preventDefault();save.disabled=true;
-      // Operational accounts keep their rooms; those change only in ربط الغرف.
-      const roomIds=role.value==='admin'?[]:slot.value?(person?.operational_slot?person.room_ids||[]:[]):
+      // Reserved accounts keep their rooms; those change only in ربط الغرف.
+      const roomIds=reserved?person.room_ids||[]:role.value==='admin'?[]:
         [...rooms.querySelectorAll('input:checked')].map(x=>x.value);
-      const newSlot=role.value==='admin'?null:slot.value||null,oldSlot=person?.operational_slot||null;
       try{
         if(person){
-          if(oldSlot&&newSlot!==oldSlot)await repository.setOperationalSlot(person.user_id,null);
           const {error}=await supabase.rpc('admin_manage_staff',{
-          p_user_id:person.user_id,p_role:role.value,p_active:active.checked,p_room_ids:roomIds});
+            p_user_id:person.user_id,p_role:reserved?'game_master':role.value,p_active:active.checked,p_room_ids:roomIds});
           if(error)throw error;
-          if(newSlot&&newSlot!==oldSlot)await repository.setOperationalSlot(person.user_id,newSlot);
           state.assignments=null;
         }else if(accountType.value==='operator'){
+          const login=username.value.trim().toLowerCase().replace(/@ahaji\.com$/,'');
+          if(RESERVED_LOGINS.has(login))throw new Error('هذا الاسم محجوز لحساب تشغيلي ثابت. اختر اسماً آخر.');
           const {data,error}=await supabase.functions.invoke('operator-account',{
-            body:{action:'create',username:username.value.trim(),room_ids:roomIds}});
+            body:{action:'create',username:login,room_ids:roomIds}});
           if(error||data?.error)throw new Error(data?.error||error?.message||'تعذّر إنشاء الحساب.');
-          if(newSlot&&data.user_id)await repository.setOperationalSlot(data.user_id,newSlot);
-          state.assignments=null;await refresh();save.hidden=true;
+          await refresh();save.hidden=true;
           const secret=node('div','operator-credentials');
           secret.append(node('strong','','بيانات الدخول · تظهر مرة واحدة'),
             detailAccount('اسم المستخدم',data.username,true),
             detailAccount('كلمة المرور',data.password,true),
-            node('p','account-note','انسخها الآن وسلّمها عبر قناة آمنة؛ لن تُعرض مجدداً ولا تُخزَّن نصاً. لا يُطلب تغييرها عند أول دخول، ويمكن للمدير تدويرها من «إعادة تعيين كلمة المرور». هذا اسم دخول وليس بريداً حقيقياً، فلا توجد رسائل أو استعادة بالبريد.'));
+            node('p','account-note','انسخها الآن وسلّمها عبر قناة آمنة؛ لن تُعرض مجدداً ولا تُخزَّن نصاً. يمكن للمدير تدويرها من «إعادة تعيين كلمة المرور». هذا اسم دخول وليس بريداً حقيقياً، فلا توجد رسائل أو استعادة بالبريد.'));
           form.append(secret);return;
         }else{
           const {data,error}=await supabase.functions.invoke('staff-invite',{
             body:{email:email.value.trim(),role:role.value,room_ids:roomIds}});
           if(error)throw error;if(data?.error)throw new Error(data.error);
-          if(newSlot&&data?.user_id)await repository.setOperationalSlot(data.user_id,newSlot);
         }
         dialog.close();await refresh();
       }catch(error){formStatus(form,error.message||'تعذّر حفظ بيانات الفريق.');save.disabled=false;}

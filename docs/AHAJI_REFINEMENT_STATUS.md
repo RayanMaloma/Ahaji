@@ -2,6 +2,13 @@
 
 Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Product Owner decision: **request changes; not approved**. Work is on `codex/final-review-refinements`. Do not merge or deploy the application.
 
+## Super Admin, reserved accounts, and deletion (2026-10-19)
+
+The Product Owner requested changes after creating `venue` and `events`. Implemented locally; see `docs/AHAJI_STAFF_ACCOUNTS.md`.
+
+- [x] An explicit Super Admin flag that only the database owner can change, Super-Admin-only permanent deletion (migration `20261019160000` plus Edge Function `staff-account-delete`) with tombstone attribution and history preserved, reserved `venue`/`events` identities, and the slot selector removed from the Staff UI. Disposable PostgreSQL, Node, and mocked browser tests pass.
+- [ ] Awaiting approval: apply the migration and deploy `staff-account-delete`.
+
 ## Operational accounts and room assignment (2026-10-19)
 
 The Product Owner cancelled email onboarding. Commit `aa5d333` (staff invitations, never applied or deployed) was reverted in `4dcade6`. New, local-only feature: see `docs/AHAJI_ROOM_ASSIGNMENTS.md`.

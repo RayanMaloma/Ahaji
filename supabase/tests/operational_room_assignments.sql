@@ -10,6 +10,8 @@ declare
   game uuid := gen_random_uuid(); idle_game uuid := gen_random_uuid();
   data jsonb; denied boolean; n integer; before_counts text; after_counts text; txt text;
 begin
+  -- Work on fixture accounts only, even where real operational accounts exist.
+  delete from public.staff_accounts where operational_slot is not null;
   insert into public.rooms(id,name,default_duration_seconds,is_active,display_order,thumbnail_ref,background_ref) values
     ('qa_anbar','عنبر 23',3600,true,80,'images/prison.jpg','images/prison.jpg'),
     ('qa_haram','الهرم',3600,true,81,'images/pyramid.png','images/pyramid.png'),
@@ -51,17 +53,21 @@ begin
   if not denied then raise exception 'Anonymous read assignments'; end if;
   execute 'reset role';
 
-  -- Admin designates the two accounts and the initial distribution.
+  -- Operational slots are fixed backend configuration: the API cannot set
+  -- them (20261019160000), the database owner does.
   perform set_config('request.jwt.claim.sub',admin_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('session_id',admin_sid)::text,true);
   execute 'set local role authenticated';
-  denied := false; begin perform public.admin_set_operational_slot(admin_id,'venue');
-    exception when others then denied := true; end;
+  denied := false; begin perform public.admin_set_operational_slot(venue_id,'venue');
+    exception when insufficient_privilege then denied := true; end;
+  if not denied then raise exception 'Admin assigned an operational slot from the API'; end if;
+  execute 'reset role';
+  update public.staff_accounts set operational_slot = 'venue' where user_id = venue_id;
+  update public.staff_accounts set operational_slot = 'events' where user_id = events_id;
+  denied := false; begin update public.staff_accounts set operational_slot = 'venue' where user_id = admin_id;
+    exception when check_violation or unique_violation then denied := true; end;
   if not denied then raise exception 'Admin account became operational'; end if;
-  perform public.admin_set_operational_slot(venue_id,'venue');
-  perform public.admin_set_operational_slot(events_id,'events');
-  if (select display_name from public.staff_profiles where user_id = venue_id) <> 'حساب محل أحاجي' then
-    raise exception 'Venue display name not set'; end if;
+  execute 'set local role authenticated';
   -- New rooms start unassigned.
   data := public.admin_room_assignments();
   if (select count(*) from jsonb_array_elements(data->'rooms') r
