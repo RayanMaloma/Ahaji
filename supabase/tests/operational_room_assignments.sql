@@ -54,7 +54,7 @@ begin
   execute 'reset role';
 
   -- Operational slots are fixed backend configuration: the API cannot set
-  -- them (20261019160000), the database owner does.
+  -- them (20261019143157), the database owner does.
   perform set_config('request.jwt.claim.sub',admin_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('session_id',admin_sid)::text,true);
   execute 'set local role authenticated';

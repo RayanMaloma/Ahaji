@@ -1,6 +1,20 @@
 # Super Admin, reserved operational accounts, and account deletion
 
-Implemented locally on 2026-10-19 on `codex/final-review-refinements`. **Not live.** Both need approval: migration `20261019160000_super_admin_and_account_deletion.sql` and the new Edge Function `staff-account-delete`.
+**Live since 2026-10-19 (Product Owner approved backup, migration, and function deployment only):**
+
+- **Backup:** `backups/pre-super-admin-20261019.json` (git-ignored). It holds verbatim staff accounts, profiles, room access, the staff Auth identity map (no credentials), migration versions, and the replaced function definitions and grants. Its MD5 matches the server. The file also holds digests of untouched tables; these are integrity fingerprints, not a backup.
+- **Recovery:** `supabase/manual/rollback_20261019143157_super_admin.sql` is generated from that backup. Migrate→rollback on disposable PostgreSQL 17 restored the exact pre-migration schema, function body, and grants.
+- **Migration:** `20261019143157_super_admin_and_account_deletion` is applied; there are 20 migrations live.
+- **Super Admin:** exactly one, «مدير أحاجي» (`a4a591a2…`, the only active verified email Admin). `venue`, `events`, and the inactive accounts are not Super Admin.
+- **Changes to existing data:** only that row's flag and `updated_at`, plus one audit row. Staff, profiles, access rows, Auth identities, rooms, hints, media, sessions, events, and earlier audit rows are digest-identical to the backup.
+- **Live protections**, checked in a transaction that always rolls back:
+  - self-deletion denied;
+  - `venue` and `events` deletion denied;
+  - API grant of the flag denied;
+  - API slot assignment denied;
+  - Game Master deletion denied.
+- **Edge Function:** `staff-account-delete` v1 is ACTIVE with `verify_jwt=true`, and its deployed source matches the repository. Unauthenticated and invalid-JWT calls return 401. No deletion has been executed.
+- **Security advisor:** one new INFO, «RLS enabled, no policy» on `deleted_staff_accounts`. It is intentional: the table is readable only through the Admin RPC `admin_deleted_staff`.
 
 ## Super Admin
 
@@ -55,7 +69,7 @@ Deactivation («الحساب نشط») remains separate and reversible, availabl
 ## Deployment (each step needs Product Owner approval)
 
 1. Targeted snapshot (as done for the previous migration).
-2. Apply `supabase/migrations/20261019160000_super_admin_and_account_deletion.sql`, then confirm that `is_super_admin` is set for «مدير أحاجي» only.
+2. Apply `supabase/migrations/20261019143157_super_admin_and_account_deletion.sql`, then confirm that `is_super_admin` is set for «مدير أحاجي» only.
 3. Deploy `supabase/functions/staff-account-delete` (`index.ts` and `handler.ts`, `verify_jwt = true`).
 4. Optional: one controlled deletion of an obsolete inactive test account (for example `qaoperator`), only if you approve it.
 

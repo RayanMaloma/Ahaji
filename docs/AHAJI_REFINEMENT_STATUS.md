@@ -6,8 +6,9 @@ Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Produc
 
 The Product Owner requested changes after creating `venue` and `events`. Implemented locally; see `docs/AHAJI_STAFF_ACCOUNTS.md`.
 
-- [x] An explicit Super Admin flag that only the database owner can change, Super-Admin-only permanent deletion (migration `20261019160000` plus Edge Function `staff-account-delete`) with tombstone attribution and history preserved, reserved `venue`/`events` identities, and the slot selector removed from the Staff UI. Disposable PostgreSQL, Node, and mocked browser tests pass.
-- [ ] Awaiting approval: apply the migration and deploy `staff-account-delete`.
+- [x] An explicit Super Admin flag that only the database owner can change, Super-Admin-only permanent deletion (migration `20261019143157` plus Edge Function `staff-account-delete`) with tombstone attribution and history preserved, reserved `venue`/`events` identities, and the slot selector removed from the Staff UI. Disposable PostgreSQL, Node, and mocked browser tests pass.
+- [x] Live 2026-10-19 with approval: verified backup and rollback, migration `20261019143157`, Super Admin «مدير أحاجي» only, and `staff-account-delete` v1 (`verify_jwt`). Data digests are unchanged and no account was deleted.
+- [ ] Product Owner to verify the Staff UI signed in as Super Admin on localhost (no authenticated session was available to the agent).
 
 ## Operational accounts and room assignment (2026-10-19)
 
