@@ -1157,6 +1157,53 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
   }
 }
 
+/* GM on phones (≤720px). The single-column top row must be allowed to
+   shrink to the viewport (grid items default to min-width:auto), and the
+   timer actions wrap into as many columns as fit instead of a fixed four,
+   so no control forces horizontal scrolling. Desktop and tablet rules above
+   are unchanged. */
+@media (max-width: 720px) {
+  .gm-header {
+    flex-wrap: wrap;
+    gap: 0.6rem 0.75rem;
+    padding: 0.75rem 0.875rem;
+  }
+  .gm-header-left { gap: 0.75rem; min-width: 0; }
+  .gm-room-name {
+    padding-left: 0.75rem;
+    overflow-wrap: anywhere;
+  }
+  .gm-header-actions { margin-inline-start: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .gm-header-actions .auth-logout,
+  .gm-open-cast { min-height: 40px; padding: 0.5rem 0.9rem; }
+
+  /* The desktop console is one fixed screen; on a phone the stacked panels
+     keep their natural height and the page scrolls vertically instead of
+     squeezing panels over each other. */
+  .gm-page { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
+  .gm-protected-content { flex: none; }
+  .gm-body { padding: 0.6rem; gap: 0.6rem; grid-template-rows: auto auto; }
+  .gm-top-row { gap: 0.6rem; }
+  .gm-body > *, .gm-top-row > * { min-width: 0; }
+  .gm-media-options { flex: 1 1 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
+  .gm-chip-btn { min-height: 44px; }
+  .hint-btn { flex: 1 1 100%; min-height: 48px; font-size: 0.9rem; }
+
+  .gm-timer-panel { padding: 0.85rem 0.75rem 1rem; }
+  .gm-timer-top-actions {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  }
+  .gm-top-action-btn {
+    min-height: 40px;
+    letter-spacing: 0.02em;
+  }
+  .gm-timer-container { padding: 0.75rem 0.25rem; }
+  /* Scale with the phone width, larger than the 44.8px desktop minimum. */
+  .gm-timer-display { font-size: clamp(2.75rem, 16vw, 4.25rem); letter-spacing: 0.02em; }
+  .gm-controls .ctrl-group { flex-wrap: wrap; }
+  .gm-controls .ctrl-group .btn { flex: 1 1 7rem; min-height: 44px; }
+}
+
 /* ── Saved hints dropdown ──
    Positioned above the hint panel, anchored to it  */
 .saved-hints-drop {

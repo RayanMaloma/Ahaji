@@ -82,11 +82,13 @@ begin
 
   -- A room cannot be deleted while its game runs, whatever the confirmation;
   -- room, sessions and assignment stay intact. Unrelated rooms are measured
-  -- before and after to prove nothing else is touched.
+  -- before and after (content, sessions, and who is assigned) to prove
+  -- nothing else is touched.
   execute 'reset role';
   others := (select string_agg(r.id||':'||(select count(*) from public.room_hints h where h.room_id=r.id)
       ||':'||(select count(*) from public.room_media m where m.room_id=r.id)
-      ||':'||(select count(*) from public.game_sessions g where g.room_id=r.id), ',' order by r.id)
+      ||':'||(select count(*) from public.game_sessions g where g.room_id=r.id)
+      ||':'||(select string_agg(a.user_id::text, '+' order by a.user_id) from public.staff_room_access a where a.room_id=r.id), ',' order by r.id)
     from public.rooms r where r.id <> 'qa_bc_new');
   execute 'set local role authenticated';
   code := null;
@@ -125,7 +127,8 @@ begin
     raise exception 'Room deletion was not audited'; end if;
   if others is distinct from (select string_agg(r.id||':'||(select count(*) from public.room_hints h where h.room_id=r.id)
       ||':'||(select count(*) from public.room_media m where m.room_id=r.id)
-      ||':'||(select count(*) from public.game_sessions g where g.room_id=r.id), ',' order by r.id)
+      ||':'||(select count(*) from public.game_sessions g where g.room_id=r.id)
+      ||':'||(select string_agg(a.user_id::text, '+' order by a.user_id) from public.staff_room_access a where a.room_id=r.id), ',' order by r.id)
     from public.rooms r) then
     raise exception 'Deleting one room changed another'; end if;
   execute 'set local role authenticated';

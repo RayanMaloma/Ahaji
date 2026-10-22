@@ -137,6 +137,22 @@ export function createAdminRepository(client) {
     if(error) throw error;
     return `storage://room-assets/${path}`;
   }
+  // Removes Storage files queued by admin_delete_room. Only names the server
+  // queued are sent, the delete policy refuses anything still referenced, and
+  // the server marks a file removed only after its object row is gone, so a
+  // failed or partial attempt simply stays queued for the next run.
+  async function cleanupDeletedRoomAssets() {
+    const pending = await checked(client.rpc('admin_room_asset_cleanup_pending'));
+    if (!pending?.length) return { removed: 0, failed: 0 };
+    const names = pending.map(row => row.object_name);
+    let failure = null;
+    try {
+      const { error } = await bucket.remove(names);
+      failure = error?.message || null;
+    } catch (error) { failure = error?.message || 'Storage request failed'; }
+    return checked(client.rpc('admin_record_room_asset_cleanup',
+      { p_results: names.map(name => ({ name, error: failure })) }));
+  }
   async function removeAsset(ref) {
     const path=managedRef(ref);
     if(!path) return;
@@ -146,5 +162,5 @@ export function createAdminRepository(client) {
 
   return Object.freeze({ load,listRooms,loadHistory,loadAssignments,setRoomAssignment,listEvents,createRoom,createRoomForName,updateRoom,
     getRoom,saveRoomDraft,deleteNewRoom,deleteRoom,saveHint,
-    deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset });
+    deleteHint,reorderHints,saveMedia,deleteMedia,uploadAsset,removeAsset,cleanupDeletedRoomAssets });
 }

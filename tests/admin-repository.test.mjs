@@ -28,3 +28,41 @@ test('a failed new-room save rolls back through the same function',async()=>{
   await createAdminRepository(client).deleteNewRoom('room-x','غرفة جديدة');
   assert.deepEqual(calls,[['admin_delete_room',{p_room_id:'room-x',p_confirm_name:'غرفة جديدة'}]]);
 });
+
+const cleanupClient=({pending,removeError=null,removeThrows=false})=>{
+  const calls=[];
+  const bucket={remove(names){calls.push(['remove',names]);
+    if(removeThrows)return Promise.reject(new Error('network down'));
+    return Promise.resolve({data:[],error:removeError});}};
+  return {calls,client:{storage:{from:name=>{calls.push(['bucket',name]);return bucket;}},
+    from(){throw new Error('no table access expected');},
+    rpc(name,args){calls.push([name,args]);
+      if(name==='admin_room_asset_cleanup_pending')return Promise.resolve({data:pending,error:null});
+      return Promise.resolve({data:{removed:1,failed:0},error:null});}}};
+};
+
+test('storage cleanup removes only server-queued names and reports each result',async()=>{
+  const {calls,client}=cleanupClient({pending:[{object_name:'room-x/a.png',room_id:'room-x',attempts:0},
+    {object_name:'room-x/b.mp3',room_id:'room-x',attempts:2}]});
+  await createAdminRepository(client).cleanupDeletedRoomAssets();
+  assert.deepEqual(calls.filter(call=>call[0]!=='bucket'),[
+    ['admin_room_asset_cleanup_pending',undefined],
+    ['remove',['room-x/a.png','room-x/b.mp3']],
+    ['admin_record_room_asset_cleanup',{p_results:[{name:'room-x/a.png',error:null},{name:'room-x/b.mp3',error:null}]}]]);
+});
+
+test('storage cleanup with nothing queued makes no Storage call',async()=>{
+  const {calls,client}=cleanupClient({pending:[]});
+  assert.deepEqual(await createAdminRepository(client).cleanupDeletedRoomAssets(),{removed:0,failed:0});
+  assert.ok(!calls.some(call=>call[0]==='remove'||call[0]==='admin_record_room_asset_cleanup'));
+});
+
+test('storage failures are reported so the server keeps the files queued',async()=>{
+  for(const options of [{removeError:{message:'quota'}},{removeThrows:true}]){
+    const {calls,client}=cleanupClient({pending:[{object_name:'room-x/a.png',room_id:'room-x',attempts:0}],...options});
+    await createAdminRepository(client).cleanupDeletedRoomAssets();
+    const record=calls.find(call=>call[0]==='admin_record_room_asset_cleanup');
+    assert.equal(record[1].p_results[0].name,'room-x/a.png');
+    assert.ok(record[1].p_results[0].error,'error must be reported');
+  }
+});

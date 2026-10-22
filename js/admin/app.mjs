@@ -1,5 +1,5 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=bc-2';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=bc-3';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
 import { renderRoomWorkspace } from './room-workspace.mjs?v=bc-2';
@@ -807,6 +807,9 @@ async function deleteCurrentRoom(){
         return;
       }
       dialog.close();
+      // Files the room alone used are removed in the background; failures stay
+      // queued server-side and are retried on the next Admin load.
+      repository.cleanupDeletedRoomAssets().catch(()=>{});
       if(state.data)state.data.rooms=state.data.rooms.filter(item=>item.id!==draft.roomId);
       workspaceDraft=null;
       navigate('admin.html?view=rooms');
@@ -1043,6 +1046,7 @@ async function boot(){
   if(['history','session'].includes(route().view)&&!state.error){
     try{state.history=await repository.loadHistory();}catch{state.historyError=true;}
   }
+  if(!state.error)repository.cleanupDeletedRoomAssets().catch(()=>{});
   performance.mark('ahaji:data-ready');
   render();
   await waitForImages(visibleImages(content),BOOT_IMAGE_BUDGET_MS);
