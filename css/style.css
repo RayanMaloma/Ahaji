@@ -196,7 +196,6 @@ html, body {
 @media (max-width: 720px) {
   .auth-topbar { position: static; margin-bottom: 1rem; flex-wrap: wrap; justify-content: center; }
   .gm-header-actions { gap: .35rem; }
-  .gm-header-actions #auth-role { display: none; }
 }
 
 /* Arabic-first staff entry, using the existing Ahaji dark palette. */

@@ -2,25 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAdminRepository } from '../js/data/admin-repository.mjs';
 
-const fakeClient=result=>{
+const rpcClient=result=>{
   const calls=[];
-  const query={
-    delete(){calls.push('delete');return query;},
-    eq(column,value){calls.push(['eq',column,value]);return query;},
-    select(columns){calls.push(['select',columns]);return Promise.resolve(result);}
-  };
-  return {calls,client:{storage:{from:()=>({})},from(table){calls.push(['from',table]);return query;}}};
+  return {calls,client:{storage:{from:()=>({})},
+    from(){throw new Error('rooms must not be deleted through table access');},
+    rpc(name,args){calls.push([name,args]);return Promise.resolve(result);}}};
 };
 
-test('deleteRoom removes exactly the requested room',async()=>{
-  const {calls,client}=fakeClient({data:[{id:'anbar'}],error:null});
-  await createAdminRepository(client).deleteRoom('anbar');
-  assert.deepEqual(calls,[['from','rooms'],'delete',['eq','id','anbar'],['select','id']]);
+test('deleteRoom goes through admin_delete_room with the typed confirmation',async()=>{
+  const summary={roomId:'anbar',sessions:7,events:40,hints:50,media:4,assignments:1};
+  const {calls,client}=rpcClient({data:summary,error:null});
+  assert.deepEqual(await createAdminRepository(client).deleteRoom('anbar','عنبر 23'),summary);
+  assert.deepEqual(calls,[['admin_delete_room',{p_room_id:'anbar',p_confirm_name:'عنبر 23'}]]);
 });
 
-test('deleteRoom surfaces the session restriction and silent no-ops',async()=>{
-  const restricted=fakeClient({data:null,error:{code:'23503',message:'violates foreign key'}});
-  await assert.rejects(createAdminRepository(restricted.client).deleteRoom('anbar'),{code:'23503'});
-  const missing=fakeClient({data:[],error:null});
-  await assert.rejects(createAdminRepository(missing.client).deleteRoom('anbar'),/لم تُحذف الغرفة/);
+test('deleteRoom keeps backend refusal codes for the dialog',async()=>{
+  for(const code of ['55006','22023','42501','P0002']){
+    const {client}=rpcClient({data:null,error:{code,message:'refused'}});
+    await assert.rejects(createAdminRepository(client).deleteRoom('anbar','عنبر 23'),{code});
+  }
+});
+
+test('a failed new-room save rolls back through the same function',async()=>{
+  const {calls,client}=rpcClient({data:{roomId:'room-x'},error:null});
+  await createAdminRepository(client).deleteNewRoom('room-x','غرفة جديدة');
+  assert.deepEqual(calls,[['admin_delete_room',{p_room_id:'room-x',p_confirm_name:'غرفة جديدة'}]]);
 });

@@ -1,4 +1,4 @@
--- Run against a database after the foundation migration and seed.
+-- Run after all migrations, on a freshly seeded or a restored disposable database.
 -- Every trial write is rolled back; errors fail the check.
 begin;
 
@@ -6,30 +6,64 @@ do $$
 declare
   trial_session_id uuid;
 begin
-  if (select count(*) from public.rooms) <> 3 then
-    raise exception 'Expected exactly three seeded rooms';
+  -- The three permanent rooms always exist. On a freshly seeded database
+  -- (no other rooms yet) the seed must match the approved files exactly;
+  -- a restored or live database may hold more rooms and Admin edits.
+  if (select count(*) from public.rooms where id in ('anbar','haram','saleh')) <> 3 then
+    raise exception 'A permanent room is missing';
   end if;
-  if (select count(*) from public.room_hints) <> 129 then
-    raise exception 'Hint seed count differs from the approved files';
-  end if;
-  if (select count(*) from public.room_media) <> 10 then
-    raise exception 'Media seed count differs from the room configuration';
+  if not exists (select 1 from public.rooms where id not in ('anbar','haram','saleh')) then
+    if (select count(*) from public.room_hints) <> 129 then
+      raise exception 'Hint seed count differs from the approved files';
+    end if;
+    if (select count(*) from public.room_media) <> 10 then
+      raise exception 'Media seed count differs from the room configuration';
+    end if;
+    if (select name from public.rooms where id = 'anbar') <> 'عنبر 23' then
+      raise exception 'Seeded anbar name is not عنبر 23';
+    end if;
   end if;
 
+  -- Deny by default: every public table has RLS and anon holds no table
+  -- privilege at all. Since Phase 4, authenticated staff reach room content
+  -- only through admin/room RLS policies, and sessions only by reading;
+  -- session writes go through game_session_command.
   if exists (
     select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public'
-      and c.relname in ('rooms', 'room_hints', 'room_media', 'game_sessions')
-      and (
-        not c.relrowsecurity
+    where n.nspname = 'public' and c.relkind = 'r'
+      and (not c.relrowsecurity
         or has_table_privilege('anon', c.oid, 'select')
         or has_table_privilege('anon', c.oid, 'insert')
-        or has_table_privilege('authenticated', c.oid, 'select')
-        or has_table_privilege('authenticated', c.oid, 'insert')
-        or not has_table_privilege('service_role', c.oid, 'select')
-      )
+        or has_table_privilege('anon', c.oid, 'update')
+        or has_table_privilege('anon', c.oid, 'delete'))
   ) then
-    raise exception 'Table grants or RLS differ from the deny-by-default contract';
+    raise exception 'A public table lacks RLS or is exposed to anon';
+  end if;
+  if not has_table_privilege('authenticated', 'public.game_sessions', 'select')
+    or has_table_privilege('authenticated', 'public.game_sessions', 'insert')
+    or has_table_privilege('authenticated', 'public.game_sessions', 'update')
+    or has_table_privilege('authenticated', 'public.game_sessions', 'delete')
+  then
+    raise exception 'Clients can write game sessions directly';
+  end if;
+  if exists (
+    select 1 from (values ('public.room_hints'), ('public.room_media')) t(name)
+    where not (has_table_privilege('authenticated', t.name, 'select')
+      and has_table_privilege('authenticated', t.name, 'insert')
+      and has_table_privilege('authenticated', t.name, 'update')
+      and has_table_privilege('authenticated', t.name, 'delete'))
+  ) or not has_table_privilege('authenticated', 'public.rooms', 'select')
+    -- Rooms are deleted only through admin_delete_room.
+    or has_table_privilege('authenticated', 'public.rooms', 'delete')
+  then
+    raise exception 'Room content privileges differ from the Admin RLS contract';
+  end if;
+  if exists (
+    select 1 from (values ('public.rooms'), ('public.room_hints'),
+      ('public.room_media'), ('public.game_sessions')) t(name)
+    where not has_table_privilege('service_role', t.name, 'select')
+  ) then
+    raise exception 'Service role cannot read application tables';
   end if;
   if has_function_privilege('anon', 'public.touch_updated_at()', 'execute')
     or has_function_privilege('authenticated', 'public.touch_updated_at()', 'execute')

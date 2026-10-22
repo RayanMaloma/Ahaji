@@ -11,7 +11,7 @@ For an existing room, Save All uses this order:
 3. Call `admin_save_room_draft` with the room's original `content_revision`, room settings, and only the hint/media collections that changed. The function checks the current active Admin role, locks the room, rejects a stale revision, validates room-scoped IDs and file references, and commits all relational changes in one PostgreSQL transaction.
 4. Reload the authoritative room and reset the draft. If the RPC failed, keep the draft and try to remove only the newly uploaded objects. Report cleanup failure; do not display global success.
 
-New-room creation inserts an inactive room first so uploads can use its stable folder, then updates its settings. On a failed creation, the application attempts to delete that newly created room and staged objects. Existing room IDs are immutable. Storage writes are separate from PostgreSQL, so the entire save is not an atomic distributed transaction.
+New-room creation inserts an inactive room first so uploads can use its stable folder, then updates its settings. On a failed creation, the application attempts to delete that newly created room through `admin_delete_room` and to remove staged objects. Existing room IDs are immutable. Storage writes are separate from PostgreSQL, so the entire save is not an atomic distributed transaction.
 
 All room, hint, and media mutations increment `rooms.content_revision`, including changes made through older row APIs. The current editor rejects stale revisions with SQLSTATE `40001`. A conflict keeps the local draft intact; Discard reloads the latest server room. It deliberately does not merge concurrent edits automatically.
 

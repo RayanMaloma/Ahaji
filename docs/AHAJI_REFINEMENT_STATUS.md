@@ -2,6 +2,19 @@
 
 Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Product Owner decision: **request changes; not approved**. Work is on `codex/final-review-refinements`. Do not merge or deploy the application.
 
+## Product Owner corrections on BC-Work (2026-10-23)
+
+Work is on `BC-Work`. Nothing below is applied live or deployed; each live step needs explicit approval.
+
+- [x] **Room deletion with history** (PO decision 2026-10-23: delete the room and its history, not archive). Migration `20261023100100_admin_delete_room.sql` adds `admin_delete_room(room_id, confirm_name)`: Admin-only, typed room name required, refused while a game is running or paused (55006), then deletes sessions, events, hints, media rows, and assignments, and writes a `delete_with_history` audit row with counts. Direct `DELETE` on `rooms` is revoked; the Admin UI no longer reads foreign-key error codes. Storage objects are retained. Other operational assignments are untouched.
+- [x] Same migration: hints and media now follow the rooms visibility rule. Since `20261012161900`, an assigned Game Master could read hints and media of a deactivated room indefinitely; found by the repaired `phase4_rls.sql`.
+- [x] **«عنبر 23»**: migration `20261023100000_rename_anbar_display_name.sql` renames `anbar` only if it is still «السجن». Live checked read-only 2026-10-23: `anbar` is «السجن», 7 sessions, assignments venue → anbar/haram/saleh and events → `room-1c0392f`, no running games. The rollout script was not run.
+- [x] **GM headers**: room selection and room screens show only «تسجيل الخروج» in the account area (Admin still sees «لوحة الإدارة»). No role label, email, or username; the GM tab title is the room name.
+- [x] **Legacy SQL tests**: `seed.sql` satisfies `rooms_single_image`; `phase3_assertions`, `phase4_rls`, and `phase5_directory_rls` run on a fresh seed and on a restored snapshot. Their privilege checks follow the current contract and are stricter (anon has no privilege on any public table; Admin cannot write roles directly).
+- [ ] Live: apply both migrations after a fresh snapshot, with approval.
+- [ ] Live migration history lacks `20261019100000_theme_and_audio_trim` (applied through the SQL editor; its columns exist). Record it before the next `supabase db push`.
+- [ ] GM room screen scrolls horizontally at 390 px (timer panel, 431 px). Pre-existing on both the PC and laptop branches.
+
 ## Super Admin, reserved accounts, and deletion (2026-10-19)
 
 The Product Owner requested changes after creating `venue` and `events`. Implemented locally; see `docs/AHAJI_STAFF_ACCOUNTS.md`.

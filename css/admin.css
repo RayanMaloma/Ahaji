@@ -317,6 +317,9 @@ body{direction:rtl;background:var(--paper)}
 .leave-draft-copy{margin:0;line-height:1.65;color:#e0ded6}
 .leave-draft-actions{display:flex;gap:9px;flex-wrap:wrap}
 .leave-draft-actions button{min-height:40px}
+.room-delete-confirm{display:grid;gap:7px;color:#e0ded6;font-size:.9rem}
+.room-delete-confirm input{min-height:41px;padding:10px 12px;border:1px solid rgba(255,255,255,.17);border-radius:8px;background:#1c1c1c;color:var(--ink);font:inherit}
+.room-delete-confirm input:focus{border-color:var(--yellow);outline:none}
 .admin-content>.settings-section{margin-bottom:24px}
 .admin-content>.settings-section:last-child{margin-bottom:0}
 .room-delete-section{margin-top:24px}

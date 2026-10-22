@@ -293,7 +293,7 @@ function renderSettings({draft,container,onSave}){
 
 function renderDeleteRoom({container,onDelete}){
   const section=settingsGroup('حذف الغرفة',
-    'يُحذف نهائياً مع تلميحاتها ووسائطها. الغرفة التي لُعبت فيها جلسات لا تُحذف؛ أوقفها بدلاً من ذلك.');
+    'تُحذف الغرفة نهائياً مع تلميحاتها ووسائطها وربطها بالحسابات وجميع جلساتها السابقة. لا يمكن الحذف أثناء لعبة جارية.');
   section.classList.add('room-delete-section');
   const remove=btn('حذف الغرفة نهائياً','mini-action danger room-delete-button');
   remove.addEventListener('click',()=>onDelete());

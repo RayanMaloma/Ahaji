@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRoomDraft } from '../js/admin/room-draft.mjs';
 
 const room=()=>({
-  id:'anbar',name:'السجن',description:'',defaultDuration:3600,isActive:true,
+  id:'anbar',name:'عنبر 23',description:'',defaultDuration:3600,isActive:true,
   backgroundImage:'images/prison.jpg',contentRevision:7,
   presentation:{timerScale:1,timerColor:'#ffffff'},
   hints:[{id:'h1',text:'الأول'},{id:'h2',text:'الثاني'}],
@@ -43,16 +43,16 @@ test('new room carries the full presentation profile without touching display se
 
 test('failed save leaves draft editable and committed save rebases revision',()=>{
   const draft=createRoomDraft(room());
-  draft.setGeneral({name:'السجن الجديد'});
+  draft.setGeneral({name:'عنبر 23 الجديد'});
   draft.setSaving(true);
   draft.setSaving(false);
   draft.setStatus('فشل الحفظ',true);
   assert.equal(draft.isDirty(),true);
-  assert.equal(draft.general.name,'السجن الجديد');
+  assert.equal(draft.general.name,'عنبر 23 الجديد');
   draft.markCommitted(10);
   assert.equal(draft.isDirty(),false);
   assert.equal(draft.locked,true);
-  draft.resetFrom({...room(),name:'السجن الجديد',contentRevision:10});
+  draft.resetFrom({...room(),name:'عنبر 23 الجديد',contentRevision:10});
   assert.equal(draft.locked,false);
   assert.equal(draft.revision,10);
   assert.equal(draft.isDirty(),false);

@@ -105,6 +105,8 @@ Room `anbar` keeps its ID and every relationship. Only `rooms.name` changes. In 
 
 **Rollback:** remove the slots (`admin_set_operational_slot(id, null)`). Access rows remain ordinary assignments. Dropping the migration's functions, triggers, and column restores the previous schema; restore the previous `admin_staff_directory` from `20261012161918_operational_staff_accounts.sql`.
 
+**Live data checked 2026-10-23 (read-only):** both operational accounts exist; venue holds anbar, haram, saleh and events holds `room-1c0392f`. `anbar` is still «السجن»; migration `20261023100000` renames it once approved.
+
 **Live data checked 2026-10-19:** «أسرار الفاو» exists as `room-1c0392f` (11 hints, 5 media). `anbar` is still «السجن». No operational accounts exist and no games are running.
 
 ## Tests

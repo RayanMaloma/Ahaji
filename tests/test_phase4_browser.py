@@ -73,7 +73,10 @@ class Phase4BrowserTests(unittest.TestCase):
         gm = gm_context.new_page()
         gm.goto(self.base + "/index.html")
         expect(gm.locator(".room-card")).to_have_count(1)
-        expect(gm.locator("#auth-role")).to_have_text("مدير لعبة")
+        # GM headers show no role label, account email, or username: only logout.
+        expect(gm.locator(".auth-topbar > :visible")).to_have_count(1)
+        expect(gm.locator(".auth-topbar > :visible")).to_have_text("تسجيل الخروج")
+        expect(gm.locator("#auth-role, #auth-email")).to_have_count(0)
         gm.goto(self.base + "/gm.html?room=haram")
         expect(gm).to_have_url(self.base + "/unauthorized.html?reason=room")
 

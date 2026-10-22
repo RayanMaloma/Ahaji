@@ -97,15 +97,15 @@ export function createAdminRepository(client) {
       p_hints:payload.hints,p_media:payload.media
     }));
   }
-  async function deleteNewRoom(id) {
-    return checked(client.from('rooms').delete().eq('id', id));
+  // Rooms are deleted only through admin_delete_room, which removes the room
+  // with its hints, media rows, assignments, sessions and events, and refuses
+  // (55006) while a game is running or paused. The caller must pass the
+  // room's current name as confirmation (22023 otherwise).
+  async function deleteRoom(id, confirmName) {
+    return checked(client.rpc('admin_delete_room', { p_room_id: id, p_confirm_name: confirmName }));
   }
-  // Sessions reference rooms with ON DELETE RESTRICT, so a played room fails
-  // with 23503 and stays intact. Hints, media rows and room access cascade.
-  async function deleteRoom(id) {
-    const rows = await checked(client.from('rooms').delete().eq('id', id).select('id'));
-    if (!rows?.length) throw new Error('لم تُحذف الغرفة. ربما حُذفت مسبقاً أو لا تملك الصلاحية.');
-  }
+  // Rolls back a room created moments ago by a save that then failed.
+  function deleteNewRoom(id, name) { return deleteRoom(id, name); }
   async function saveHint(roomId, hint) {
     if (hint.id) return checked(client.from('room_hints').update({body:hint.text})
       .eq('id',hint.id).eq('room_id',roomId).select('id').single());

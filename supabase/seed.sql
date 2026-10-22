@@ -3,7 +3,7 @@
 -- Apply after the foundation migration; credentials stay outside this file.
 
 insert into public.rooms (id, name, thumbnail_ref, background_ref, default_duration_seconds, display_order)
-values ('anbar', 'عنبر 23', 'images/prison.jpg', 'source/prison/background.jpg', 3600, 0)
+values ('anbar', 'عنبر 23', 'source/prison/background.jpg', 'source/prison/background.jpg', 3600, 0)
 on conflict (id) do nothing;
 
 insert into public.room_hints (room_id, body, display_order)
@@ -171,7 +171,7 @@ values ('anbar', 'gm_sound', 'صوت باب العنبر', 'source/prison/sounds
 on conflict (room_id, kind, display_order) do nothing;
 
 insert into public.rooms (id, name, thumbnail_ref, background_ref, default_duration_seconds, display_order)
-values ('haram', 'الهرم', 'images/pyramid.png', 'source/pyramid/background.jpg', 3600, 1)
+values ('haram', 'الهرم', 'source/pyramid/background.jpg', 'source/pyramid/background.jpg', 3600, 1)
 on conflict (id) do nothing;
 
 insert into public.room_hints (room_id, body, display_order)
@@ -282,7 +282,7 @@ values ('haram', 'gm_image', 'تلميح لغز الدرج', 'source/pyramid/img
 on conflict (room_id, kind, display_order) do nothing;
 
 insert into public.rooms (id, name, thumbnail_ref, background_ref, default_duration_seconds, display_order)
-values ('saleh', 'العم صالح', 'images/unclesaleh.png', 'source/unclesaleh/background.jpg', 3600, 2)
+values ('saleh', 'العم صالح', 'source/unclesaleh/background.jpg', 'source/unclesaleh/background.jpg', 3600, 2)
 on conflict (id) do nothing;
 
 insert into public.room_hints (room_id, body, display_order)

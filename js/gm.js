@@ -65,7 +65,7 @@
     }
   }
 
-  document.title = `${state.roomName} - Game Master`;
+  document.title = `${state.roomName} · أحاجي`;
 
   let renderIntervalId = null;
   // One-shot latch so the timeout/lose handler only fires once per run.

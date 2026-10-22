@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 begin;
 insert into public.rooms (id,name,thumbnail_ref,background_ref)
-values ('anbar','Test room','images/test.jpg','source/test/background.jpg')
+values ('anbar','Test room','source/test/background.jpg','source/test/background.jpg')
 on conflict (id) do nothing;
 insert into auth.users (id,email,email_confirmed_at) values
   ('00000000-0000-4000-8000-000000000011','admin@test.invalid',now()),
@@ -19,10 +19,15 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000011',true);
 select set_config('request.jwt.claims','{"session_id":"10000000-0000-4000-8000-000000000011"}',true);
 do $$ begin
-  if (select count(*) from public.admin_staff_directory()) <> 2 then
+  -- The directory lists every staff account, including any already present
+  -- in a restored database, and both fixtures.
+  if (select count(*) from public.admin_staff_directory()) <> (select count(*) from public.staff_accounts)
+    or (select count(*) from public.admin_staff_directory() where user_id in
+      ('00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000012')) <> 2 then
     raise exception 'Admin directory did not return both staff';
   end if;
-  if (select room_ids from public.admin_staff_directory() where role='game_master') <> array['anbar']::text[] then
+  if (select room_ids from public.admin_staff_directory()
+      where user_id='00000000-0000-4000-8000-000000000012') <> array['anbar']::text[] then
     raise exception 'GM assignment not returned';
   end if;
 end $$;

@@ -1,8 +1,8 @@
 import { supabase, currentAccess } from '../auth/client.mjs';
-import { createAdminRepository } from '../data/admin-repository.mjs?v=bc-1';
+import { createAdminRepository } from '../data/admin-repository.mjs?v=bc-2';
 import { metricLabel, roomMetrics } from './room-metrics.mjs';
 import { profileInitial, profileName } from './profile-avatar.mjs?v=phase5-final';
-import { renderRoomWorkspace } from './room-workspace.mjs?v=bc-1';
+import { renderRoomWorkspace } from './room-workspace.mjs?v=bc-2';
 import { createRoomDraft } from './room-draft.mjs?v=theme-1';
 import {activeDuration,dateKey,groupLabel} from './history-model.mjs?v=refinement-2';
 import {createLoader,withImageSkeleton,preloadImages,waitForImages,visibleImages,revealPage} from '../loader.mjs?v=bc-1';
@@ -778,20 +778,32 @@ async function deleteCurrentRoom(){
   const room=state.data?.rooms.find(item=>item.id===draft.roomId);
   const name=room?.name||draft.general.name;
   const {dialog}=showDialog('حذف الغرفة',(form,dialog)=>{
-    form.append(node('p','leave-draft-copy',`ستُحذف غرفة «${name}» نهائياً مع تلميحاتها ووسائطها.`),
+    form.append(node('p','leave-draft-copy',`ستُحذف غرفة «${name}» نهائياً مع تلميحاتها ووسائطها وربطها بالحسابات، ومع جميع جلساتها السابقة وسجلّها.`),
       node('p','leave-draft-copy','لا يمكن التراجع عن ذلك.'));
+    const label=node('label','room-delete-confirm');
+    label.append(node('span','',`للتأكيد، اكتب اسم الغرفة: ${name}`));
+    const confirmInput=document.createElement('input');
+    confirmInput.type='text';confirmInput.autocomplete='off';confirmInput.dir='auto';
+    confirmInput.setAttribute('aria-label','اسم الغرفة للتأكيد');
+    label.append(confirmInput);form.append(label);
     const actions=node('div','leave-draft-actions');
     const remove=button('حذف الغرفة نهائياً','mini-action danger');
     const cancel=button('إلغاء','mini-action');
+    remove.disabled=true;
+    confirmInput.addEventListener('input',()=>{remove.disabled=confirmInput.value.trim()!==name;});
     remove.addEventListener('click',async()=>{
-      remove.disabled=true;cancel.disabled=true;draft.setSaving(true);
+      if(confirmInput.value.trim()!==name)return;
+      remove.disabled=true;cancel.disabled=true;confirmInput.disabled=true;draft.setSaving(true);
       try{
-        await repository.deleteRoom(draft.roomId);
+        await repository.deleteRoom(draft.roomId,name);
       }catch(error){
-        draft.setSaving(false);remove.disabled=false;cancel.disabled=false;
-        formStatus(form,error.code==='23503'
-          ?'لا يمكن حذف غرفة لُعبت فيها جلسات لأن سجلها مرتبط بها. اجعلها «غير نشطة» بدلاً من ذلك.'
-          :error.message||'تعذّر حذف الغرفة.');
+        draft.setSaving(false);cancel.disabled=false;confirmInput.disabled=false;
+        remove.disabled=confirmInput.value.trim()!==name;
+        formStatus(form,error.code==='55006'
+          ?'تجري لعبة في هذه الغرفة الآن. أنهِ الجلسة أولاً ثم احذف الغرفة.'
+          :error.code==='22023'
+            ?'الاسم المكتوب لا يطابق اسم الغرفة الحالي. حدّث الصفحة وحاول مرة أخرى.'
+            :error.message||'تعذّر حذف الغرفة.');
         return;
       }
       dialog.close();
@@ -861,7 +873,7 @@ async function saveCurrentDraft(){
   }catch(error){
     if(!committed){
       const cleanup=await Promise.allSettled(stagedRefs.map(ref=>repository.removeAsset(ref)));
-      if(created)await repository.deleteNewRoom(roomId).catch(()=>{});
+      if(created)await repository.deleteNewRoom(roomId,values.name.trim()).catch(()=>{});
       const incomplete=cleanup.some(result=>result.status==='rejected');
       draft.setSaving(false);
       const conflict=error.code==='40001';
