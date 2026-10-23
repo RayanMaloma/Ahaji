@@ -32,6 +32,10 @@ Conclusion: the migration's whole intended effect is present live. Only its hist
 
 `db push` would run `20261019100000` again. It would fail on `add column trim_start_ms` (column already exists), and it would also apply the two unapproved 2026-10-23 migrations. Do not run it until the history is repaired and those migrations are approved.
 
+## Status
+
+Resolved 2026-10-23 with Product Owner approval. All 15 fingerprints were re-verified, and the version was recorded once as `theme_and_audio_trim` without re-running its SQL. `20261023100000` and `20261023100100` were then applied, each with its history row in the same transaction. Live history now matches `supabase/migrations/` through `20261023100100`.
+
 ## Reconciliation procedure (requires separate Product Owner authorization)
 
 1. Re-run the verify script live, read-only. Continue only if all 15 rows still equal the table above. Any difference means the live schema changed; stop and investigate instead.
