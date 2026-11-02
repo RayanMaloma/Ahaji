@@ -1,0 +1,9 @@
+/*
+# Allowlist: deploy only what the website serves at runtime. Everything else in
+# this repository (documentation, database and test files, scripts, local
+# configuration, source-of-truth hint files) stays out of the public site.
+!*.html
+!css
+!js
+!images
+!source
