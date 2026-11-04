@@ -155,8 +155,7 @@
     if(message.type==='error')alert(message.error?.message||'تعذّر حفظ حالة الجلسة. أعد تحميل الصفحة.');
     if(message.type==='connection'){
       const indicator=document.getElementById('gm-connection');
-      if(indicator){indicator.textContent=message.status==='connected'?'متصل':'جارٍ إعادة الاتصال…';
-        indicator.classList.toggle('connected',message.status==='connected');}
+      if(indicator)indicator.hidden=message.status==='connected';
     }
   });
 

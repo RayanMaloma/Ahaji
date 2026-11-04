@@ -2,6 +2,17 @@
 
 Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Product Owner decision: **request changes; not approved**. Work is on `codex/final-review-refinements`. Do not merge or deploy the application.
 
+## Game Master UX refinements on Ahaji-Platform (2026-11-04)
+
+Work is on `Ahaji-Platform`, pushed on the Product Owner's instruction; not merged to `main`, and no live Supabase change. Tested with mocked Supabase and a mocked Realtime socket only. Awaiting Product Owner review.
+
+- [x] **Room arrival**: a room card opens the console with a quiet progress line instead of repeating the splash. Authentication, room authorization, and session setup are unchanged and still run before anything is shown. See `docs/AHAJI_LOADER.md`.
+- [x] **Connection badge**: «متصل» is gone from the room screen. The notice «جارٍ إعادة الاتصال…» appears only while the connection is lost, at the bottom corner, clear of the header.
+- [x] **Logout**: removed from the room screen and kept on room selection. This supersedes the 2026-10-23 GM headers item for the room screen.
+- [x] **Header divider**: logo, divider, room name in RTL, using logical CSS properties at all widths.
+- [x] **Controls**: فوز, تنبيه, الصوت, and جلسة جديدة are 8 px taller: 37.2 to 45.2 px above 720 px, 40 to 48 px on phones.
+- [ ] Product Owner decision open: the room screen has no in-app link back to room selection, before or after this change. The browser's Back button returns there.
+
 ## Product Owner corrections on BC-Work (2026-10-23)
 
 Work is on `BC-Work`. Nothing below is applied live or deployed; each live step needs explicit approval.

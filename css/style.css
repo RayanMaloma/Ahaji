@@ -161,12 +161,12 @@ html, body {
 }
 
 .gm-protected-content { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
-.gm-header-actions { display: flex; align-items: center; gap: 1rem; }
-.auth-logout, .auth-topbar button {
+.gm-header-actions { display: flex; align-items: center; }
+.auth-topbar button {
   border: 1px solid var(--border-mid); background: transparent; color: var(--text);
   border-radius: 6px; padding: .55rem .85rem; cursor: pointer; font: inherit;
 }
-.auth-logout:hover, .auth-topbar button:hover { border-color: var(--accent); }
+.auth-topbar button:hover { border-color: var(--accent); }
 .auth-status { margin: auto; color: var(--text-dim); font-size: 1rem; text-align: center; padding: 2rem; }
 .index-protected { width: 100%; display: flex; flex-direction: column; align-items: center; }
 .auth-topbar { position: absolute; top: 1.2rem; right: 1.5rem; display: flex; align-items: center; gap: 1rem; color: var(--text-dim); font-size: .8rem; }
@@ -195,7 +195,6 @@ html, body {
 .staff-room-list a:hover { border-color: var(--accent); }
 @media (max-width: 720px) {
   .auth-topbar { position: static; margin-bottom: 1rem; flex-wrap: wrap; justify-content: center; }
-  .gm-header-actions { gap: .35rem; }
 }
 
 /* Arabic-first staff entry, using the existing Ahaji dark palette. */
@@ -226,15 +225,20 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
   gap: 1.25rem;
 }
 
-.gm-logo { height: 30px; }
+.gm-logo { height: 30px; flex: none; }
 
+/* The divider sits between the logo and the name, in either writing direction,
+   and matches the logo's height however long the name is. */
 .gm-room-name {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
   font-size: 1rem;
   font-weight: 600;
   color: var(--text);
   letter-spacing: 0.02em;
-  padding-left: 1.25rem;
-  border-left: 1px solid var(--border-mid);
+  padding-inline-start: 1.25rem;
+  border-inline-start: 1px solid var(--border-mid);
 }
 
 .gm-open-cast {
@@ -320,6 +324,12 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
   font-size: 0.73rem;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+}
+
+/* .btn, defined later, sets the padding these controls actually use. This adds
+   4px above and below it and leaves the width alone. */
+.gm-timer-top-actions .gm-top-action-btn {
+  padding-block: calc(0.6rem + 4px);
 }
 
 /* Volume ctrl is a grid item wrapping a button — make it transparent to layout */
@@ -1170,11 +1180,10 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
   }
   .gm-header-left { gap: 0.75rem; min-width: 0; }
   .gm-room-name {
-    padding-left: 0.75rem;
+    padding-inline-start: 0.75rem;
     overflow-wrap: anywhere;
   }
   .gm-header-actions { margin-inline-start: auto; flex-wrap: wrap; justify-content: flex-end; }
-  .gm-header-actions .auth-logout,
   .gm-open-cast { min-height: 40px; padding: 0.5rem 0.9rem; }
 
   /* The desktop console is one fixed screen; on a phone the stacked panels
@@ -1194,7 +1203,7 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
   }
   .gm-top-action-btn {
-    min-height: 40px;
+    min-height: 48px;
     letter-spacing: 0.02em;
   }
   .gm-timer-container { padding: 0.75rem 0.25rem; }
@@ -1841,5 +1850,13 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
 .cast-page[data-hint-position="top"] .cast-hint-area{position:absolute;inset-inline:0;top:11%;margin:0;width:min(88%,860px);margin-inline:auto}
 .cast-page[data-image-fit="cover"] #cast-image-overlay img{width:100%;height:100%;object-fit:cover}
 .cast-room-video{object-fit:var(--cast-video-fit,contain)}
-.gm-connection{position:fixed;inset-block-start:12px;inset-inline-start:12px;z-index:950;background:#734a11;color:#fff;border-radius:6px;padding:5px 9px;font-size:12px}
-.gm-connection.connected{background:#154a29}
+/* Shown only while the connection is lost; it stays clear of the room header. */
+.gm-connection{position:fixed;inset-block-end:12px;inset-inline-start:12px;z-index:950;background:#734a11;color:#fff;border-radius:6px;padding:5px 9px;font-size:12px}
+
+/* Arriving from room selection: the same access gate stays in charge, but shows
+   a quiet progress line that meets the header's accent line, not the splash. */
+.gm-arrival .ahaji-loader--page .ahaji-loader__mark{display:none}
+.gm-arrival .ahaji-loader--page .ahaji-loader__label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.gm-arrival .ahaji-loader--page::before{content:'';position:absolute;inset:0 0 auto;height:3px;background:var(--accent);transform-origin:center;animation:gm-arrival-line 1.1s ease-in-out infinite alternate}
+@keyframes gm-arrival-line{from{transform:scaleX(.15);opacity:.55}to{transform:scaleX(1);opacity:1}}
+@media (prefers-reduced-motion: reduce){.gm-arrival .ahaji-loader--page::before{animation:none}}
