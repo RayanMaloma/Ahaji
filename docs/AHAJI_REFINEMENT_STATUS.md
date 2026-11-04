@@ -6,7 +6,7 @@ Updated 2026-10-14, Asia/Riyadh, after the media and shared-draft review. Produc
 
 Work is on `Ahaji-Platform`, pushed on the Product Owner's instruction; not merged to `main`, and no live Supabase change. Tested with mocked Supabase and a mocked Realtime socket only. Awaiting Product Owner review.
 
-- [x] **Room arrival**: a room card opens the console with a quiet progress line instead of repeating the splash. Authentication, room authorization, and session setup are unchanged and still run before anything is shown. See `docs/AHAJI_LOADER.md`.
+- [x] **Room opening**: a room card opens the console behind the Ahaji logo loader. A quieter progress line was tried in `5c02c06`, and the Product Owner chose the logo instead. Authentication, room authorization, and session setup are unchanged. See `docs/AHAJI_LOADER.md`.
 - [x] **Connection badge**: «متصل» is gone from the room screen. The notice «جارٍ إعادة الاتصال…» appears only while the connection is lost, at the bottom corner, clear of the header.
 - [x] **Logout**: removed from the room screen and kept on room selection. This supersedes the 2026-10-23 GM headers item for the room screen.
 - [x] **Header divider**: logo, divider, room name in RTL, using logical CSS properties at all widths.

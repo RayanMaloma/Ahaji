@@ -38,7 +38,7 @@ Failures: no session → login, no Admin role → `unauthorized.html`, access ne
 
 GM room selection (`js/auth/guard.mjs`) follows the same rule: the cards render under the gate and are revealed with their visible images ready (same 2.5 s budget). GM and staff pages hide the gate once their page script has loaded.
 
-Opening a room from a room card is a full page load, so `gm.html` must check access, authorize the room, and open the session again. Those checks stay, but the splash does not repeat: the card leaves a one-time `ahaji-gm-arrival` note in `sessionStorage` (room ID and time, valid for 15 seconds), and an inline script in `gm.html` then adds `gm-arrival` to `<html>` before first paint. The same gate stays in place, opaque and in charge of `#protected-content`, with its mark hidden, its label kept for screen readers, and a 3 px progress line in place of the splash. The note changes presentation only and grants nothing. Direct links, reloads, and «جلسة جديدة» still show the full gate.
+Opening a room from a room card is a full page load, so `gm.html` checks access, authorizes the room, and opens the session again behind the same logo gate. The Product Owner chose on 2026-11-04 to keep the logo here, after a quieter progress line was tried in `5c02c06`.
 
 ## After boot
 

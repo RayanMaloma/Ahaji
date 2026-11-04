@@ -1852,11 +1852,3 @@ body.auth-page { direction: rtl; unicode-bidi: normal; font-family: 'Thmanyah Se
 .cast-room-video{object-fit:var(--cast-video-fit,contain)}
 /* Shown only while the connection is lost; it stays clear of the room header. */
 .gm-connection{position:fixed;inset-block-end:12px;inset-inline-start:12px;z-index:950;background:#734a11;color:#fff;border-radius:6px;padding:5px 9px;font-size:12px}
-
-/* Arriving from room selection: the same access gate stays in charge, but shows
-   a quiet progress line that meets the header's accent line, not the splash. */
-.gm-arrival .ahaji-loader--page .ahaji-loader__mark{display:none}
-.gm-arrival .ahaji-loader--page .ahaji-loader__label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-.gm-arrival .ahaji-loader--page::before{content:'';position:absolute;inset:0 0 auto;height:3px;background:var(--accent);transform-origin:center;animation:gm-arrival-line 1.1s ease-in-out infinite alternate}
-@keyframes gm-arrival-line{from{transform:scaleX(.15);opacity:.55}to{transform:scaleX(1);opacity:1}}
-@media (prefers-reduced-motion: reduce){.gm-arrival .ahaji-loader--page::before{animation:none}}

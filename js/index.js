@@ -6,12 +6,6 @@ getRooms().filter(room => window.ahajiAuthorizedRoomIds.has(room.id)).forEach((r
   card.className = 'room-card';
   card.dataset.room = room.id;
   card.href = `gm.html?room=${encodeURIComponent(room.id)}`;
-  // Tells gm.html to skip the splash for this arrival. It changes presentation
-  // only: gm.html still checks access and this room before showing anything.
-  card.addEventListener('click', event => {
-    if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-    try { sessionStorage.setItem('ahaji-gm-arrival', JSON.stringify({ room: room.id, at: Date.now() })); } catch {}
-  });
   const img = document.createElement('img');
   img.src = room.thumbnail;
   img.alt = room.name;

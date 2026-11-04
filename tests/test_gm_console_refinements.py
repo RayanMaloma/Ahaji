@@ -1,4 +1,4 @@
-"""GM room arrival, simplified headers, connection feedback, and control heights.
+"""GM room opening, simplified headers, connection feedback, and control heights.
 
 Real Chromium with mocked Supabase and a mocked Realtime socket. Live Supabase
 is not exercised.
@@ -94,7 +94,7 @@ class GmConsoleRefinementTests(unittest.TestCase):
         expect(page.locator("#auth-loading")).to_be_hidden()
         return page
 
-    def test_room_card_arrival_has_no_splash_and_stays_gated(self):
+    def test_room_card_shows_the_logo_loader_and_stays_gated(self):
         context = self.context()
         page = self.open_room_selection(context)
         held = []
@@ -106,11 +106,8 @@ class GmConsoleRefinementTests(unittest.TestCase):
         # Authorization and the session are still pending: nothing protected shows.
         expect(page.locator("#auth-loading")).to_be_visible()
         expect(page.locator("#protected-content")).to_be_hidden()
-        expect(page.locator(SPLASH)).to_be_hidden()
-        self.assertLessEqual(page.locator("#auth-loading .ahaji-loader__label").bounding_box()["height"], 1)
-        self.assertEqual(page.locator("#auth-loading").get_attribute("role"), "status")
-        line = page.locator("#auth-loading").evaluate("el => getComputedStyle(el, '::before').height")
-        self.assertEqual(line, "3px")
+        expect(page.locator(SPLASH)).to_be_visible()
+        expect(page.locator("#auth-loading .ahaji-loader__label")).to_be_visible()
         context.unroute("**/rpc/create_game_session")
         for route in held:
             route.fallback()
@@ -118,35 +115,10 @@ class GmConsoleRefinementTests(unittest.TestCase):
         expect(page.locator("#auth-loading")).to_be_hidden()
         self.assertRegex(page.url, r"room=anbar&session=[0-9a-f-]{36}$")
 
-    def test_splash_remains_for_direct_opens_and_reloads(self):
-        context = self.context()
-        held = []
-        context.route("**/rest/v1/rooms*", lambda route: held.append(route))
-        direct = context.new_page()
-        direct.goto(self.base + "/gm.html?room=anbar")
-        expect(direct.locator(SPLASH)).to_be_visible()
-        direct.close()
-        context.unroute("**/rest/v1/rooms*")
-        for route in held:
-            route.fallback()
-
-        page = self.open_room_selection(context)
-        page.locator(".room-card[data-room='anbar']").click()
-        expect(page.locator("#gm-room-name")).to_have_text("عنبر 23")
-        held.clear()
-        context.route("**/rest/v1/rooms*", lambda route: held.append(route))
-        page.reload()
-        expect(page.locator(SPLASH)).to_be_visible()
-        self.assertEqual(page.evaluate("document.documentElement.classList.contains('gm-arrival')"), False)
-        context.unroute("**/rest/v1/rooms*")
-        for route in held:
-            route.fallback()
-
-    def test_arrival_note_never_grants_access(self):
+    def test_room_access_stays_enforced(self):
         context = self.context(rooms=["anbar"])
         page = self.open_room_selection(context)
         expect(page.locator(".room-card")).to_have_count(1)
-        page.evaluate("sessionStorage.setItem('ahaji-gm-arrival', JSON.stringify({room: 'haram', at: Date.now()}))")
         page.goto(self.base + "/gm.html?room=haram")
         expect(page).to_have_url(self.base + "/unauthorized.html?reason=room")
 
@@ -154,12 +126,10 @@ class GmConsoleRefinementTests(unittest.TestCase):
         self.addCleanup(anonymous.close)
         install_auth_mock(anonymous, authenticated=False, local_session=False, session_store={})
         signed_out = anonymous.new_page()
-        signed_out.goto(self.base + "/login.html")
-        signed_out.evaluate("sessionStorage.setItem('ahaji-gm-arrival', JSON.stringify({room: 'anbar', at: Date.now()}))")
         signed_out.goto(self.base + "/gm.html?room=anbar")
         expect(signed_out).to_have_url(self.base + "/login.html?next=gm.html%3Froom%3Danbar")
 
-    def test_arrival_failure_shows_the_error(self):
+    def test_room_open_failure_shows_the_error(self):
         context = self.context()
         page = self.open_room_selection(context)
         context.route("**/rpc/create_game_session", lambda route: route.fulfill(
