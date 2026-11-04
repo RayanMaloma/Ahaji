@@ -118,6 +118,17 @@ function getRooms() {
   return ROOM_LIST;
 }
 
+// The order of the room cards on screen. The stored display_order is not
+// changed, and any other room follows these in its stored order.
+const ROOM_DISPLAY_LEAD = ['saleh', 'haram', 'anbar'];
+function orderRoomsForDisplay(rooms) {
+  const rank = room => {
+    const lead = ROOM_DISPLAY_LEAD.indexOf(room.id);
+    return lead < 0 ? ROOM_DISPLAY_LEAD.length : lead;
+  };
+  return [...rooms].sort((a, b) => rank(a) - rank(b));
+}
+
 function getRoom(roomId) {
   return Object.hasOwn(ROOMS, roomId) ? ROOMS[roomId] : null;
 }

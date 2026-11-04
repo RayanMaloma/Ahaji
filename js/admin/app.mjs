@@ -142,18 +142,8 @@ function roomTile(room, index = 0) {
   tile.append(cover, body);
   return tile;
 }
-// The Rooms page's own order. The stored display_order is not changed, and any
-// other room follows these in its stored order.
-const ROOMS_PAGE_LEAD = ['saleh', 'haram', 'anbar'];
-function roomsPageOrder(rooms) {
-  const rank = room => {
-    const lead = ROOMS_PAGE_LEAD.indexOf(room.id);
-    return lead < 0 ? ROOMS_PAGE_LEAD.length : lead;
-  };
-  return [...rooms].sort((a, b) => rank(a) - rank(b));
-}
 function renderRooms() {
-  const rooms = roomsPageOrder(state.data.rooms);
+  const rooms = orderRoomsForDisplay(state.data.rooms);
   const add=button('＋ إضافة غرفة','button-dark');
   add.addEventListener('click',()=>navigate('admin.html?view=new-room'));
   content.append(heading('إدارة الغرف','الغرف','إعداد الغرف ومحتواها وتشغيلها.',add));

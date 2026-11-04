@@ -140,6 +140,13 @@ class GmConsoleRefinementTests(unittest.TestCase):
         expect(page.locator("#auth-loading")).to_be_hidden()
         expect(page.locator("#protected-content")).to_be_hidden()
 
+    def test_room_selection_follows_the_display_order(self):
+        page = self.open_room_selection(self.context())
+        self.assertEqual(page.locator(".room-card-name").all_inner_texts(), ["العم صالح", "الهرم", "عنبر 23"])
+        boxes = [page.locator(".room-card").nth(index).bounding_box() for index in range(3)]
+        self.assertGreater(boxes[0]["x"], boxes[1]["x"])
+        self.assertGreater(boxes[1]["x"], boxes[2]["x"])
+
     def test_logout_only_on_room_selection(self):
         context = self.context()
         page = self.open_room_selection(context)

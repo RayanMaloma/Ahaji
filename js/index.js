@@ -1,7 +1,7 @@
 import { withImageSkeleton } from './loader.mjs?v=bc-1';
 
 const roomGrid = document.getElementById('room-grid');
-getRooms().filter(room => window.ahajiAuthorizedRoomIds.has(room.id)).forEach((room, index) => {
+orderRoomsForDisplay(getRooms().filter(room => window.ahajiAuthorizedRoomIds.has(room.id))).forEach((room, index) => {
   const card = document.createElement('a');
   card.className = 'room-card';
   card.dataset.room = room.id;
