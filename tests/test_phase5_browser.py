@@ -2,13 +2,14 @@
 
 import functools
 import http.server
+import json
 import pathlib
 import re
 import threading
 import unittest
 
 from playwright.sync_api import expect, sync_playwright
-from auth_fixture import install_auth_mock, session
+from auth_fixture import DASHBOARD_ROOMS, install_auth_mock, session
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SHOT_DIR = ROOT / "backups" / "refinement-qa"
@@ -49,6 +50,26 @@ class Phase5BrowserTests(unittest.TestCase):
         self.addCleanup(context.close)
         return context
 
+    def test_rooms_page_display_order(self):
+        context = self.context(authenticated=True)
+        # The stored order puts الفاو first; the page's order must not depend on it.
+        fao = {**DASHBOARD_ROOMS[0], "id": "room-fao", "name": "أسرار الفاو", "display_order": -1}
+        rooms = [fao, *DASHBOARD_ROOMS]
+        context.route("**/rest/v1/rooms*", lambda route: route.fulfill(
+            status=200, headers={"content-type": "application/json", "access-control-allow-origin": "*"},
+            body=json.dumps(rooms)))
+        page = context.new_page()
+        page.goto(self.base + "/admin.html?view=rooms")
+        tiles = page.locator(".room-tile")
+        expect(tiles).to_have_count(4)
+        self.assertEqual(tiles.locator("h2").all_inner_texts(), ["العم صالح", "الهرم", "عنبر 23", "أسرار الفاو"])
+        boxes = [tiles.nth(index).bounding_box() for index in range(4)]
+        # Right to left on the first row, and الفاو under it.
+        self.assertGreater(boxes[0]["x"], boxes[1]["x"])
+        self.assertGreater(boxes[1]["x"], boxes[2]["x"])
+        self.assertEqual(boxes[0]["y"], boxes[2]["y"])
+        self.assertGreater(boxes[3]["y"], boxes[0]["y"])
+
     def test_rooms_workspace_and_history_in_rtl(self):
         page = self.context(authenticated=True).new_page()
         page.goto(self.base + "/admin.html")
@@ -58,7 +79,7 @@ class Phase5BrowserTests(unittest.TestCase):
         self.assertEqual(page.locator("#admin-topbar, #topbar-avatar").count(), 0)
         expect(page.get_by_role("button", name="إضافة غرفة", exact=False)).to_have_count(2)
         expect(page.locator(".room-tile")).to_have_count(3)
-        page.locator(".room-tile").first.click()
+        page.locator(".room-tile[href*='id=anbar']").click()
         expect(page).to_have_url(re.compile(r"view=room&id=anbar"))
         expect(page.get_by_role("heading", level=1)).to_have_text("تعديل الغرفة")
         for tab in ("الإعدادات العامة", "التلميحات", "الصور", "المقاطع", "الأصوات"):

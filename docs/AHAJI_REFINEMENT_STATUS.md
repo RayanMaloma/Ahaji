@@ -11,6 +11,7 @@ Work is on `Ahaji-Platform`, pushed on the Product Owner's instruction; not merg
 - [x] **Logout**: removed from the room screen and kept on room selection. This supersedes the 2026-10-23 GM headers item for the room screen.
 - [x] **Header divider**: logo, divider, room name in RTL, using logical CSS properties at all widths.
 - [x] **Controls**: فوز, تنبيه, الصوت, and جلسة جديدة are 8 px taller: 37.2 to 45.2 px above 720 px, 40 to 48 px on phones.
+- [x] **Admin Rooms page order**: العم صالح, الهرم, عنبر 23 from right to left, then every other room in its stored order. This is display only: `display_order` is unchanged, and so are GM room selection and «ربط الغرف».
 - [ ] Product Owner decision open: the room screen has no in-app link back to room selection, before or after this change. The browser's Back button returns there.
 
 ## Product Owner corrections on BC-Work (2026-10-23)

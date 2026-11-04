@@ -238,7 +238,7 @@ class RoomManagementBrowserTests(unittest.TestCase):
         expect(page).to_have_url(re.compile("view=rooms"))
         self.assertEqual(store.rooms[0]["presentation_settings"]["timerScale"], 1.3)
         self.assertEqual(len(store.calls), 3)
-        page.locator(".room-tile").first.click()
+        page.locator(".room-tile[href*='id=anbar']").click()
         page.get_by_label("حجم المؤقت").fill("1.1")
         page.evaluate("history.back()")
         expect(page.get_by_role("dialog", name="تغييرات غير محفوظة")).to_be_visible()
