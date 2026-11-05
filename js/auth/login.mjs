@@ -9,7 +9,7 @@ const next = safeNext(requestedNext);
 function showError(message) { errorBox.textContent = message; errorBox.hidden = false; }
 function route(access) {
   window.location.replace(access.role
-    ? (!requestedNext && access.role === 'admin' ? 'admin.html?view=rooms' : next)
+    ? (next === 'index.html' && access.role === 'admin' ? 'admin.html?view=rooms' : next)
     : 'unauthorized.html');
 }
 

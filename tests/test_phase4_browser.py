@@ -4,6 +4,7 @@ import functools
 import http.server
 import json
 import pathlib
+import re
 import secrets
 import threading
 import unittest
@@ -67,6 +68,34 @@ class Phase4BrowserTests(unittest.TestCase):
         expect(page).to_have_url(self.base + "/login.html")
         page.goto(self.base + "/gm.html?room=anbar")
         expect(page).to_have_url(self.base + "/login.html?next=gm.html%3Froom%3Danbar")
+
+    def test_admin_starts_on_the_dashboard(self):
+        # Signed out at the site root: sign-in leads to the dashboard, not room selection.
+        page = self.context(role="admin").new_page()
+        page.goto(self.base + "/")
+        expect(page).to_have_url(self.base + "/login.html?next=index.html")
+        page.locator("#email").fill("staff@test.invalid")
+        page.locator("#password").fill("correct-password")
+        page.locator("#login-submit").click()
+        expect(page).to_have_url(self.base + "/admin.html?view=rooms")
+
+        # Already signed in: room selection is never shown on the way.
+        context = self.context(role="admin", authenticated=True)
+        held = []
+        context.route("**/rest/v1/rooms*", lambda route: held.append(route))
+        signed_in = context.new_page()
+        signed_in.goto(self.base + "/index.html")
+        expect(signed_in).to_have_url(re.compile(r"/admin\.html\?view=rooms$"))
+        context.unroute("**/rest/v1/rooms*")
+        for route in held:
+            route.fallback()
+        expect(signed_in.locator(".room-tile")).to_have_count(3)
+
+        # The dashboard's own link still opens the GM interface.
+        signed_in.get_by_role("link", name="فتح واجهة مدير اللعبة").click()
+        expect(signed_in).to_have_url(self.base + "/index.html?gm=1")
+        expect(signed_in.locator(".room-card")).to_have_count(3)
+        expect(signed_in.get_by_role("link", name="لوحة الإدارة")).to_be_visible()
 
     def test_role_routing_and_unauthorized(self):
         gm_context = self.context(role="game_master", rooms=["anbar"], authenticated=True)

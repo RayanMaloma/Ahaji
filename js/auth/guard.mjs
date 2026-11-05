@@ -38,6 +38,11 @@ async function checkAccess() {
       window.location.replace('unauthorized.html');
       return;
     }
+    // Admins start on the dashboard; its link to the GM interface carries ?gm=1.
+    if (page === 'index' && access.role === 'admin' && !new URLSearchParams(location.search).has('gm')) {
+      window.location.replace('admin.html?view=rooms');
+      return;
+    }
     if (page === 'gm' || page === 'index') {
       const rooms = await (roomRead || startRoomRead());
       setRoomCatalog(rooms);

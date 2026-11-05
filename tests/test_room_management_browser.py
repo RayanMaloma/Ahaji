@@ -198,7 +198,7 @@ class RoomManagementBrowserTests(unittest.TestCase):
         page.reload()
         expect(page.get_by_label("حجم المؤقت")).to_have_value("1.2")
         gm = context.new_page()
-        gm.goto(self.base + "/index.html")
+        gm.goto(self.base + "/index.html?gm=1")
         gm.locator(".room-card[data-room='anbar']").click()
         gm.locator("#btn-show-hints").click()
         expect(gm.locator("#saved-hints-list li").first).to_contain_text("تلميح جديد")
