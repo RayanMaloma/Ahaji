@@ -13,6 +13,7 @@ Read these before changing anything. They override this file where they are more
 5. `docs/AHAJI_DELIVERY_STATUS.md` and `README.md`.
 6. `docs/AHAJI_ROOM_ASSIGNMENTS.md` — operational accounts (venue and events) and room assignment.
 7. `docs/AHAJI_STAFF_ACCOUNTS.md` — Super Admin, reserved operational accounts, and permanent account deletion.
+8. `docs/AHAJI_EMAIL.md` — temporary Brevo SMTP for Supabase Auth, Arabic email templates, and delivery limits.
 8. `docs/AHAJI_MIGRATION_HISTORY.md` — live migration-history discrepancy and its reconciliation procedure.
 
 Treat code and verified documentation as the source of truth. Record what was tested with mocks versus live services.

@@ -31,11 +31,11 @@ GM receives Postgres Realtime notifications and fetches authoritative session st
 
 ## Staff email limitation
 
-[Supabase's default SMTP sender](https://supabase.com/docs/guides/auth/auth-smtp) has project-team recipient restrictions and no production delivery guarantee. A real invitation to the Product Owner's controlled test address was delivered and redeemed, but arbitrary future staff addresses may still fail until custom SMTP is configured. The endpoint reports an email authorization failure instead of creating a fake success. Do not enable public signup or create confirmed users manually to work around this. A free SMTP tier may be usable but needs account/domain ownership and configuration by an authorized operator; quotas and availability must be checked before production use.
+Since 2026-11-11, Supabase Auth sends recovery and invitation emails through Brevo's free SMTP relay with Arabic Ahaji templates. Password recovery was verified end to end. Mail currently lands in Gmail spam because `ahaji.sa` is not authenticated; invitations and Outlook delivery have not been live-tested. Configuration, limits, troubleshooting and the permanent `ahaji.sa` fix are in `docs/AHAJI_EMAIL.md`. Do not enable public signup or create confirmed users manually to work around delivery problems.
 
 ## Security and secrets
 
-The browser contains only a publishable Supabase key. RLS and explicit grants enforce room, role, and session access. Gameplay writes use named `game_session_command` actions; clients cannot write arbitrary snapshots. Cast holds a 48-character pairing token whose hash is stored in the database, scoped to a room and session, with expiry. Do not put Cast links in public messages or logs. `cast.html` sends no Referer header. Service-role and SMTP credentials belong only in Supabase secret configuration or a short-lived operator environment, never in the frontend, repository, or backup artifact.
+The browser contains only a publishable Supabase key. RLS and explicit grants enforce room, role, and session access. Gameplay writes use named `game_session_command` actions; clients cannot write arbitrary snapshots. Cast holds a 48-character pairing token whose hash is stored in the database, scoped to a room and session, with expiry. Do not put Cast links in public messages or logs. `cast.html` sends no Referer header. Service-role and SMTP credentials (including the Brevo SMTP key) belong only in Supabase secret configuration or a short-lived operator environment, never in the frontend, repository, or backup artifact.
 
 ## Back up
 

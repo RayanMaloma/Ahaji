@@ -27,4 +27,4 @@ Run `npm ci`, `npm test`, and `python -m unittest discover -s tests -v`. Browser
 
 ## Staff email limit
 
-Supabase's built-in sender can restrict recipients and is unsuitable for guaranteed production invitations. The invitation endpoint rejects delivery failures; reliable onboarding of arbitrary staff needs a configured SMTP service. Ahaji does not bypass email ownership verification. See [Supabase's SMTP guidance](https://supabase.com/docs/guides/auth/auth-smtp) and the delivery tracker before treating staff onboarding as accepted.
+Supabase Auth sends recovery and invitation emails through a temporary Brevo SMTP relay with Arabic templates (`supabase/templates/`). Delivery is not guaranteed: `ahaji.sa` is not yet authenticated, so mail may land in spam. The invitation endpoint rejects delivery failures, and Ahaji does not bypass email ownership verification. See `docs/AHAJI_EMAIL.md` before treating staff onboarding as accepted.
